@@ -138,6 +138,21 @@ export default function ExamRunner({
     return () => window.removeEventListener('beforeunload', handler);
   }, [phase]);
 
+  // Intercept the browser/phone Back button while running so it doesn't
+  // silently exit an in-progress exam. We push a guard history entry and
+  // re-push it whenever back is pressed, showing a confirm dialog instead.
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  useEffect(() => {
+    if (phase !== 'running') return;
+    window.history.pushState({ examGuard: true }, '');
+    const handler = () => {
+      window.history.pushState({ examGuard: true }, '');
+      setShowExitConfirm(true);
+    };
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, [phase]);
+
   const beginRunning = () => {
     endAtRef.current = Date.now() + customMinutes * 60 * 1000;
     setPhase('running');
@@ -199,23 +214,80 @@ export default function ExamRunner({
   }
 
   // ============================================================
-  // SUBMITTED SCREEN
+  // SUBMITTED SCREEN — full answer sheet
   // ============================================================
   if (phase === 'submitted') {
     const pct = result.percentage;
     return (
-      <div className="panel">
-        <h2>Submitted</h2>
-        <div className="practice-result-summary">
-          <div className="score-circle" style={{ borderColor: pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--gold)' : 'var(--red)' }}>
-            <span>{pct}%</span>
+      <div className="answer-sheet-page">
+        <div className="panel answer-sheet-summary">
+          <h2>Result</h2>
+          <div className="result-stat-row">
+            <div className="result-stat">
+              <span className="result-stat-value result-stat-correct">{result.correct}</span>
+              <span className="result-stat-label">Correct</span>
+            </div>
+            <div className="result-stat">
+              <span className="result-stat-value result-stat-wrong">{result.wrong}</span>
+              <span className="result-stat-label">Wrong</span>
+            </div>
+            <div className="result-stat">
+              <span className="result-stat-value result-stat-unanswered">{result.unanswered}</span>
+              <span className="result-stat-label">Unanswered</span>
+            </div>
           </div>
-          <div className="muted">
-            {result.correct} correct, {result.wrong} wrong, {result.unanswered} unanswered
-            {negativeMarking > 0 && <> — score: {result.score.toFixed(2)} / {result.total}</>}
+          <div className="result-big-row">
+            <div className="result-big-pct">{pct}%</div>
+            {negativeMarking > 0 && (
+              <div className="result-big-mark">{result.score.toFixed(2)} / {result.total} marks</div>
+            )}
           </div>
         </div>
-        <button className="btn-primary" onClick={onExit}>Done</button>
+
+        <div className="answer-sheet-list">
+          {questions.map((q, i) => {
+            const chosen = answers[q.id];
+            const isCorrect = chosen === q.correct_option;
+            let cardClass = 'panel answer-sheet-card';
+            if (!chosen) cardClass += ' answer-sheet-unanswered';
+            else if (isCorrect) cardClass += ' answer-sheet-correct';
+            else cardClass += ' answer-sheet-wrong';
+
+            return (
+              <div key={q.id} className={cardClass}>
+                <div className="q-num-row">
+                  <span className="q-num-label">Question {i + 1}</span>
+                  {!chosen && <span className="sheet-tag sheet-tag-unanswered">Unanswered</span>}
+                  {chosen && isCorrect && <span className="sheet-tag sheet-tag-correct">Correct</span>}
+                  {chosen && !isCorrect && <span className="sheet-tag sheet-tag-wrong">Wrong</span>}
+                </div>
+                <div className="q-text">{q.question_text}</div>
+                <div className="opt-list">
+                  {['A', 'B', 'C', 'D'].map((letter) => {
+                    const isCorrectOpt = letter === q.correct_option;
+                    const isChosenWrong = letter === chosen && !isCorrect;
+                    let cls = 'opt-btn opt-static';
+                    if (isCorrectOpt) cls += ' opt-correct';
+                    else if (isChosenWrong) cls += ' opt-wrong';
+                    return (
+                      <div key={letter} className={cls}>
+                        <span className="opt-letter">{letter}</span>
+                        <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
+                        {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                        {isChosenWrong && <span className="opt-tag-wrong">your answer</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {q.explanation && <div className="expl-box"><b>Why:</b> {q.explanation}</div>}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="answer-sheet-done">
+          <button className="btn-primary" onClick={onExit}>Done</button>
+        </div>
       </div>
     );
   }
@@ -277,6 +349,22 @@ export default function ExamRunner({
         <span className="bottombar-answered-count">{answeredCount} of {questions.length} answered</span>
         <button className="bottombar-submit-full" onClick={doSubmit}>Submit exam</button>
       </div>
+
+      {showExitConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <div className="modal-title">Leave the exam?</div>
+            <div className="modal-body">
+              Your exam is still in progress. Going back won't submit it — you can keep answering,
+              or submit now if you're done.
+            </div>
+            <div className="modal-actions">
+              <button className="modal-cancel-btn" onClick={() => setShowExitConfirm(false)}>Continue exam</button>
+              <button className="modal-confirm-btn" onClick={() => { setShowExitConfirm(false); doSubmit(); }}>Submit now</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
