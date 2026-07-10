@@ -21,22 +21,22 @@ function InlineAddForm({ placeholder, onAdd }) {
   return (
     <form className="inline-add-form" onSubmit={submit}>
       <input value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} />
-      <button type="submit" className="btn-secondary" disabled={saving}>{saving ? '…' : 'Add'}</button>
+      <button type="submit" className="btn-secondary" disabled={saving}>{saving ? '…' : '+ Add'}</button>
     </form>
   );
 }
 
-function EditableRow({ name, onRename, onDelete }) {
+function TreeRow({ name, active, onSelect, onRename, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
 
   const save = async () => {
-    if (value.trim() && value.trim() !== name) await onRename(value.trim());
     setEditing(false);
+    if (value.trim() && value.trim() !== name) await onRename(value.trim());
   };
 
   return (
-    <div className="tree-row">
+    <div className={active ? 'tree-row tree-row-active' : 'tree-row'}>
       {editing ? (
         <input
           className="tree-row-input"
@@ -45,16 +45,23 @@ function EditableRow({ name, onRename, onDelete }) {
           onBlur={save}
           onKeyDown={(e) => e.key === 'Enter' && save()}
           autoFocus
+          onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <span className="tree-row-name" onClick={() => setEditing(true)}>{name}</span>
+        <button className="tree-row-select" onClick={onSelect}>
+          <span className="tree-row-name">{name}</span>
+          {onSelect && <span className="tree-row-arrow">{active ? '▾ managing' : '▸ manage'}</span>}
+        </button>
       )}
-      <button className="icon-btn-danger" onClick={onDelete} title="Delete">✕</button>
+      <div className="tree-row-actions">
+        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setValue(name); setEditing(true); }} title="Rename">✎</button>
+        <button className="icon-btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete">✕</button>
+      </div>
     </div>
   );
 }
 
-function ChaptersPanel({ subcategoryId }) {
+function ChaptersPanel({ subcategoryId, subcategoryName }) {
   const [chapters, setChapters] = useState([]);
 
   const load = useCallback(async () => {
@@ -68,10 +75,11 @@ function ChaptersPanel({ subcategoryId }) {
   if (!subcategoryId) return null;
 
   return (
-    <div className="tree-panel">
-      <div className="tree-panel-title">Chapters</div>
+    <div className="tree-panel tree-panel-nested">
+      <div className="tree-panel-title">Chapters in "{subcategoryName}"</div>
+      {chapters.length === 0 && <div className="tree-empty">No chapters yet — add the first one below.</div>}
       {chapters.map((c) => (
-        <EditableRow
+        <TreeRow
           key={c.id}
           name={c.name}
           onRename={async (name) => { await supabase.from('chapters').update({ name }).eq('id', c.id); load(); }}
@@ -93,7 +101,7 @@ function ChaptersPanel({ subcategoryId }) {
   );
 }
 
-function SubcategoriesPanel({ subjectId, selected, onSelect }) {
+function SubcategoriesPanel({ subjectId, subjectName, selected, onSelect }) {
   const [subcategories, setSubcategories] = useState([]);
 
   const load = useCallback(async () => {
@@ -107,23 +115,23 @@ function SubcategoriesPanel({ subjectId, selected, onSelect }) {
   if (!subjectId) return null;
 
   return (
-    <div className="tree-panel">
-      <div className="tree-panel-title">Sub-categories</div>
+    <div className="tree-panel tree-panel-nested">
+      <div className="tree-panel-title">Sub-categories in "{subjectName}"</div>
+      {subcategories.length === 0 && <div className="tree-empty">No sub-categories yet — add the first one below.</div>}
       {subcategories.map((s) => (
-        <div key={s.id} className={selected === s.id ? 'tree-item tree-item-active' : 'tree-item'}>
-          <div onClick={() => onSelect(s.id)} className="tree-item-clickable">
-            <EditableRow
-              name={s.name}
-              onRename={async (name) => { await supabase.from('subcategories').update({ name }).eq('id', s.id); load(); }}
-              onDelete={async () => {
-                if (!confirm(`Delete sub-category "${s.name}"? Its chapters and questions will also be deleted.`)) return;
-                await supabase.from('subcategories').delete().eq('id', s.id);
-                if (selected === s.id) onSelect(null);
-                load();
-              }}
-            />
-          </div>
-        </div>
+        <TreeRow
+          key={s.id}
+          name={s.name}
+          active={selected === s.id}
+          onSelect={() => onSelect(selected === s.id ? null : { id: s.id, name: s.name })}
+          onRename={async (name) => { await supabase.from('subcategories').update({ name }).eq('id', s.id); load(); }}
+          onDelete={async () => {
+            if (!confirm(`Delete sub-category "${s.name}"? Its chapters and questions will also be deleted.`)) return;
+            await supabase.from('subcategories').delete().eq('id', s.id);
+            if (selected === s.id) onSelect(null);
+            load();
+          }}
+        />
       ))}
       <InlineAddForm
         placeholder="New sub-category name"
@@ -136,7 +144,7 @@ function SubcategoriesPanel({ subjectId, selected, onSelect }) {
   );
 }
 
-function SubjectsPanel({ categoryId, selected, onSelect }) {
+function SubjectsPanel({ categoryId, categoryName, selected, onSelect }) {
   const [subjects, setSubjects] = useState([]);
 
   const load = useCallback(async () => {
@@ -150,23 +158,23 @@ function SubjectsPanel({ categoryId, selected, onSelect }) {
   if (!categoryId) return null;
 
   return (
-    <div className="tree-panel">
-      <div className="tree-panel-title">Subjects</div>
+    <div className="tree-panel tree-panel-nested">
+      <div className="tree-panel-title">Subjects in "{categoryName}"</div>
+      {subjects.length === 0 && <div className="tree-empty">No subjects yet — add the first one below.</div>}
       {subjects.map((s) => (
-        <div key={s.id} className={selected === s.id ? 'tree-item tree-item-active' : 'tree-item'}>
-          <div onClick={() => onSelect(s.id)} className="tree-item-clickable">
-            <EditableRow
-              name={s.name}
-              onRename={async (name) => { await supabase.from('subjects').update({ name }).eq('id', s.id); load(); }}
-              onDelete={async () => {
-                if (!confirm(`Delete subject "${s.name}"? Everything inside it will also be deleted.`)) return;
-                await supabase.from('subjects').delete().eq('id', s.id);
-                if (selected === s.id) onSelect(null);
-                load();
-              }}
-            />
-          </div>
-        </div>
+        <TreeRow
+          key={s.id}
+          name={s.name}
+          active={selected === s.id}
+          onSelect={() => onSelect(selected === s.id ? null : { id: s.id, name: s.name })}
+          onRename={async (name) => { await supabase.from('subjects').update({ name }).eq('id', s.id); load(); }}
+          onDelete={async () => {
+            if (!confirm(`Delete subject "${s.name}"? Everything inside it will also be deleted.`)) return;
+            await supabase.from('subjects').delete().eq('id', s.id);
+            if (selected === s.id) onSelect(null);
+            load();
+          }}
+        />
       ))}
       <InlineAddForm
         placeholder="New subject name"
@@ -181,9 +189,9 @@ function SubjectsPanel({ categoryId, selected, onSelect }) {
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedSubject, setSelectedSubject] = useState(null);
-  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null); // { id, name }
+  const [selectedSubject, setSelectedSubject] = useState(null); // { id, name }
+  const [selectedSubcategory, setSelectedSubcategory] = useState(null); // { id, name }
 
   const loadCategories = useCallback(async () => {
     const { data } = await supabase.from('categories').select('*').order('display_order');
@@ -192,31 +200,38 @@ export default function CategoriesPage() {
 
   useEffect(() => { loadCategories(); }, [loadCategories]);
 
+  const selectCategory = (cat) => {
+    setSelectedCategory((prev) => (prev?.id === cat.id ? null : { id: cat.id, name: cat.name }));
+    setSelectedSubject(null);
+    setSelectedSubcategory(null);
+  };
+
   return (
     <div className="panel">
       <h2>Exam Categories</h2>
       <p className="muted small">
-        Create folders like "Dubai Licence Exam" or "BDS Professional", then build out Subject →
-        Sub-category → Chapter underneath each one.
+        Create folders like "Dubai Licence Exam" or "BDS Professional". Click a category's name
+        to manage its Subjects, then click a Subject to manage its Sub-categories, then a
+        Sub-category to manage its Chapters — where questions actually live.
       </p>
 
       <div className="tree-panel">
         <div className="tree-panel-title">Categories</div>
+        {categories.length === 0 && <div className="tree-empty">No categories yet — add the first one below.</div>}
         {categories.map((c) => (
-          <div key={c.id} className={selectedCategory === c.id ? 'tree-item tree-item-active' : 'tree-item'}>
-            <div onClick={() => { setSelectedCategory(c.id); setSelectedSubject(null); setSelectedSubcategory(null); }} className="tree-item-clickable">
-              <EditableRow
-                name={c.name}
-                onRename={async (name) => { await supabase.from('categories').update({ name, slug: slugify(name) }).eq('id', c.id); loadCategories(); }}
-                onDelete={async () => {
-                  if (!confirm(`Delete category "${c.name}"? Everything inside it will also be deleted.`)) return;
-                  await supabase.from('categories').delete().eq('id', c.id);
-                  if (selectedCategory === c.id) { setSelectedCategory(null); setSelectedSubject(null); setSelectedSubcategory(null); }
-                  loadCategories();
-                }}
-              />
-            </div>
-          </div>
+          <TreeRow
+            key={c.id}
+            name={c.name}
+            active={selectedCategory?.id === c.id}
+            onSelect={() => selectCategory(c)}
+            onRename={async (name) => { await supabase.from('categories').update({ name, slug: slugify(name) }).eq('id', c.id); loadCategories(); }}
+            onDelete={async () => {
+              if (!confirm(`Delete category "${c.name}"? Everything inside it will also be deleted.`)) return;
+              await supabase.from('categories').delete().eq('id', c.id);
+              if (selectedCategory?.id === c.id) { setSelectedCategory(null); setSelectedSubject(null); setSelectedSubcategory(null); }
+              loadCategories();
+            }}
+          />
         ))}
         <InlineAddForm
           placeholder="New category name (e.g. Dubai Licence Exam)"
@@ -227,9 +242,22 @@ export default function CategoriesPage() {
         />
       </div>
 
-      <SubjectsPanel categoryId={selectedCategory} selected={selectedSubject} onSelect={setSelectedSubject} />
-      <SubcategoriesPanel subjectId={selectedSubject} selected={selectedSubcategory} onSelect={setSelectedSubcategory} />
-      <ChaptersPanel subcategoryId={selectedSubcategory} />
+      <SubjectsPanel
+        categoryId={selectedCategory?.id}
+        categoryName={selectedCategory?.name}
+        selected={selectedSubject?.id}
+        onSelect={setSelectedSubject}
+      />
+      <SubcategoriesPanel
+        subjectId={selectedSubject?.id}
+        subjectName={selectedSubject?.name}
+        selected={selectedSubcategory?.id}
+        onSelect={setSelectedSubcategory}
+      />
+      <ChaptersPanel
+        subcategoryId={selectedSubcategory?.id}
+        subcategoryName={selectedSubcategory?.name}
+      />
     </div>
   );
 }
