@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
+import PracticePage from '../../components/PracticePage';
 
 const navItems = [
   { to: '/dashboard', label: 'Home', end: true },
@@ -35,13 +36,13 @@ function Placeholder({ label }) {
 
 export default function ExamineeDashboard() {
   return (
-    <DashboardLayout title="Exam Hall" navItems={navItems}>
+    <DashboardLayout title="Examinee" navItems={navItems}>
       <Routes>
         <Route index element={<Home />} />
         <Route path="live" element={<Placeholder label="Live Exams" />} />
         <Route path="upcoming" element={<Placeholder label="Upcoming Exams" />} />
         <Route path="archived" element={<Placeholder label="Archived Exams" />} />
-        <Route path="practice" element={<Placeholder label="Practice Mode" />} />
+        <Route path="practice" element={<PracticePage />} />
         <Route path="results" element={<Placeholder label="Results" />} />
         <Route path="merit" element={<Placeholder label="Merit Lists" />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />

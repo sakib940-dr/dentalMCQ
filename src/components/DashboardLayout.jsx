@@ -17,7 +17,7 @@ export default function DashboardLayout({ title, navItems, children }) {
         <div className="dash-brand">
           <ToothMark size={34} />
           <div className="dash-brand-text">
-            <span className="dash-brand-word">Exam Hall</span>
+            <span className="dash-brand-word">DentalMCQ</span>
             <span className="dash-brand-sub">{title}</span>
           </div>
         </div>
