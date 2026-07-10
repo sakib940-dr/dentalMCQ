@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
@@ -151,13 +151,35 @@ function PracticeSession({ session, onExit }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState(null);
 
+  // Stable key for this practice attempt — survives refresh, but a fresh
+  // "Start practice" click always gets a new key (new Date.now()) so it
+  // never resumes a stale/previous session.
+  const sessionKeyRef = useRef(session.resumeKey || `practice_${Date.now()}`);
+  const persistKey = `dentalmcq_practice_${sessionKeyRef.current}`;
+
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
+      // If a resume payload already picked the exact question set/order, reuse it.
+      try {
+        const saved = JSON.parse(localStorage.getItem(persistKey) || 'null');
+        if (saved && saved.questionIds && saved.questionIds.length > 0) {
+          const { data } = await supabase.from('questions').select('*').in('id', saved.questionIds);
+          if (cancelled || !data) return;
+          const order = new Map(saved.questionIds.map((id, i) => [id, i]));
+          setQuestions([...data].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
+          return;
+        }
+      } catch {
+        // fall through to fresh load
+      }
+
       if (session.mode === 'chapter') {
         const { data } = await supabase.from('questions').select('*').eq('chapter_id', session.chapterId).eq('is_active', true);
         if (cancelled) return;
-        setQuestions(shuffle(data || []).slice(0, session.count));
+        const picked = shuffle(data || []).slice(0, session.count);
+        setQuestions(picked);
       } else if (session.mode === 'wrong') {
         const { data: wrongRows } = await supabase
           .from('wrong_questions')
@@ -176,7 +198,21 @@ function PracticeSession({ session, onExit }) {
     }
     load();
     return () => { cancelled = true; };
-  }, [session, user.id]);
+  }, [session, user.id, persistKey]);
+
+  // Once we know the resolved question order, save it so a refresh reuses
+  // the exact same set/order instead of re-randomizing.
+  useEffect(() => {
+    if (!questions || questions.length === 0) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(persistKey) || 'null') || {};
+      if (!saved.questionIds) {
+        localStorage.setItem(persistKey, JSON.stringify({ ...saved, questionIds: questions.map((q) => q.id) }));
+      }
+    } catch {
+      localStorage.setItem(persistKey, JSON.stringify({ questionIds: questions.map((q) => q.id) }));
+    }
+  }, [questions, persistKey]);
 
   const handleSubmit = async (answers, result) => {
     // Create the practice_sessions row now that we know the outcome
@@ -263,16 +299,41 @@ function PracticeSession({ session, onExit }) {
       negativeMarking={NEGATIVE_MARKING}
       title="Practice session"
       allowTimeAdjust
-      persistKey={null}
+      persistKey={persistKey}
       onSubmit={handleSubmit}
       onExit={onExit}
     />
   );
 }
 
+function findResumablePracticeSession() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith('dentalmcq_practice_')) continue;
+      const saved = JSON.parse(localStorage.getItem(key) || 'null');
+      if (saved && saved.phase === 'running' && saved.endAt && saved.endAt > Date.now()) {
+        const resumeKey = key.replace('dentalmcq_practice_', '');
+        return { resumeKey, mode: saved.mode || 'chapter', chapterId: saved.chapterId, count: saved.count };
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export default function PracticePage() {
   const { profile } = useAuth();
   const [session, setSession] = useState(null);
+  const [checkedResume, setCheckedResume] = useState(false);
+
+  useEffect(() => {
+    if (checkedResume) return;
+    const resumable = findResumablePracticeSession();
+    if (resumable) setSession(resumable);
+    setCheckedResume(true);
+  }, [checkedResume]);
 
   if (profile && profile.practice_enabled === false) {
     return (
@@ -285,6 +346,8 @@ export default function PracticePage() {
       </div>
     );
   }
+
+  if (!checkedResume) return null;
 
   if (session) {
     return <PracticeSession session={session} onExit={() => setSession(null)} />;

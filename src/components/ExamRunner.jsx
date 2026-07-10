@@ -2,24 +2,38 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 function fmtTime(totalSeconds) {
   const s = Math.max(0, Math.round(totalSeconds));
-  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
   const sec = (s % 60).toString().padStart(2, '0');
-  return `${m}:${sec}`;
+  return h > 0 ? `${h}:${m}:${sec}` : `${m}:${sec}`;
+}
+
+function requestFullscreen(el) {
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+  if (req) return req.call(el).catch(() => {});
+  return Promise.resolve();
+}
+function exitFullscreen() {
+  const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+  if (document.fullscreenElement && exit) return exit.call(document).catch(() => {});
+  return Promise.resolve();
 }
 
 /**
  * Generic runner for both Practice and Live Exam.
+ * Mobile-first: immersive fullscreen, sticky timer header, sticky bottom nav
+ * (Prev / Next / Mark for review / Submit), resume-after-refresh via localStorage
+ * with wall-clock-accurate timer, one question focused at a time with jump nav.
  *
- * Props:
+ * Props (unchanged from before so callers don't need to change):
  *  - questions: [{ id, question_text, option_a..d, correct_option, explanation }]
  *  - durationMinutes: number (locked once started)
  *  - negativeMarking: number (marks deducted per wrong answer)
  *  - title: string shown in the sticky header
- *  - onSubmit(answersMap, meta) -> called once, with { questionId: 'A'|'B'|'C'|'D'|null }
+ *  - onSubmit(answersMap, meta) -> called once
  *  - onExit() -> called if user exits before starting or cancels
  *  - allowTimeAdjust: boolean - show the pre-start timer customization screen
- *  - resultRenderer(result) -> optional custom result screen; if omitted, a default is shown
- *  - persistKey: string - localStorage key prefix for auto-save/resume (per attempt)
+ *  - persistKey: string|null - localStorage key for auto-save/resume (per attempt)
  */
 export default function ExamRunner({
   questions,
@@ -31,26 +45,36 @@ export default function ExamRunner({
   allowTimeAdjust = true,
   persistKey,
 }) {
-  const [phase, setPhase] = useState('setup'); // setup | running | submitted
+  const [phase, setPhase] = useState('setup'); // setup | fullscreen-gate | running | submitted
   const [customMinutes, setCustomMinutes] = useState(durationMinutes);
   const [answers, setAnswers] = useState({});
-  const [secondsLeft, setSecondsLeft] = useState(durationMinutes * 60);
-  const [filter, setFilter] = useState('all'); // all | answered | unanswered
+  const [marked, setMarked] = useState({}); // { questionId: true }
   const [result, setResult] = useState(null);
-  const startedAtRef = useRef(null);
-  const submittedRef = useRef(false);
+  const [now, setNow] = useState(Date.now());
 
-  // Resume from localStorage if a persistKey is given and there's saved progress
+  const endAtRef = useRef(null); // absolute ms timestamp when exam should auto-submit
+  const shellRef = useRef(null);
+  const scrollListRef = useRef(null);
+  const submittedRef = useRef(false);
+  const resumedRef = useRef(false);
+
+  // ---------- Resume from localStorage (wall-clock accurate) ----------
   useEffect(() => {
-    if (!persistKey) return;
+    if (!persistKey || resumedRef.current) return;
+    resumedRef.current = true;
     try {
       const saved = JSON.parse(localStorage.getItem(persistKey) || 'null');
-      if (saved && saved.phase === 'running') {
-        setAnswers(saved.answers || {});
-        setSecondsLeft(saved.secondsLeft ?? durationMinutes * 60);
-        setCustomMinutes(saved.customMinutes ?? durationMinutes);
-        setPhase('running');
-        startedAtRef.current = saved.startedAt || Date.now();
+      if (saved && saved.phase === 'running' && saved.endAt) {
+        if (saved.endAt > Date.now()) {
+          setAnswers(saved.answers || {});
+          setMarked(saved.marked || {});
+          setCustomMinutes(saved.customMinutes ?? durationMinutes);
+          endAtRef.current = saved.endAt;
+          setPhase('running');
+        } else {
+          // Time already ran out while away — clear and let it auto-submit fresh
+          localStorage.removeItem(persistKey);
+        }
       }
     } catch {
       // ignore corrupt saved state
@@ -58,14 +82,15 @@ export default function ExamRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist progress on every relevant change
+  // ---------- Persist progress ----------
   useEffect(() => {
     if (!persistKey || phase !== 'running') return;
     localStorage.setItem(persistKey, JSON.stringify({
-      phase, answers, secondsLeft, customMinutes, startedAt: startedAtRef.current,
+      phase, answers, marked, customMinutes, endAt: endAtRef.current,
     }));
-  }, [persistKey, phase, answers, secondsLeft, customMinutes]);
+  }, [persistKey, phase, answers, marked, customMinutes]);
 
+  // ---------- Submit ----------
   const doSubmit = useCallback(async () => {
     if (submittedRef.current) return;
     submittedRef.current = true;
@@ -85,37 +110,60 @@ export default function ExamRunner({
     setResult(r);
     setPhase('submitted');
     if (persistKey) localStorage.removeItem(persistKey);
+    exitFullscreen();
     await onSubmit?.(answers, r);
   }, [answers, negativeMarking, onSubmit, persistKey, questions]);
 
-  // Timer countdown
+  // ---------- Timer tick (wall-clock based, survives refresh/reconnect) ----------
   useEffect(() => {
     if (phase !== 'running') return;
-    const t = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearInterval(t);
-          doSubmit();
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      setNow(Date.now());
+      if (endAtRef.current && Date.now() >= endAtRef.current) {
+        doSubmit();
+      }
+    };
+    tick();
+    const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, [phase, doSubmit]);
 
-  const start = () => {
-    startedAtRef.current = Date.now();
-    setSecondsLeft(customMinutes * 60);
+  const secondsLeft = endAtRef.current ? Math.max(0, Math.round((endAtRef.current - now) / 1000)) : customMinutes * 60;
+
+  // Warn before accidental tab close/reload while an exam is running
+  useEffect(() => {
+    if (phase !== 'running') return;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [phase]);
+
+  const beginRunning = () => {
+    endAtRef.current = Date.now() + customMinutes * 60 * 1000;
     setPhase('running');
+  };
+
+  const start = async () => {
+    // Try fullscreen; whether it succeeds or not, we proceed into the exam.
+    if (shellRef.current) {
+      await requestFullscreen(shellRef.current);
+    }
+    beginRunning();
   };
 
   const selectAnswer = (questionId, letter) => {
     setAnswers((a) => ({ ...a, [questionId]: a[questionId] === letter ? undefined : letter }));
   };
 
+  const toggleMark = (questionId) => {
+    setMarked((m) => ({ ...m, [questionId]: !m[questionId] }));
+  };
+
   const answeredCount = Object.values(answers).filter(Boolean).length;
 
+  // ============================================================
+  // SETUP SCREEN
+  // ============================================================
   if (phase === 'setup') {
     return (
       <div className="panel exam-setup">
@@ -139,14 +187,20 @@ export default function ExamRunner({
         {negativeMarking > 0 && (
           <div className="muted small">Negative marking: −{negativeMarking} per wrong answer.</div>
         )}
+        <div className="muted small" style={{ marginTop: 10 }}>
+          The exam will open in full-screen mode for a distraction-free experience.
+        </div>
         <div className="exam-setup-actions">
           <button className="btn-secondary" onClick={onExit}>Cancel</button>
-          <button className="btn-primary" onClick={start}>Start</button>
+          <button className="btn-primary" onClick={start}>Start Full Screen</button>
         </div>
       </div>
     );
   }
 
+  // ============================================================
+  // SUBMITTED SCREEN
+  // ============================================================
   if (phase === 'submitted') {
     const pct = result.percentage;
     return (
@@ -166,77 +220,62 @@ export default function ExamRunner({
     );
   }
 
+  // ============================================================
+  // RUNNING — immersive mobile exam screen (smooth scroll, all questions)
+  // ============================================================
   const urgent = secondsLeft <= 30;
-  const visibleIndexes = questions
-    .map((_, i) => i)
-    .filter((i) => {
-      if (filter === 'answered') return !!answers[questions[i].id];
-      if (filter === 'unanswered') return !answers[questions[i].id];
-      return true;
-    });
 
   return (
-    <div className="exam-run-shell">
+    <div className="exam-run-shell exam-run-immersive" ref={shellRef}>
       <div className="exam-run-header">
-        <div className="exam-run-header-title">{title}</div>
-        <div className={urgent ? 'exam-run-timer exam-run-timer-urgent' : 'exam-run-timer'}>{fmtTime(secondsLeft)}</div>
+        <div className="exam-run-header-left">
+          <div className="exam-run-header-title">{title}</div>
+          <div className="exam-run-qcounter">{answeredCount}/{questions.length} answered</div>
+        </div>
+        <div className={urgent ? 'exam-run-timer exam-run-timer-urgent' : 'exam-run-timer'}>
+          <span className="timer-clock-icon">⏱</span>{fmtTime(secondsLeft)}
+        </div>
       </div>
 
-      <div className="exam-run-filterbar">
-        <button className={filter === 'all' ? 'filter-chip filter-chip-active' : 'filter-chip'} onClick={() => setFilter('all')}>
-          All ({questions.length})
-        </button>
-        <button className={filter === 'answered' ? 'filter-chip filter-chip-active' : 'filter-chip'} onClick={() => setFilter('answered')}>
-          Answered ({answeredCount})
-        </button>
-        <button className={filter === 'unanswered' ? 'filter-chip filter-chip-active' : 'filter-chip'} onClick={() => setFilter('unanswered')}>
-          Unanswered ({questions.length - answeredCount})
-        </button>
-      </div>
-
-      <div className="exam-run-jumpnav">
+      <div className="exam-run-scrolllist" ref={scrollListRef}>
         {questions.map((q, i) => {
-          const isAnswered = !!answers[q.id];
-          const isVisible = visibleIndexes.includes(i);
+          const qIsMarked = !!marked[q.id];
           return (
-            <button
-              key={q.id}
-              className={`jump-dot ${isAnswered ? 'jump-dot-done' : ''} ${!isVisible ? 'jump-dot-dim' : ''}`}
-              onClick={() => document.getElementById(`runner-q-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            >
-              {i + 1}
-            </button>
+            <div key={q.id} id={`runner-q-${q.id}`} data-qindex={i} className="panel exam-run-qcard">
+              <div className="q-num-row">
+                <span className="q-num-label">Question {i + 1}</span>
+                <button
+                  className={qIsMarked ? 'mark-inline-btn mark-inline-btn-active' : 'mark-inline-btn'}
+                  onClick={() => toggleMark(q.id)}
+                >
+                  ★ {qIsMarked ? 'Marked' : 'Mark'}
+                </button>
+              </div>
+              <div className="q-text">{q.question_text}</div>
+              <div className="opt-list">
+                {['A', 'B', 'C', 'D'].map((letter) => {
+                  const selected = answers[q.id] === letter;
+                  return (
+                    <button
+                      key={letter}
+                      className={selected ? 'opt-btn opt-selected' : 'opt-btn'}
+                      onClick={() => selectAnswer(q.id, letter)}
+                    >
+                      <span className="opt-letter">{letter}</span>
+                      <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
+        <div className="exam-run-scroll-end" />
       </div>
 
-      <div className="exam-run-scroll">
-        {questions.map((q, i) => (
-          <div key={q.id} id={`runner-q-${q.id}`} className="panel exam-run-qcard">
-            <div className="q-num-label">Question {i + 1} of {questions.length}</div>
-            <div className="q-text">{q.question_text}</div>
-            <div className="opt-list">
-              {['A', 'B', 'C', 'D'].map((letter) => {
-                const selected = answers[q.id] === letter;
-                return (
-                  <button
-                    key={letter}
-                    className={selected ? 'opt-btn opt-selected' : 'opt-btn'}
-                    onClick={() => selectAnswer(q.id, letter)}
-                  >
-                    <span className="opt-letter">{letter}</span>
-                    <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
-        <div className="exam-run-end">
-          <div className="muted small">{answeredCount} of {questions.length} answered</div>
-          <button className="btn-primary exam-submit-btn" onClick={doSubmit}>Submit</button>
-        </div>
+      <div className="exam-run-bottombar exam-run-bottombar-single">
+        <span className="bottombar-answered-count">{answeredCount} of {questions.length} answered</span>
+        <button className="bottombar-submit-full" onClick={doSubmit}>Submit exam</button>
       </div>
     </div>
   );
