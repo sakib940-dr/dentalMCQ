@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import QuestionBankPage from '../../components/QuestionBankPage';
 import CategoriesPage from '../../components/CategoriesPage';
+import ExamBuilderPage from '../../components/ExamBuilderPage';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -42,7 +43,7 @@ export default function SuperAdminDashboard() {
         <Route index element={<Overview />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="questions" element={<QuestionBankPage />} />
-        <Route path="exams" element={<Placeholder label="Exams" />} />
+        <Route path="exams" element={<ExamBuilderPage />} />
         <Route path="moderators" element={<Placeholder label="Moderators" />} />
         <Route path="students" element={<Placeholder label="Students" />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />

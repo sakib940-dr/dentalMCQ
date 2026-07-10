@@ -1,7 +1,19 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import PracticeRunner from './PracticeRunner';
+import ExamRunner from './ExamRunner';
+
+const DEFAULT_MINUTES_PER_10 = 6;
+const NEGATIVE_MARKING = 0.5;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function ChapterPicker({ onPick }) {
   const [categories, setCategories] = useState([]);
@@ -135,9 +147,132 @@ function WrongQuestionsEntry({ onStart }) {
   );
 }
 
+function PracticeSession({ session, onExit }) {
+  const { user } = useAuth();
+  const [questions, setQuestions] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (session.mode === 'chapter') {
+        const { data } = await supabase.from('questions').select('*').eq('chapter_id', session.chapterId).eq('is_active', true);
+        if (cancelled) return;
+        setQuestions(shuffle(data || []).slice(0, session.count));
+      } else if (session.mode === 'wrong') {
+        const { data: wrongRows } = await supabase
+          .from('wrong_questions')
+          .select('question_id, wrong_count')
+          .eq('examinee_id', user.id)
+          .eq('mastered', false)
+          .order('wrong_count', { ascending: false });
+        if (cancelled) return;
+        const ids = (wrongRows || []).map((w) => w.question_id);
+        if (ids.length === 0) { setQuestions([]); return; }
+        const { data: qs } = await supabase.from('questions').select('*').in('id', ids);
+        if (cancelled) return;
+        const order = new Map(ids.map((id, i) => [id, i]));
+        setQuestions([...(qs || [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [session, user.id]);
+
+  const handleSubmit = async (answers, result) => {
+    // Create the practice_sessions row now that we know the outcome
+    const { data: sessionRow } = await supabase
+      .from('practice_sessions')
+      .insert({
+        examinee_id: user.id,
+        chapter_id: session.mode === 'chapter' ? session.chapterId : null,
+        finished_at: new Date().toISOString(),
+        total_questions: questions.length,
+        correct_count: result.correct,
+        wrong_count: result.wrong,
+      })
+      .select()
+      .single();
+
+    const sessionId = sessionRow?.id;
+
+    // Record every answer + update wrong_questions tracker
+    for (const q of questions) {
+      const chosen = answers[q.id] || null;
+      const isCorrect = chosen === q.correct_option;
+
+      if (sessionId) {
+        await supabase.from('practice_answers').insert({
+          session_id: sessionId,
+          question_id: q.id,
+          selected_option: chosen,
+          is_correct: chosen ? isCorrect : null,
+        });
+      }
+
+      const { data: existing } = await supabase
+        .from('wrong_questions')
+        .select('*')
+        .eq('examinee_id', user.id)
+        .eq('question_id', q.id)
+        .maybeSingle();
+
+      if (!chosen || !isCorrect) {
+        // wrong or skipped — count as wrong
+        if (existing) {
+          await supabase.from('wrong_questions').update({
+            wrong_count: existing.wrong_count + 1,
+            last_wrong_at: new Date().toISOString(),
+            mastered: false,
+            mastered_at: null,
+          }).eq('id', existing.id);
+        } else {
+          await supabase.from('wrong_questions').insert({ examinee_id: user.id, question_id: q.id, wrong_count: 1 });
+        }
+      } else if (existing) {
+        // correct — nudge toward mastery
+        const newCount = Math.max(0, existing.wrong_count - 1);
+        const mastered = newCount <= 0;
+        await supabase.from('wrong_questions').update({
+          wrong_count: newCount,
+          mastered,
+          mastered_at: mastered ? new Date().toISOString() : null,
+        }).eq('id', existing.id);
+      }
+    }
+  };
+
+  if (questions === null) {
+    return <div className="panel"><p className="muted">Loading questions…</p></div>;
+  }
+  if (questions.length === 0) {
+    return (
+      <div className="panel">
+        <h2>Nothing to practice here yet</h2>
+        <p className="muted">No questions found for this selection.</p>
+        <button className="btn-secondary" onClick={onExit}>Back</button>
+      </div>
+    );
+  }
+
+  const durationMinutes = Math.ceil(questions.length / 10) * DEFAULT_MINUTES_PER_10;
+
+  return (
+    <ExamRunner
+      questions={questions}
+      durationMinutes={durationMinutes}
+      negativeMarking={NEGATIVE_MARKING}
+      title="Practice session"
+      allowTimeAdjust
+      persistKey={null}
+      onSubmit={handleSubmit}
+      onExit={onExit}
+    />
+  );
+}
+
 export default function PracticePage() {
   const { profile } = useAuth();
-  const [session, setSession] = useState(null); // { chapterId, count, mode } | { mode: 'wrong' }
+  const [session, setSession] = useState(null);
 
   if (profile && profile.practice_enabled === false) {
     return (
@@ -152,7 +287,7 @@ export default function PracticePage() {
   }
 
   if (session) {
-    return <PracticeRunner session={session} onExit={() => setSession(null)} />;
+    return <PracticeSession session={session} onExit={() => setSession(null)} />;
   }
 
   return (
