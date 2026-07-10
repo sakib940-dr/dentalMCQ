@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
+import QuestionBankPage from '../../components/QuestionBankPage';
 
 const navItems = [
   { to: '/moderator', label: 'Overview', end: true },
@@ -34,7 +35,7 @@ export default function ModeratorDashboard() {
     <DashboardLayout title="Moderator" navItems={navItems}>
       <Routes>
         <Route index element={<Overview />} />
-        <Route path="questions" element={<Placeholder label="Question Bank" />} />
+        <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<Placeholder label="Exams" />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />
       </Routes>

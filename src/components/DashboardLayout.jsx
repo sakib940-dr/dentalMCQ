@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ToothMark from './ToothMark';
 
 export default function DashboardLayout({ title, navItems, children }) {
   const { profile, signOut } = useAuth();
@@ -13,7 +14,13 @@ export default function DashboardLayout({ title, navItems, children }) {
   return (
     <div className="dash-shell">
       <header className="dash-topbar">
-        <div className="dash-topbar-title">{title}</div>
+        <div className="dash-brand">
+          <ToothMark size={34} />
+          <div className="dash-brand-text">
+            <span className="dash-brand-word">Exam Hall</span>
+            <span className="dash-brand-sub">{title}</span>
+          </div>
+        </div>
         <div className="dash-topbar-user">
           <span>{profile?.full_name}</span>
           <button onClick={handleLogout} className="btn-logout">Log out</button>

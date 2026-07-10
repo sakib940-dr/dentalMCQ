@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import ToothMark from '../../components/ToothMark';
 
 export default function RegisterPage() {
   const { signUp } = useAuth();
@@ -50,7 +51,7 @@ export default function RegisterPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand-mark">EH</div>
+        <div className="brand-mark"><ToothMark size={40} /></div>
         <h1>Create your account</h1>
         <p className="auth-sub">Register to sit exams</p>
 
