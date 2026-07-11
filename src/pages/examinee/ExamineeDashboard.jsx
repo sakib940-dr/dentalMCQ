@@ -5,6 +5,7 @@ import CategoryExamsPage from '../../components/CategoryExamsPage';
 import StudentChatPage from '../../components/StudentChatPage';
 import ResultsPage from '../../components/ResultsPage';
 import MeritListPage from '../../components/MeritListPage';
+import StudentNoticeBoard from '../../components/StudentNoticeBoard';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -43,7 +44,7 @@ export default function ExamineeDashboard() {
         <Route path="practice" element={<PracticePage />} />
         <Route path="results" element={<ResultsPage />} />
         <Route path="merit" element={<MeritListPage />} />
-        <Route path="notices" element={<Placeholder label="Notice Board" />} />
+        <Route path="notices" element={<StudentNoticeBoard />} />
         <Route path="chat" element={<StudentChatPage />} />
       </Routes>
     </DashboardLayout>

@@ -7,6 +7,7 @@ import UserManagementPage from '../../components/UserManagementPage';
 import FeatureTogglesPanel from '../../components/FeatureTogglesPanel';
 import ChangePasswordPanel from '../../components/ChangePasswordPanel';
 import StaffChatInbox from '../../components/StaffChatInbox';
+import NoticeBoardAdminPage from '../../components/NoticeBoardAdminPage';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -58,7 +59,7 @@ export default function SuperAdminDashboard() {
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
         <Route path="users" element={<UserManagementPage />} />
-        <Route path="notices" element={<Placeholder label="Notice Board" />} />
+        <Route path="notices" element={<NoticeBoardAdminPage />} />
         <Route path="chat" element={<StaffChatInbox />} />
         <Route path="settings" element={<SettingsPage />} />
       </Routes>

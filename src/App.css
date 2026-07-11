@@ -1590,3 +1590,57 @@ body {
   border-radius: 10px;
 }
 .merit-score { font-size: 13.5px; font-weight: 700; color: var(--teal-deep); }
+
+/* ---------- Notice board ---------- */
+.notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.notice-card {
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+}
+.notice-card-pinned {
+  border-color: var(--gold);
+  background: #FDFBF3;
+}
+.notice-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.notice-pin-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8A5A0A;
+}
+.notice-card-meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.notice-card-title {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  color: var(--teal-deep);
+  margin-bottom: 6px;
+}
+.notice-card-body {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+.notice-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--card-border);
+}
