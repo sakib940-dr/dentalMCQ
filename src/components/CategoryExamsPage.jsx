@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
+import PracticePage from './PracticePage';
 
 function fmtDateTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -332,9 +333,11 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         <button className={tab === 'upcoming' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('upcoming')}>Upcoming ({upcoming.length})</button>
         <button className={tab === 'live' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('live')}>Live ({live.length})</button>
         <button className={tab === 'archive' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('archive')}>Archive ({archived.length})</button>
+        <button className={tab === 'practice' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('practice')}>Practice</button>
       </div>
 
       {tab === 'schedule' && <ExamSchedulePanel categoryId={category.id} />}
+      {tab === 'practice' && <PracticePage categoryId={category.id} />}
 
       {tab === 'live' && (
         <>

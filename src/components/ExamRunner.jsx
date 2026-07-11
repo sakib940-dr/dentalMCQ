@@ -207,7 +207,7 @@ export default function ExamRunner({
         </div>
         <div className="exam-setup-actions">
           <button className="btn-secondary" onClick={onExit}>Cancel</button>
-          <button className="btn-primary" onClick={start}>Start Full Screen</button>
+          <button className="btn-primary" onClick={start}>Start</button>
         </div>
       </div>
     );

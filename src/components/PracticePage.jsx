@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
 import { useAppSetting, LockedFeature } from './FeatureLock';
 
-const DEFAULT_MINUTES_PER_10 = 6;
 const NEGATIVE_MARKING = 0.5;
 
 function shuffle(arr) {
@@ -16,9 +15,8 @@ function shuffle(arr) {
   return a;
 }
 
-function ChapterPicker({ onPick }) {
-  const [categories, setCategories] = useState([]);
-  const [categoryId, setCategoryId] = useState('');
+function ChapterPicker({ categoryId, onPick }) {
+  const [scopeMode, setScopeMode] = useState('chapter'); // chapter | subject
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [subcategories, setSubcategories] = useState([]);
@@ -28,9 +26,6 @@ function ChapterPicker({ onPick }) {
   const [questionCount, setQuestionCount] = useState(0);
   const [numQuestions, setNumQuestions] = useState(20);
 
-  useEffect(() => {
-    supabase.from('categories').select('*').order('display_order').then(({ data }) => setCategories(data || []));
-  }, []);
   useEffect(() => {
     setSubjectId(''); setSubcategoryId(''); setChapterId('');
     if (!categoryId) { setSubjects([]); return; }
@@ -49,51 +44,81 @@ function ChapterPicker({ onPick }) {
     supabase.from('chapters').select('*').eq('subcategory_id', subcategoryId).order('display_order')
       .then(({ data }) => setChapters(data || []));
   }, [subcategoryId]);
+
+  // Chapter-wise: count questions in the one selected chapter.
   useEffect(() => {
-    if (!chapterId) { setQuestionCount(0); return; }
+    if (scopeMode !== 'chapter' || !chapterId) { if (scopeMode === 'chapter') setQuestionCount(0); return; }
     supabase.from('questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chapterId).eq('is_active', true)
       .then(({ count }) => setQuestionCount(count || 0));
-  }, [chapterId]);
+  }, [scopeMode, chapterId]);
+
+  // Subject-wise: count questions across every chapter under the selected subject.
+  useEffect(() => {
+    if (scopeMode !== 'subject' || !subjectId) { if (scopeMode === 'subject') setQuestionCount(0); return; }
+    async function countForSubject() {
+      const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', subjectId);
+      const subcatIds = (subcats || []).map((s) => s.id);
+      if (subcatIds.length === 0) { setQuestionCount(0); return; }
+      const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
+      const chapIds = (chaps || []).map((c) => c.id);
+      if (chapIds.length === 0) { setQuestionCount(0); return; }
+      const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
+      setQuestionCount(count || 0);
+    }
+    countForSubject();
+  }, [scopeMode, subjectId]);
+
+  const ready = scopeMode === 'chapter' ? !!chapterId : !!subjectId;
+
+  const start = () => {
+    if (scopeMode === 'chapter') {
+      onPick({ mode: 'chapter', chapterId, count: numQuestions });
+    } else {
+      onPick({ mode: 'subject', subjectId, count: numQuestions });
+    }
+  };
 
   return (
     <div className="panel">
       <h2>Start practice</h2>
-      <p className="muted small">Pick a chapter to practice. Practice sessions never affect your official results or merit list.</p>
+      <p className="muted small">Practice sessions never affect your official results or merit list.</p>
+
+      <div className="mode-tabs">
+        <button className={scopeMode === 'chapter' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setScopeMode('chapter')}>Chapter-wise</button>
+        <button className={scopeMode === 'subject' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setScopeMode('subject')}>Full subject</button>
+      </div>
 
       <div className="hierarchy-picker">
         <label>
-          <span>Category</span>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">Select…</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
-        <label>
           <span>Subject</span>
-          <select value={subjectId} disabled={!categoryId} onChange={(e) => setSubjectId(e.target.value)}>
+          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
             <option value="">Select…</option>
             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </label>
-        <label>
-          <span>Sub-category</span>
-          <select value={subcategoryId} disabled={!subjectId} onChange={(e) => setSubcategoryId(e.target.value)}>
-            <option value="">Select…</option>
-            {subcategories.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Chapter</span>
-          <select value={chapterId} disabled={!subcategoryId} onChange={(e) => setChapterId(e.target.value)}>
-            <option value="">Select…</option>
-            {chapters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
+        {scopeMode === 'chapter' && (
+          <>
+            <label>
+              <span>Sub-category</span>
+              <select value={subcategoryId} disabled={!subjectId} onChange={(e) => setSubcategoryId(e.target.value)}>
+                <option value="">Select…</option>
+                {subcategories.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Chapter</span>
+              <select value={chapterId} disabled={!subcategoryId} onChange={(e) => setChapterId(e.target.value)}>
+                <option value="">Select…</option>
+                {chapters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+          </>
+        )}
       </div>
 
-      {chapterId && (
+      {ready && (
         <div className="practice-start-box">
-          <div className="muted small">{questionCount} question{questionCount !== 1 ? 's' : ''} available in this chapter.</div>
+          <div className="muted small">{questionCount} question{questionCount !== 1 ? 's' : ''} available.</div>
           <label className="inline-num-field">
             <span>Number of questions</span>
             <input
@@ -104,11 +129,7 @@ function ChapterPicker({ onPick }) {
               onChange={(e) => setNumQuestions(Math.max(1, Math.min(questionCount, parseInt(e.target.value) || 1)))}
             />
           </label>
-          <button
-            className="btn-primary"
-            disabled={questionCount === 0}
-            onClick={() => onPick({ chapterId, count: numQuestions, mode: 'chapter' })}
-          >
+          <button className="btn-primary" disabled={questionCount === 0} onClick={start}>
             Start practice
           </button>
         </div>
@@ -178,6 +199,17 @@ function PracticeSession({ session, onExit }) {
 
       if (session.mode === 'chapter') {
         const { data } = await supabase.from('questions').select('*').eq('chapter_id', session.chapterId).eq('is_active', true);
+        if (cancelled) return;
+        const picked = shuffle(data || []).slice(0, session.count);
+        setQuestions(picked);
+      } else if (session.mode === 'subject') {
+        const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', session.subjectId);
+        const subcatIds = (subcats || []).map((s) => s.id);
+        if (subcatIds.length === 0) { if (!cancelled) setQuestions([]); return; }
+        const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
+        const chapIds = (chaps || []).map((c) => c.id);
+        if (chapIds.length === 0) { if (!cancelled) setQuestions([]); return; }
+        const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true);
         if (cancelled) return;
         const picked = shuffle(data || []).slice(0, session.count);
         setQuestions(picked);
@@ -291,7 +323,7 @@ function PracticeSession({ session, onExit }) {
     );
   }
 
-  const durationMinutes = Math.ceil(questions.length / 10) * DEFAULT_MINUTES_PER_10;
+  const durationMinutes = Math.round(questions.length * 0.6);
 
   return (
     <ExamRunner
@@ -315,7 +347,7 @@ function findResumablePracticeSession() {
       const saved = JSON.parse(localStorage.getItem(key) || 'null');
       if (saved && saved.phase === 'running' && saved.endAt && saved.endAt > Date.now()) {
         const resumeKey = key.replace('dentalmcq_practice_', '');
-        return { resumeKey, mode: saved.mode || 'chapter', chapterId: saved.chapterId, count: saved.count };
+        return { resumeKey, mode: saved.mode || 'chapter', chapterId: saved.chapterId, subjectId: saved.subjectId, count: saved.count };
       }
     }
   } catch {
@@ -324,7 +356,7 @@ function findResumablePracticeSession() {
   return null;
 }
 
-export default function PracticePage() {
+export default function PracticePage({ categoryId }) {
   const { profile } = useAuth();
   const [session, setSession] = useState(null);
   const [checkedResume, setCheckedResume] = useState(false);
@@ -363,7 +395,7 @@ export default function PracticePage() {
 
   return (
     <>
-      <ChapterPicker onPick={setSession} />
+      <ChapterPicker categoryId={categoryId} onPick={setSession} />
       <WrongQuestionsEntry onStart={setSession} />
     </>
   );

@@ -29,7 +29,8 @@ function ExamForm({ exam, onSaved, onCancel }) {
   const [startTime, setStartTime] = useState(toLocalInputValue(exam?.start_time) || '');
   const [endTime, setEndTime] = useState(toLocalInputValue(exam?.end_time) || '');
   const [windowTouched, setWindowTouched] = useState(!!exam); // don't auto-fill when editing an existing exam
-  const [minutesPer10, setMinutesPer10] = useState(exam?.minutes_per_10 ?? 6);
+  const [timerMinutes, setTimerMinutes] = useState(exam?.duration_minutes ?? 0);
+  const [timerTouched, setTimerTouched] = useState(!!exam);
   const [allowAdjust, setAllowAdjust] = useState(exam?.allow_student_time_adjust ?? true);
   const [negativeMarking, setNegativeMarking] = useState(exam?.negative_marking ?? 0);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -48,7 +49,19 @@ function ExamForm({ exam, onSaved, onCancel }) {
   }, [exam]);
 
   const totalQuestions = selectedIds.size;
-  const timerMinutes = Math.ceil(totalQuestions / 10) * minutesPer10;
+
+  // Default timer: 60% of the question count, in minutes (10 questions ->
+  // 6 min, 100 -> 60 min, 5 -> 3 min). Auto-fills only until the admin
+  // manually edits the field, then it stops overriding their choice.
+  useEffect(() => {
+    if (timerTouched) return;
+    setTimerMinutes(Math.round(totalQuestions * 0.6));
+  }, [totalQuestions, timerTouched]);
+
+  const handleTimerChange = (value) => {
+    setTimerTouched(true);
+    setTimerMinutes(Math.max(1, parseInt(value) || 1));
+  };
 
   // When the start date changes (and the window hasn't been manually
   // customized yet), auto-fill a sensible default: 12:01 AM–11:59 PM
@@ -76,6 +89,7 @@ function ExamForm({ exam, onSaved, onCancel }) {
     if (!endTime) return setError('Set an end date/time.');
     if (new Date(endTime) <= new Date(startTime)) return setError('End time must be after start time.');
     if (totalQuestions === 0) return setError('Select at least one question.');
+    if (timerMinutes < 1) return setError('Set a timer duration of at least 1 minute.');
 
     setSaving(true);
     const startISO = new Date(startTime).toISOString();
@@ -88,7 +102,7 @@ function ExamForm({ exam, onSaved, onCancel }) {
       start_time: startISO,
       end_time: endISO,
       total_questions: totalQuestions,
-      minutes_per_10: minutesPer10,
+      duration_minutes: timerMinutes,
       allow_student_time_adjust: allowAdjust,
       negative_marking: negativeMarking,
       selection_mode: 'manual',
@@ -157,8 +171,8 @@ function ExamForm({ exam, onSaved, onCancel }) {
 
         <div className="option-grid">
           <label>
-            <span>Minutes per 10 questions</span>
-            <input type="number" min={1} max={60} value={minutesPer10} onChange={(e) => setMinutesPer10(Math.max(1, parseInt(e.target.value) || 1))} />
+            <span>Timer (minutes)</span>
+            <input type="number" min={1} max={300} value={timerMinutes} onChange={(e) => handleTimerChange(e.target.value)} />
           </label>
           <label>
             <span>Negative marking (per wrong answer)</span>
@@ -171,8 +185,8 @@ function ExamForm({ exam, onSaved, onCancel }) {
         </label>
 
         <div className="exam-time-summary">
-          {totalQuestions} question{totalQuestions !== 1 ? 's' : ''} selected → each student gets {timerMinutes} minute{timerMinutes !== 1 ? 's' : ''} once they start
-          (at {minutesPer10} min / 10 questions)
+          {totalQuestions} question{totalQuestions !== 1 ? 's' : ''} selected → default timer is {timerMinutes} minute{timerMinutes !== 1 ? 's' : ''}
+          (60% of question count — edit the field above to override)
         </div>
       </div>
 
