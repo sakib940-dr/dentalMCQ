@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import ToothMark from '../../components/ToothMark';
+import BrandWordmark from '../../components/BrandWordmark';
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -27,7 +27,7 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="brand-mark"><ToothMark size={40} /></div>
+        <BrandWordmark />
         <h1>Welcome back</h1>
         <p className="auth-sub">Log in to your exam account</p>
 

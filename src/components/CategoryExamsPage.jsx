@@ -474,14 +474,23 @@ function LiveExamSession({ exam, onExit }) {
       attemptId = created.id;
     }
 
-    for (const q of questions) {
+    // Write all answers in a single batched request instead of one
+    // round-trip per question — critical for keeping submit fast when
+    // hundreds of students submit around the same time.
+    const answerRows = questions.map((q) => {
       const chosen = answers[q.id] || null;
-      await supabase.from('attempt_answers').upsert({
+      return {
         attempt_id: attemptId,
         question_id: q.id,
         selected_option: chosen,
         is_correct: chosen ? chosen === q.correct_option : null,
-      }, { onConflict: 'attempt_id,question_id' });
+      };
+    });
+    const { error: answersError } = await supabase
+      .from('attempt_answers')
+      .upsert(answerRows, { onConflict: 'attempt_id,question_id' });
+    if (answersError) {
+      console.error('Failed to save answers:', answersError.message);
     }
 
     await supabase
@@ -577,14 +586,18 @@ function ArchivedRetakeSession({ exam, onExit }) {
     const sessionId = sessionRow?.id;
     if (!sessionId) return;
 
-    for (const q of questions) {
+    const answerRows = questions.map((q) => {
       const chosen = answers[q.id] || null;
-      await supabase.from('practice_answers').insert({
+      return {
         session_id: sessionId,
         question_id: q.id,
         selected_option: chosen,
         is_correct: chosen ? chosen === q.correct_option : null,
-      });
+      };
+    });
+    const { error: answersError } = await supabase.from('practice_answers').insert(answerRows);
+    if (answersError) {
+      console.error('Failed to save practice answers:', answersError.message);
     }
   };
 

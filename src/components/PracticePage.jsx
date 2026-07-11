@@ -448,49 +448,66 @@ function PracticeSession({ session, onExit }) {
 
     const sessionId = sessionRow?.id;
 
-    // Record every answer + update wrong_questions tracker
-    for (const q of questions) {
-      const chosen = answers[q.id] || null;
-      const isCorrect = chosen === q.correct_option;
-
-      if (sessionId) {
-        await supabase.from('practice_answers').insert({
+    // 1) Write all practice_answers in one batched insert.
+    if (sessionId) {
+      const answerRows = questions.map((q) => {
+        const chosen = answers[q.id] || null;
+        return {
           session_id: sessionId,
           question_id: q.id,
           selected_option: chosen,
-          is_correct: chosen ? isCorrect : null,
-        });
-      }
+          is_correct: chosen ? chosen === q.correct_option : null,
+        };
+      });
+      const { error: answersError } = await supabase.from('practice_answers').insert(answerRows);
+      if (answersError) console.error('Failed to save practice answers:', answersError.message);
+    }
 
-      const { data: existing } = await supabase
-        .from('wrong_questions')
-        .select('*')
-        .eq('examinee_id', user.id)
-        .eq('question_id', q.id)
-        .maybeSingle();
+    // 2) Fetch every existing wrong_questions row for this batch in one
+    // query, instead of one SELECT per question.
+    const questionIds = questions.map((q) => q.id);
+    const { data: existingRows } = await supabase
+      .from('wrong_questions')
+      .select('*')
+      .eq('examinee_id', user.id)
+      .in('question_id', questionIds);
+    const existingByQuestion = new Map((existingRows || []).map((r) => [r.question_id, r]));
+
+    // 3) Build one upsert batch covering both "now wrong" and "now
+    // mastered-toward" updates, instead of per-question update/insert calls.
+    const upsertRows = [];
+    for (const q of questions) {
+      const chosen = answers[q.id] || null;
+      const isCorrect = chosen === q.correct_option;
+      const existing = existingByQuestion.get(q.id);
 
       if (!chosen || !isCorrect) {
-        // wrong or skipped — count as wrong
-        if (existing) {
-          await supabase.from('wrong_questions').update({
-            wrong_count: existing.wrong_count + 1,
-            last_wrong_at: new Date().toISOString(),
-            mastered: false,
-            mastered_at: null,
-          }).eq('id', existing.id);
-        } else {
-          await supabase.from('wrong_questions').insert({ examinee_id: user.id, question_id: q.id, wrong_count: 1 });
-        }
+        upsertRows.push({
+          examinee_id: user.id,
+          question_id: q.id,
+          wrong_count: (existing?.wrong_count || 0) + 1,
+          last_wrong_at: new Date().toISOString(),
+          mastered: false,
+          mastered_at: null,
+        });
       } else if (existing) {
-        // correct — nudge toward mastery
         const newCount = Math.max(0, existing.wrong_count - 1);
         const mastered = newCount <= 0;
-        await supabase.from('wrong_questions').update({
+        upsertRows.push({
+          examinee_id: user.id,
+          question_id: q.id,
           wrong_count: newCount,
+          last_wrong_at: existing.last_wrong_at,
           mastered,
           mastered_at: mastered ? new Date().toISOString() : null,
-        }).eq('id', existing.id);
+        });
       }
+    }
+    if (upsertRows.length > 0) {
+      const { error: wrongError } = await supabase
+        .from('wrong_questions')
+        .upsert(upsertRows, { onConflict: 'examinee_id,question_id' });
+      if (wrongError) console.error('Failed to update wrong_questions:', wrongError.message);
     }
   };
 

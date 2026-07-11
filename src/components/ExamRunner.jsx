@@ -111,6 +111,21 @@ export default function ExamRunner({
     setPhase('submitted');
     if (persistKey) localStorage.removeItem(persistKey);
     exitFullscreen();
+
+    // The student sees their result immediately above, but the actual
+    // database write is staggered by a small random delay. This spreads
+    // out submission load when many students' timers expire at the same
+    // moment (a live exam where everyone started together), instead of
+    // hundreds of write requests landing on the database in the same
+    // instant. Manual submits (button click) get no delay — only
+    // auto-submits from the timer running out benefit from this, since
+    // that's the scenario that actually clusters in time.
+    const isAutoSubmit = endAtRef.current && Date.now() >= endAtRef.current;
+    if (isAutoSubmit) {
+      const jitterMs = Math.floor(Math.random() * 4000);
+      await new Promise((resolve) => setTimeout(resolve, jitterMs));
+    }
+
     await onSubmit?.(answers, r);
   }, [answers, negativeMarking, onSubmit, persistKey, questions]);
 

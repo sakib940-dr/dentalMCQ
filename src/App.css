@@ -65,6 +65,34 @@ body {
   overflow: hidden;
 }
 
+.brand-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.brand-wordmark-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.brand-wordmark-title {
+  font-family: Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1;
+}
+.brand-wordmark-title-dark { color: var(--teal-deep); }
+.brand-wordmark-title-gold { color: var(--gold); }
+.brand-wordmark-tagline {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 .auth-card h1 {
   font-family: Georgia, serif;
   font-size: 24px;
