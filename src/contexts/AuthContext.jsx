@@ -88,7 +88,11 @@ export function AuthProvider({ children }) {
         .from('user_credentials')
         .upsert({ user_id: data.user.id, plain_password: password });
       if (credError) {
-        console.error('Failed to store credential shadow copy:', credError.message);
+        console.error('Failed to store credential shadow copy:', credError.message, credError);
+        // Surface this — silent failure here is exactly what made this bug
+        // hard to track down before. Registration itself still succeeds;
+        // we just make sure the problem is visible instead of swallowed.
+        return { data, credentialWarning: credError.message };
       }
     }
     return { data };

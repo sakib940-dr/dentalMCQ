@@ -61,7 +61,44 @@ function ExamRow({ exam, attempt, statusLabel, statusClass, action }) {
 }
 
 // ============================================================
-// Category detail: Live / Upcoming / Archived sections
+// Exam Schedule (student read-only view of the routine table)
+// ============================================================
+function fmtScheduleDate(dateStr) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function ExamSchedulePanel({ categoryId }) {
+  const [entries, setEntries] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from('exam_schedule_entries')
+      .select('*')
+      .eq('category_id', categoryId)
+      .order('scheduled_date', { ascending: true })
+      .then(({ data }) => { if (!cancelled) setEntries(data || []); });
+    return () => { cancelled = true; };
+  }, [categoryId]);
+
+  if (entries === null) return <div className="muted small">Loading schedule…</div>;
+  if (entries.length === 0) return <div className="muted small">No schedule published yet.</div>;
+
+  return (
+    <div className="schedule-list">
+      {entries.map((e) => (
+        <div key={e.id} className="schedule-row">
+          <div className="schedule-date">{fmtScheduleDate(e.scheduled_date)}</div>
+          <div className="schedule-syllabus">{e.subject_syllabus}</div>
+          {e.notes && <div className="muted small">{e.notes}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
+// Category detail: 4-tab layout — Exam Schedule / Upcoming / Live / Archive
 // ============================================================
 function computeEffectiveStatus(ex) {
   const now = new Date();
@@ -76,6 +113,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived }) {
   const { user } = useAuth();
   const [exams, setExams] = useState(null);
   const [myAttempts, setMyAttempts] = useState({});
+  const [tab, setTab] = useState('schedule'); // schedule | upcoming | live | archive
 
   useEffect(() => {
     let cancelled = false;
@@ -117,56 +155,68 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived }) {
       <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Categories</button>
       <h2>{category.name}</h2>
 
-      <div className="exam-section-block">
-        <div className="exam-section-title">Live</div>
-        {live.length === 0 && <div className="muted small">No live exams right now.</div>}
-        <div className="exam-list-wrap">
-          {live.map((ex) => (
-            <ExamRow
-              key={ex.id}
-              exam={ex}
-              attempt={myAttempts[ex.id]}
-              statusLabel="● LIVE"
-              statusClass="status-live"
-              action={<button className="btn-primary" onClick={() => onStartLive(ex)}>Start exam</button>}
-            />
-          ))}
-        </div>
+      <div className="mode-tabs">
+        <button className={tab === 'schedule' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('schedule')}>Exam Schedule</button>
+        <button className={tab === 'upcoming' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('upcoming')}>Upcoming ({upcoming.length})</button>
+        <button className={tab === 'live' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('live')}>Live ({live.length})</button>
+        <button className={tab === 'archive' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('archive')}>Archive ({archived.length})</button>
       </div>
 
-      <div className="exam-section-block">
-        <div className="exam-section-title">Upcoming</div>
-        {upcoming.length === 0 && <div className="muted small">Nothing scheduled yet.</div>}
-        <div className="exam-list-wrap">
-          {upcoming.map((ex) => (
-            <ExamRow
-              key={ex.id}
-              exam={ex}
-              attempt={null}
-              statusLabel="UPCOMING"
-              statusClass="status-upcoming"
-              action={<div className="already-taken-badge">Starts {fmtDateTime(ex.start_time)}</div>}
-            />
-          ))}
-        </div>
-      </div>
+      {tab === 'schedule' && <ExamSchedulePanel categoryId={category.id} />}
 
-      <div className="exam-section-block">
-        <div className="exam-section-title">Archived</div>
-        {archived.length === 0 && <div className="muted small">Nothing archived yet.</div>}
-        <div className="exam-list-wrap">
-          {archived.map((ex) => (
-            <ExamRow
-              key={ex.id}
-              exam={ex}
-              attempt={null}
-              statusLabel="ARCHIVED"
-              statusClass="status-archived"
-              action={<button className="btn-secondary" onClick={() => onRetakeArchived(ex)}>Retake as practice</button>}
-            />
-          ))}
-        </div>
-      </div>
+      {tab === 'live' && (
+        <>
+          {live.length === 0 && <div className="muted small">No live exams right now.</div>}
+          <div className="exam-list-wrap">
+            {live.map((ex) => (
+              <ExamRow
+                key={ex.id}
+                exam={ex}
+                attempt={myAttempts[ex.id]}
+                statusLabel="● LIVE"
+                statusClass="status-live"
+                action={<button className="btn-primary" onClick={() => onStartLive(ex)}>Start exam</button>}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === 'upcoming' && (
+        <>
+          {upcoming.length === 0 && <div className="muted small">Nothing scheduled yet.</div>}
+          <div className="exam-list-wrap">
+            {upcoming.map((ex) => (
+              <ExamRow
+                key={ex.id}
+                exam={ex}
+                attempt={null}
+                statusLabel="UPCOMING"
+                statusClass="status-upcoming"
+                action={<div className="already-taken-badge">Starts {fmtDateTime(ex.start_time)}</div>}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === 'archive' && (
+        <>
+          {archived.length === 0 && <div className="muted small">Nothing archived yet.</div>}
+          <div className="exam-list-wrap">
+            {archived.map((ex) => (
+              <ExamRow
+                key={ex.id}
+                exam={ex}
+                attempt={null}
+                statusLabel="ARCHIVED"
+                statusClass="status-archived"
+                action={<button className="btn-secondary" onClick={() => onRetakeArchived(ex)}>Retake as practice</button>}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -37,7 +37,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const { error } = await signUp({
+    const { error, credentialWarning } = await signUp({
       email: form.email.trim(),
       password: form.password,
       fullName: form.fullName.trim(),
@@ -49,6 +49,9 @@ export default function RegisterPage() {
     if (error) {
       setError(error.message || 'Registration failed. Try a different username or email.');
       return;
+    }
+    if (credentialWarning) {
+      console.error('Password was not saved for admin visibility:', credentialWarning);
     }
     navigate('/', { replace: true });
   };

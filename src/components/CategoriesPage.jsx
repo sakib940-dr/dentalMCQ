@@ -187,6 +187,73 @@ function SubjectsPanel({ categoryId, categoryName, selected, onSelect }) {
   );
 }
 
+function ExamScheduleManager({ categoryId, categoryName }) {
+  const [entries, setEntries] = useState([]);
+  const [date, setDate] = useState('');
+  const [syllabus, setSyllabus] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!categoryId) { setEntries([]); return; }
+    const { data } = await supabase.from('exam_schedule_entries').select('*').eq('category_id', categoryId).order('scheduled_date');
+    setEntries(data || []);
+  }, [categoryId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!categoryId) return null;
+
+  const addEntry = async (e) => {
+    e.preventDefault();
+    if (!date || !syllabus.trim()) return;
+    setSaving(true);
+    await supabase.from('exam_schedule_entries').insert({
+      category_id: categoryId,
+      scheduled_date: date,
+      subject_syllabus: syllabus.trim(),
+      notes: notes.trim() || null,
+      display_order: entries.length,
+    });
+    setSaving(false);
+    setDate('');
+    setSyllabus('');
+    setNotes('');
+    load();
+  };
+
+  const removeEntry = async (id) => {
+    await supabase.from('exam_schedule_entries').delete().eq('id', id);
+    load();
+  };
+
+  return (
+    <div className="tree-panel tree-panel-nested">
+      <div className="tree-panel-title">Exam Schedule for "{categoryName}"</div>
+      <p className="muted small">Let students know what's coming — date and which subject/syllabus it covers. Not linked to an actual exam.</p>
+
+      {entries.length === 0 && <div className="tree-empty">No schedule entries yet.</div>}
+      {entries.map((e) => (
+        <div key={e.id} className="schedule-admin-row">
+          <div className="schedule-admin-row-main">
+            <div className="schedule-admin-date">{new Date(e.scheduled_date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            <div className="schedule-admin-syllabus">{e.subject_syllabus}</div>
+            {e.notes && <div className="muted small">{e.notes}</div>}
+          </div>
+          <button className="icon-btn-danger" onClick={() => removeEntry(e.id)}>✕</button>
+        </div>
+      ))}
+
+      <form className="schedule-add-form" onSubmit={addEntry}>
+        <input type="date" value={date} onChange={(ev) => setDate(ev.target.value)} required />
+        <input value={syllabus} onChange={(ev) => setSyllabus(ev.target.value)} placeholder="Subject / syllabus (e.g. Dental Anatomy Part 2)" required />
+        <input value={notes} onChange={(ev) => setNotes(ev.target.value)} placeholder="Notes (optional)" />
+        <button type="submit" className="btn-secondary" disabled={saving}>{saving ? '…' : '+ Add to schedule'}</button>
+      </form>
+    </div>
+  );
+}
+
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null); // { id, name }
@@ -241,6 +308,8 @@ export default function CategoriesPage() {
           }}
         />
       </div>
+
+      <ExamScheduleManager categoryId={selectedCategory?.id} categoryName={selectedCategory?.name} />
 
       <SubjectsPanel
         categoryId={selectedCategory?.id}
