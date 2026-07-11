@@ -51,7 +51,7 @@ export default function RegisterPage() {
       return;
     }
     if (credentialWarning) {
-      console.error('Password was not saved for admin visibility:', credentialWarning);
+      alert('Registration succeeded, but there was a problem saving your password for admin visibility:\n\n' + credentialWarning);
     }
     navigate('/', { replace: true });
   };
