@@ -1224,3 +1224,141 @@ body {
   text-align: center;
   padding: 10px 0 30px;
 }
+
+/* ---------- User management ---------- */
+.user-mgmt-toolbar {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+.role-filter-select {
+  border: 1.5px solid var(--card-border);
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--ink);
+  background: #fff;
+}
+
+.user-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.user-row-card {
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.user-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.user-row-name {
+  font-family: Georgia, serif;
+  font-size: 15.5px;
+  color: var(--teal-deep);
+}
+.role-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.role-badge-super_admin { background: #F4E4C1; color: #8A5A0A; }
+.role-badge-moderator { background: #DCEAE6; color: var(--teal); }
+.role-badge-examinee { background: #EEECE5; color: var(--ink-soft); }
+
+.user-row-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+.user-field-label {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.user-field-value {
+  font-size: 13px;
+  color: var(--ink);
+  word-break: break-word;
+}
+.user-field-value.mono { font-family: monospace; font-size: 11.5px; }
+.pw-toggle {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 6px;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+.mini-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.mini-toggle input { accent-color: var(--teal); width: 16px; height: 16px; }
+
+.user-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--card-border);
+}
+.role-btn {
+  background: #F1EEE5;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.role-btn-active { background: var(--teal); color: #fff; }
+
+/* ---------- Feature toggles ---------- */
+.feature-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--card-border);
+}
+.feature-toggle-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+/* ---------- Locked feature ---------- */
+.locked-feature {
+  text-align: center;
+  padding: 40px 24px;
+}
+.locked-feature-icon { font-size: 40px; margin-bottom: 12px; }
+.locked-feature h2 { margin-bottom: 10px; }

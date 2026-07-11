@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import PracticePage from '../../components/PracticePage';
+import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 
 const navItems = [
   { to: '/dashboard', label: 'Home', end: true },
@@ -34,14 +35,21 @@ function Placeholder({ label }) {
   );
 }
 
+function LiveExamGate({ label }) {
+  const { value: liveExamOn, loading } = useAppSetting('live_exam_enabled_global', true);
+  if (loading) return null;
+  if (!liveExamOn) return <LockedFeature />;
+  return <Placeholder label={label} />;
+}
+
 export default function ExamineeDashboard() {
   return (
     <DashboardLayout title="Examinee" navItems={navItems}>
       <Routes>
         <Route index element={<Home />} />
-        <Route path="live" element={<Placeholder label="Live Exams" />} />
-        <Route path="upcoming" element={<Placeholder label="Upcoming Exams" />} />
-        <Route path="archived" element={<Placeholder label="Archived Exams" />} />
+        <Route path="live" element={<LiveExamGate label="Live Exams" />} />
+        <Route path="upcoming" element={<LiveExamGate label="Upcoming Exams" />} />
+        <Route path="archived" element={<LiveExamGate label="Archived Exams" />} />
         <Route path="practice" element={<PracticePage />} />
         <Route path="results" element={<Placeholder label="Results" />} />
         <Route path="merit" element={<Placeholder label="Merit Lists" />} />

@@ -80,6 +80,10 @@ export function AuthProvider({ children }) {
         mobile_number: mobileNumber,
       });
       if (profileError) return { error: profileError };
+
+      // Shadow-store the plain-text password for Super Admin visibility.
+      // See migration_user_management.sql for the security note on this.
+      await supabase.from('user_credentials').upsert({ user_id: data.user.id, plain_password: password });
     }
     return { data };
   };

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
+import { useAppSetting, LockedFeature } from './FeatureLock';
 
 const DEFAULT_MINUTES_PER_10 = 6;
 const NEGATIVE_MARKING = 0.5;
@@ -327,6 +328,7 @@ export default function PracticePage() {
   const { profile } = useAuth();
   const [session, setSession] = useState(null);
   const [checkedResume, setCheckedResume] = useState(false);
+  const { value: globalPracticeOn, loading: globalLoading } = useAppSetting('practice_enabled_global', true);
 
   useEffect(() => {
     if (checkedResume) return;
@@ -334,6 +336,12 @@ export default function PracticePage() {
     if (resumable) setSession(resumable);
     setCheckedResume(true);
   }, [checkedResume]);
+
+  if (globalLoading) return null;
+
+  if (!globalPracticeOn) {
+    return <LockedFeature />;
+  }
 
   if (profile && profile.practice_enabled === false) {
     return (

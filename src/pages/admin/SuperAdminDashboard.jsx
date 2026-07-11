@@ -3,14 +3,15 @@ import DashboardLayout from '../../components/DashboardLayout';
 import QuestionBankPage from '../../components/QuestionBankPage';
 import CategoriesPage from '../../components/CategoriesPage';
 import ExamBuilderPage from '../../components/ExamBuilderPage';
+import UserManagementPage from '../../components/UserManagementPage';
+import FeatureTogglesPanel from '../../components/FeatureTogglesPanel';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/categories', label: 'Categories' },
   { to: '/admin/questions', label: 'Question Bank' },
   { to: '/admin/exams', label: 'Exams' },
-  { to: '/admin/moderators', label: 'Moderators' },
-  { to: '/admin/students', label: 'Students' },
+  { to: '/admin/users', label: 'Users' },
   { to: '/admin/notices', label: 'Notice Board' },
   { to: '/admin/settings', label: 'Settings' },
 ];
@@ -36,6 +37,10 @@ function Placeholder({ label }) {
   );
 }
 
+function SettingsPage() {
+  return <FeatureTogglesPanel />;
+}
+
 export default function SuperAdminDashboard() {
   return (
     <DashboardLayout title="Super Admin" navItems={navItems}>
@@ -44,10 +49,9 @@ export default function SuperAdminDashboard() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
-        <Route path="moderators" element={<Placeholder label="Moderators" />} />
-        <Route path="students" element={<Placeholder label="Students" />} />
+        <Route path="users" element={<UserManagementPage />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />
-        <Route path="settings" element={<Placeholder label="Settings" />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Routes>
     </DashboardLayout>
   );
