@@ -10,6 +10,16 @@ function toLocalInputValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Given a date-only string (yyyy-mm-dd) from a start_time input, build the
+// default availability window: 12:01 AM to 11:59 PM of that same day.
+function defaultWindowFromDate(dateStr) {
+  if (!dateStr) return { start: '', end: '' };
+  return {
+    start: `${dateStr}T00:01`,
+    end: `${dateStr}T23:59`,
+  };
+}
+
 function ExamForm({ exam, onSaved, onCancel }) {
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
@@ -17,6 +27,8 @@ function ExamForm({ exam, onSaved, onCancel }) {
   const [title, setTitle] = useState(exam?.title || '');
   const [syllabus, setSyllabus] = useState(exam?.syllabus || '');
   const [startTime, setStartTime] = useState(toLocalInputValue(exam?.start_time) || '');
+  const [endTime, setEndTime] = useState(toLocalInputValue(exam?.end_time) || '');
+  const [windowTouched, setWindowTouched] = useState(!!exam); // don't auto-fill when editing an existing exam
   const [minutesPer10, setMinutesPer10] = useState(exam?.minutes_per_10 ?? 6);
   const [allowAdjust, setAllowAdjust] = useState(exam?.allow_student_time_adjust ?? true);
   const [negativeMarking, setNegativeMarking] = useState(exam?.negative_marking ?? 0);
@@ -36,18 +48,38 @@ function ExamForm({ exam, onSaved, onCancel }) {
   }, [exam]);
 
   const totalQuestions = selectedIds.size;
-  const totalMinutes = Math.ceil(totalQuestions / 10) * minutesPer10;
+  const timerMinutes = Math.ceil(totalQuestions / 10) * minutesPer10;
+
+  // When the start date changes (and the window hasn't been manually
+  // customized yet), auto-fill a sensible default: 12:01 AM–11:59 PM
+  // of the same day as the chosen start date.
+  const handleStartTimeChange = (value) => {
+    setStartTime(value);
+    if (!windowTouched && value) {
+      const dateStr = value.split('T')[0];
+      const { start, end } = defaultWindowFromDate(dateStr);
+      setStartTime(start);
+      setEndTime(end);
+    }
+  };
+
+  const handleEndTimeChange = (value) => {
+    setWindowTouched(true);
+    setEndTime(value);
+  };
 
   const save = async (publish) => {
     setError('');
     if (!categoryId) return setError('Select a category.');
     if (!title.trim()) return setError('Enter a title.');
     if (!startTime) return setError('Set a start date/time.');
+    if (!endTime) return setError('Set an end date/time.');
+    if (new Date(endTime) <= new Date(startTime)) return setError('End time must be after start time.');
     if (totalQuestions === 0) return setError('Select at least one question.');
 
     setSaving(true);
     const startISO = new Date(startTime).toISOString();
-    const endISO = new Date(new Date(startTime).getTime() + totalMinutes * 60000).toISOString();
+    const endISO = new Date(endTime).toISOString();
 
     const payload = {
       category_id: categoryId,
@@ -109,10 +141,20 @@ function ExamForm({ exam, onSaved, onCancel }) {
           <span>Syllabus / topic notes</span>
           <textarea value={syllabus} onChange={(e) => setSyllabus(e.target.value)} rows={3} />
         </label>
+
         <label>
-          <span>Start date &amp; time</span>
-          <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <span>Available from</span>
+          <input type="datetime-local" value={startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
         </label>
+        <label>
+          <span>Available until</span>
+          <input type="datetime-local" value={endTime} onChange={(e) => handleEndTimeChange(e.target.value)} />
+          <span className="muted small">
+            Defaults to 12:01 AM–11:59 PM of the start date. Students can start the exam any time in
+            this window; adjust it if the exam should run across multiple days or a shorter slot.
+          </span>
+        </label>
+
         <div className="option-grid">
           <label>
             <span>Minutes per 10 questions</span>
@@ -129,7 +171,7 @@ function ExamForm({ exam, onSaved, onCancel }) {
         </label>
 
         <div className="exam-time-summary">
-          {totalQuestions} question{totalQuestions !== 1 ? 's' : ''} selected → {totalMinutes} minute{totalMinutes !== 1 ? 's' : ''} total
+          {totalQuestions} question{totalQuestions !== 1 ? 's' : ''} selected → each student gets {timerMinutes} minute{timerMinutes !== 1 ? 's' : ''} once they start
           (at {minutesPer10} min / 10 questions)
         </div>
       </div>
@@ -150,6 +192,16 @@ function ExamForm({ exam, onSaved, onCancel }) {
   );
 }
 
+function computeEffectiveStatus(ex) {
+  if (!ex.is_published) return 'draft';
+  const now = new Date();
+  const start = new Date(ex.start_time);
+  const end = new Date(ex.end_time);
+  if (now < start) return 'upcoming';
+  if (now >= start && now <= end) return 'live';
+  return 'archived';
+}
+
 function ExamList({ onEdit, onCreate }) {
   const [exams, setExams] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -161,8 +213,8 @@ function ExamList({ onEdit, onCreate }) {
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  const setStatus = async (exam, status) => {
-    await supabase.from('exams').update({ status, is_published: status !== 'draft' }).eq('id', exam.id);
+  const setPublishState = async (exam, publish) => {
+    await supabase.from('exams').update({ is_published: publish, status: publish ? 'upcoming' : 'draft' }).eq('id', exam.id);
     setRefreshKey((k) => k + 1);
   };
 
@@ -181,27 +233,29 @@ function ExamList({ onEdit, onCreate }) {
 
       {exams.length === 0 && <div className="muted">No exams yet.</div>}
 
-      {exams.map((ex) => (
-        <div key={ex.id} className="exam-list-row">
-          <div className="exam-list-row-main">
-            <div className="exam-list-row-top">
-              <span className={`status-pill status-${ex.status}`}>{ex.status}</span>
-              <span className="exam-list-category">{ex.categories?.name}</span>
+      {exams.map((ex) => {
+        const effectiveStatus = computeEffectiveStatus(ex);
+        return (
+          <div key={ex.id} className="exam-list-row">
+            <div className="exam-list-row-main">
+              <div className="exam-list-row-top">
+                <span className={`status-pill status-${effectiveStatus}`}>{effectiveStatus}</span>
+                <span className="exam-list-category">{ex.categories?.name}</span>
+              </div>
+              <div className="exam-list-title">{ex.title}</div>
+              <div className="exam-list-meta">
+                {ex.total_questions} questions · {ex.duration_minutes} min timer · available {new Date(ex.start_time).toLocaleString()} – {new Date(ex.end_time).toLocaleString()}
+              </div>
             </div>
-            <div className="exam-list-title">{ex.title}</div>
-            <div className="exam-list-meta">
-              {ex.total_questions} questions · {ex.duration_minutes} min · {new Date(ex.start_time).toLocaleString()}
+            <div className="exam-list-row-actions">
+              <button className="btn-secondary" onClick={() => onEdit(ex)}>Edit</button>
+              {!ex.is_published && <button className="btn-secondary" onClick={() => setPublishState(ex, true)}>Publish</button>}
+              {ex.is_published && <button className="btn-secondary" onClick={() => setPublishState(ex, false)}>Unpublish</button>}
+              <button className="btn-danger" onClick={() => remove(ex)}>Delete</button>
             </div>
           </div>
-          <div className="exam-list-row-actions">
-            <button className="btn-secondary" onClick={() => onEdit(ex)}>Edit</button>
-            {ex.status === 'draft' && <button className="btn-secondary" onClick={() => setStatus(ex, 'upcoming')}>Publish</button>}
-            {ex.status !== 'archived' && <button className="btn-secondary" onClick={() => setStatus(ex, 'archived')}>Archive</button>}
-            {ex.status === 'archived' && <button className="btn-secondary" onClick={() => setStatus(ex, 'upcoming')}>Restore</button>}
-            <button className="btn-danger" onClick={() => remove(ex)}>Delete</button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

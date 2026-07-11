@@ -63,6 +63,15 @@ function ExamRow({ exam, attempt, statusLabel, statusClass, action }) {
 // ============================================================
 // Category detail: Live / Upcoming / Archived sections
 // ============================================================
+function computeEffectiveStatus(ex) {
+  const now = new Date();
+  const start = new Date(ex.start_time);
+  const end = new Date(ex.end_time);
+  if (now < start) return 'upcoming';
+  if (now >= start && now <= end) return 'live';
+  return 'archived';
+}
+
 function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived }) {
   const { user } = useAuth();
   const [exams, setExams] = useState(null);
@@ -76,7 +85,6 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived }) {
         .select('*')
         .eq('category_id', category.id)
         .eq('is_published', true)
-        .in('status', ['live', 'upcoming', 'archived'])
         .order('start_time', { ascending: false });
       if (cancelled) return;
       setExams(data || []);
@@ -100,9 +108,9 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived }) {
 
   if (exams === null) return <div className="panel"><p className="muted">Loading exams…</p></div>;
 
-  const live = exams.filter((e) => e.status === 'live');
-  const upcoming = exams.filter((e) => e.status === 'upcoming');
-  const archived = exams.filter((e) => e.status === 'archived');
+  const live = exams.filter((e) => computeEffectiveStatus(e) === 'live');
+  const upcoming = exams.filter((e) => computeEffectiveStatus(e) === 'upcoming');
+  const archived = exams.filter((e) => computeEffectiveStatus(e) === 'archived');
 
   return (
     <div className="panel">
