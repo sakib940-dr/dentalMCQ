@@ -6,6 +6,7 @@ import CategoriesPage from '../../components/CategoriesPage';
 import ChangePasswordPanel from '../../components/ChangePasswordPanel';
 import StaffChatInbox from '../../components/StaffChatInbox';
 import NoticeBoardAdminPage from '../../components/NoticeBoardAdminPage';
+import ModeratorOverview from '../../components/ModeratorOverview';
 
 const navItems = [
   { to: '/moderator', label: 'Overview', end: true },
@@ -16,18 +17,6 @@ const navItems = [
   { to: '/moderator/chat', label: 'Messages' },
   { to: '/moderator/settings', label: 'Settings' },
 ];
-
-function Overview() {
-  return (
-    <div className="panel">
-      <h2>Moderator Overview</h2>
-      <p className="muted">
-        You can manage categories, the question bank, publish exams, and post notices. Super Admin
-        settings and user management are not accessible from this account.
-      </p>
-    </div>
-  );
-}
 
 function Placeholder({ label }) {
   return (
@@ -42,7 +31,7 @@ export default function ModeratorDashboard() {
   return (
     <DashboardLayout title="Moderator" navItems={navItems}>
       <Routes>
-        <Route index element={<Overview />} />
+        <Route index element={<ModeratorOverview />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
