@@ -3,6 +3,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 import QuestionBankPage from '../../components/QuestionBankPage';
 import ExamBuilderPage from '../../components/ExamBuilderPage';
 import CategoriesPage from '../../components/CategoriesPage';
+import ChangePasswordPanel from '../../components/ChangePasswordPanel';
 
 const navItems = [
   { to: '/moderator', label: 'Overview', end: true },
@@ -10,6 +11,7 @@ const navItems = [
   { to: '/moderator/questions', label: 'Question Bank' },
   { to: '/moderator/exams', label: 'Exams' },
   { to: '/moderator/notices', label: 'Notice Board' },
+  { to: '/moderator/settings', label: 'Settings' },
 ];
 
 function Overview() {
@@ -42,6 +44,7 @@ export default function ModeratorDashboard() {
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />
+        <Route path="settings" element={<ChangePasswordPanel />} />
       </Routes>
     </DashboardLayout>
   );

@@ -100,6 +100,30 @@ export function AuthProvider({ children }) {
     setSession(null);
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    if (!session?.user?.email) return { error: { message: 'Not logged in.' } };
+
+    // Verify the current password by re-authenticating with it.
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password: currentPassword,
+    });
+    if (verifyError) return { error: { message: 'Current password is incorrect.' } };
+
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    if (updateError) return { error: updateError };
+
+    // Keep the plain-text shadow copy in sync for Super Admin visibility.
+    const { error: credError } = await supabase
+      .from('user_credentials')
+      .upsert({ user_id: session.user.id, plain_password: newPassword, updated_at: new Date().toISOString() });
+    if (credError) {
+      console.error('Failed to sync credential shadow copy:', credError.message);
+    }
+
+    return { data: true };
+  };
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -109,6 +133,7 @@ export function AuthProvider({ children }) {
     signIn,
     signUp,
     signOut,
+    changePassword,
     refreshProfile: () => loadProfile(session?.user?.id),
   };
 

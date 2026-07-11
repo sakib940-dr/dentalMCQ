@@ -5,6 +5,7 @@ import CategoriesPage from '../../components/CategoriesPage';
 import ExamBuilderPage from '../../components/ExamBuilderPage';
 import UserManagementPage from '../../components/UserManagementPage';
 import FeatureTogglesPanel from '../../components/FeatureTogglesPanel';
+import ChangePasswordPanel from '../../components/ChangePasswordPanel';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -38,7 +39,12 @@ function Placeholder({ label }) {
 }
 
 function SettingsPage() {
-  return <FeatureTogglesPanel />;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <FeatureTogglesPanel />
+      <ChangePasswordPanel />
+    </div>
+  );
 }
 
 export default function SuperAdminDashboard() {
