@@ -38,7 +38,7 @@ export function CategoryGrid({ onPick }) {
 // ============================================================
 // Exam row (shared visual for live/upcoming/archived)
 // ============================================================
-function ExamRow({ exam, attempt, statusLabel, statusClass, action }) {
+function ExamRow({ exam, attempt, statusLabel, statusClass, action, forceShowAction }) {
   return (
     <div className="exam-list-row">
       <div className="exam-list-row-main">
@@ -51,7 +51,7 @@ function ExamRow({ exam, attempt, statusLabel, statusClass, action }) {
         </div>
         {exam.syllabus && <div className="muted small" style={{ marginBottom: 10 }}>{exam.syllabus}</div>}
       </div>
-      {attempt ? (
+      {attempt && !forceShowAction ? (
         <div className="already-taken-badge">
           Already submitted — {attempt.percentage != null ? `${attempt.percentage}%` : 'scored'}
         </div>
@@ -61,8 +61,180 @@ function ExamRow({ exam, attempt, statusLabel, statusClass, action }) {
 }
 
 // ============================================================
-// Exam Schedule (student read-only view of the routine table)
+// Result view: a student's own answer sheet for a past attempt
 // ============================================================
+function ExamResultView({ exam, onBack }) {
+  const { user } = useAuth();
+  const [attempt, setAttempt] = useState(null);
+  const [details, setDetails] = useState(null); // [{ question, chosen, correct }]
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data: a } = await supabase
+        .from('exam_attempts')
+        .select('*')
+        .eq('exam_id', exam.id)
+        .eq('examinee_id', user.id)
+        .eq('attempt_type', 'official')
+        .maybeSingle();
+      if (cancelled || !a) return;
+      setAttempt(a);
+
+      const { data: answers } = await supabase.from('attempt_answers').select('*').eq('attempt_id', a.id);
+      const { data: eqRows } = await supabase.from('exam_questions').select('question_id, display_order').eq('exam_id', exam.id).order('display_order');
+      const ids = (eqRows || []).map((r) => r.question_id);
+      const { data: qs } = await supabase.from('questions').select('*').in('id', ids);
+      if (cancelled) return;
+
+      const order = new Map(ids.map((id, i) => [id, i]));
+      const sortedQs = [...(qs || [])].sort((x, y) => (order.get(x.id) ?? 0) - (order.get(y.id) ?? 0));
+      const answerMap = new Map((answers || []).map((ans) => [ans.question_id, ans]));
+
+      setDetails(sortedQs.map((q) => ({ question: q, answer: answerMap.get(q.id) || null })));
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [exam.id, user.id]);
+
+  if (!attempt || details === null) return <div className="panel"><p className="muted">Loading result…</p></div>;
+
+  const pct = attempt.percentage;
+
+  return (
+    <div className="answer-sheet-page">
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Back</button>
+      <div className="panel answer-sheet-summary">
+        <h2>{exam.title}</h2>
+        <div className="result-stat-row">
+          <div className="result-stat">
+            <span className="result-stat-value result-stat-correct">{details.filter((d) => d.answer?.is_correct).length}</span>
+            <span className="result-stat-label">Correct</span>
+          </div>
+          <div className="result-stat">
+            <span className="result-stat-value result-stat-wrong">{details.filter((d) => d.answer && !d.answer.is_correct).length}</span>
+            <span className="result-stat-label">Wrong</span>
+          </div>
+          <div className="result-stat">
+            <span className="result-stat-value result-stat-unanswered">{details.filter((d) => !d.answer).length}</span>
+            <span className="result-stat-label">Unanswered</span>
+          </div>
+        </div>
+        <div className="result-big-row">
+          <div className="result-big-pct">{pct}%</div>
+          {attempt.total_marks != null && <div className="result-big-mark">{attempt.score} / {attempt.total_marks} marks</div>}
+        </div>
+      </div>
+
+      <div className="answer-sheet-list">
+        {details.map(({ question: q, answer }, i) => {
+          const chosen = answer?.selected_option || null;
+          const isCorrect = !!answer?.is_correct;
+          let cardClass = 'panel answer-sheet-card';
+          if (!chosen) cardClass += ' answer-sheet-unanswered';
+          else if (isCorrect) cardClass += ' answer-sheet-correct';
+          else cardClass += ' answer-sheet-wrong';
+
+          return (
+            <div key={q.id} className={cardClass}>
+              <div className="q-num-row">
+                <span className="q-num-label">Question {i + 1}</span>
+                {!chosen && <span className="sheet-tag sheet-tag-unanswered">Unanswered</span>}
+                {chosen && isCorrect && <span className="sheet-tag sheet-tag-correct">Correct</span>}
+                {chosen && !isCorrect && <span className="sheet-tag sheet-tag-wrong">Wrong</span>}
+              </div>
+              <div className="q-text">{q.question_text}</div>
+              <div className="opt-list">
+                {['A', 'B', 'C', 'D'].map((letter) => {
+                  const isCorrectOpt = letter === q.correct_option;
+                  const isChosenWrong = letter === chosen && !isCorrect;
+                  let cls = 'opt-btn opt-static';
+                  if (isCorrectOpt) cls += ' opt-correct';
+                  else if (isChosenWrong) cls += ' opt-wrong';
+                  return (
+                    <div key={letter} className={cls}>
+                      <span className="opt-letter">{letter}</span>
+                      <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
+                      {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                      {isChosenWrong && <span className="opt-tag-wrong">your answer</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              {q.explanation && <div className="expl-box"><b>Why:</b> {q.explanation}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Merit list view: ranked table for a specific closed exam
+// ============================================================
+function ExamMeritView({ exam, onBack }) {
+  const { user } = useAuth();
+  const [rows, setRows] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      await supabase.rpc('compute_exam_ranks', { target_exam_id: exam.id });
+      const { data } = await supabase
+        .from('exam_attempts')
+        .select('*, profiles(full_name)')
+        .eq('exam_id', exam.id)
+        .eq('attempt_type', 'official')
+        .eq('status', 'submitted')
+        .order('rank', { ascending: true, nullsFirst: false });
+      if (cancelled) return;
+      setRows(data || []);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [exam.id]);
+
+  if (rows === null) return <div className="panel"><p className="muted">Loading merit list…</p></div>;
+
+  return (
+    <div className="panel">
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Back</button>
+      <h2>{exam.title} — Merit List</h2>
+      <p className="muted small">{rows.length} student{rows.length !== 1 ? 's' : ''} attempted this exam.</p>
+      <div className="merit-table-wrap">
+        {rows.map((r) => {
+          const isMe = r.examinee_id === user.id;
+          return (
+            <div key={r.id} className={isMe ? 'merit-row merit-row-mine' : 'merit-row'}>
+              <div className="merit-rank">#{r.rank ?? '—'}</div>
+              <div className="merit-name">
+                {r.profiles?.full_name || 'Student'}
+                {isMe && <span className="merit-you-tag">You</span>}
+              </div>
+              <div className="merit-score">{r.percentage}%</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Archived exam actions: View Result / Merit List / Retake
+// ============================================================
+function ArchivedExamActions({ exam, attempt, onRetake, onViewResult, onViewMerit }) {
+  return (
+    <div className="archived-actions-row">
+      {attempt && <button className="btn-secondary" onClick={() => onViewResult(exam)}>View Result</button>}
+      <button className="btn-secondary" onClick={() => onViewMerit(exam)}>Merit List</button>
+      <button className="btn-primary" onClick={() => onRetake(exam)}>Retake as practice</button>
+    </div>
+  );
+}
+
+
 function fmtScheduleDate(dateStr) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 }
@@ -109,7 +281,7 @@ function computeEffectiveStatus(ex) {
   return 'archived';
 }
 
-function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived }) {
+function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onViewResult, onViewMerit }) {
   const { user } = useAuth();
   const [exams, setExams] = useState(null);
   const [myAttempts, setMyAttempts] = useState({});
@@ -208,10 +380,19 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived }) {
               <ExamRow
                 key={ex.id}
                 exam={ex}
-                attempt={null}
+                attempt={myAttempts[ex.id]}
+                forceShowAction
                 statusLabel="ARCHIVED"
                 statusClass="status-archived"
-                action={<button className="btn-secondary" onClick={() => onRetakeArchived(ex)}>Retake as practice</button>}
+                action={
+                  <ArchivedExamActions
+                    exam={ex}
+                    attempt={myAttempts[ex.id]}
+                    onRetake={onRetakeArchived}
+                    onViewResult={onViewResult}
+                    onViewMerit={onViewMerit}
+                  />
+                }
               />
             ))}
           </div>
@@ -436,9 +617,13 @@ export default function CategoryExamsPage() {
   const [category, setCategory] = useState(null);
   const [liveExam, setLiveExam] = useState(null);
   const [retakeExam, setRetakeExam] = useState(null);
+  const [resultExam, setResultExam] = useState(null);
+  const [meritExam, setMeritExam] = useState(null);
 
   if (liveExam) return <LiveExamSession exam={liveExam} onExit={() => setLiveExam(null)} />;
   if (retakeExam) return <ArchivedRetakeSession exam={retakeExam} onExit={() => setRetakeExam(null)} />;
+  if (resultExam) return <ExamResultView exam={resultExam} onBack={() => setResultExam(null)} />;
+  if (meritExam) return <ExamMeritView exam={meritExam} onBack={() => setMeritExam(null)} />;
   if (category) {
     return (
       <CategoryDetail
@@ -446,6 +631,8 @@ export default function CategoryExamsPage() {
         onBack={() => setCategory(null)}
         onStartLive={setLiveExam}
         onRetakeArchived={setRetakeExam}
+        onViewResult={setResultExam}
+        onViewMerit={setMeritExam}
       />
     );
   }
