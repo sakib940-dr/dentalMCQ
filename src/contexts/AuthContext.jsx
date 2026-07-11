@@ -78,6 +78,7 @@ export function AuthProvider({ children }) {
         full_name: fullName,
         username,
         mobile_number: mobileNumber,
+        email,
       });
       if (profileError) return { error: profileError };
 

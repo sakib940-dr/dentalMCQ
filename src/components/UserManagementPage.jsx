@@ -56,7 +56,7 @@ export default function UserManagementPage() {
     if (roleFilter !== 'all' && u.role !== roleFilter) return false;
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
-    return (u.full_name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q) || (u.mobile_number || '').includes(q);
+    return (u.full_name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.mobile_number || '').includes(q);
   });
 
   const moderatorCount = users.filter((u) => u.role === 'moderator').length;
@@ -103,6 +103,7 @@ export default function UserManagementPage() {
               <div className="user-row-grid">
                 <div><span className="user-field-label">User ID</span><span className="user-field-value mono">{u.id}</span></div>
                 <div><span className="user-field-label">Username</span><span className="user-field-value">{u.username}</span></div>
+                <div><span className="user-field-label">Email</span><span className="user-field-value">{u.email || '—'}</span></div>
                 <div><span className="user-field-label">Phone</span><span className="user-field-value">{u.mobile_number || '—'}</span></div>
                 <div><span className="user-field-label">Joined</span><span className="user-field-value">{fmtDate(u.created_at)}</span></div>
                 <div>

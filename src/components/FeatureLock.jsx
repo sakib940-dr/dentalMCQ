@@ -7,8 +7,11 @@ export function useAppSetting(key, defaultValue = true) {
 
   useEffect(() => {
     let cancelled = false;
-    supabase.from('app_settings').select('value').eq('key', key).maybeSingle().then(({ data }) => {
+    supabase.from('app_settings').select('value').eq('key', key).maybeSingle().then(({ data, error }) => {
       if (cancelled) return;
+      if (error) {
+        console.error(`useAppSetting(${key}) failed:`, error.message);
+      }
       setValue(data ? data.value : defaultValue);
       setLoading(false);
     });
