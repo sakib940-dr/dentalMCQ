@@ -9,10 +9,12 @@ import ChangePasswordPanel from '../../components/ChangePasswordPanel';
 import StaffChatInbox from '../../components/StaffChatInbox';
 import NoticeBoardAdminPage from '../../components/NoticeBoardAdminPage';
 import SuperAdminOverview from '../../components/SuperAdminOverview';
+import ExamSchedulePage from '../../components/ExamSchedulePage';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/categories', label: 'Categories' },
+  { to: '/admin/schedule', label: 'Exam Schedule' },
   { to: '/admin/questions', label: 'Question Bank' },
   { to: '/admin/exams', label: 'Exams' },
   { to: '/admin/users', label: 'Users' },
@@ -45,6 +47,7 @@ export default function SuperAdminDashboard() {
       <Routes>
         <Route index element={<SuperAdminOverview />} />
         <Route path="categories" element={<CategoriesPage />} />
+        <Route path="schedule" element={<ExamSchedulePage />} />
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
         <Route path="users" element={<UserManagementPage />} />
