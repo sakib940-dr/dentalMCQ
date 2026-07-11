@@ -1513,3 +1513,19 @@ body {
   border-radius: 50%;
   background: var(--red);
 }
+
+/* ---------- Category exams page (Live/Upcoming/Archived sections) ---------- */
+.exam-section-block {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+.exam-section-block:first-of-type {
+  margin-top: 16px;
+}
+.exam-section-title {
+  font-family: Georgia, serif;
+  font-size: 15px;
+  color: var(--teal-deep);
+  margin-bottom: 10px;
+}
