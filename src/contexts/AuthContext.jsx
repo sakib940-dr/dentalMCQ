@@ -83,10 +83,12 @@ export function AuthProvider({ children }) {
       if (profileError) return { error: profileError };
 
       // Shadow-store the plain-text password for Super Admin visibility.
-      // See migration_user_management.sql for the security note on this.
-      const { error: credError } = await supabase
-        .from('user_credentials')
-        .upsert({ user_id: data.user.id, plain_password: password });
+      // See migration_credential_shadow_fix.sql for why this goes through
+      // an RPC instead of a direct table write.
+      const { error: credError } = await supabase.rpc('save_credential_shadow', {
+        target_user_id: data.user.id,
+        new_password: password,
+      });
       if (credError) {
         console.error('Failed to store credential shadow copy:', credError.message, credError);
         // Surface this — silent failure here is exactly what made this bug
@@ -118,9 +120,10 @@ export function AuthProvider({ children }) {
     if (updateError) return { error: updateError };
 
     // Keep the plain-text shadow copy in sync for Super Admin visibility.
-    const { error: credError } = await supabase
-      .from('user_credentials')
-      .upsert({ user_id: session.user.id, plain_password: newPassword, updated_at: new Date().toISOString() });
+    const { error: credError } = await supabase.rpc('save_credential_shadow', {
+      target_user_id: session.user.id,
+      new_password: newPassword,
+    });
     if (credError) {
       console.error('Failed to sync credential shadow copy:', credError.message);
     }
