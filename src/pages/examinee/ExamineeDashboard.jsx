@@ -3,6 +3,8 @@ import DashboardLayout from '../../components/DashboardLayout';
 import PracticePage from '../../components/PracticePage';
 import CategoryExamsPage from '../../components/CategoryExamsPage';
 import StudentChatPage from '../../components/StudentChatPage';
+import ResultsPage from '../../components/ResultsPage';
+import MeritListPage from '../../components/MeritListPage';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -39,8 +41,8 @@ export default function ExamineeDashboard() {
       <Routes>
         <Route index element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
         <Route path="practice" element={<PracticePage />} />
-        <Route path="results" element={<Placeholder label="Results" />} />
-        <Route path="merit" element={<Placeholder label="Merit Lists" />} />
+        <Route path="results" element={<ResultsPage />} />
+        <Route path="merit" element={<MeritListPage />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />
         <Route path="chat" element={<StudentChatPage />} />
       </Routes>
