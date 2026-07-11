@@ -42,7 +42,7 @@ function ChapterBrowser({ categoryId, selectedIds, onToggle }) {
   const loadQuestions = async (chapterId) => {
     setOpenChapter(openChapter === chapterId ? null : chapterId);
     if (questionsByChapter[chapterId]) return;
-    const { data } = await supabase.from('questions').select('id, question_text').eq('chapter_id', chapterId).eq('is_active', true);
+    const { data } = await supabase.from('questions').select('*').eq('chapter_id', chapterId).eq('is_active', true);
     setQuestionsByChapter((m) => ({ ...m, [chapterId]: data || [] }));
   };
 
@@ -72,13 +72,25 @@ function ChapterBrowser({ categoryId, selectedIds, onToggle }) {
                           {openChapter === ch.id && (
                             <div className="browser-children q-checkbox-list">
                               {(questionsByChapter[ch.id] || []).map((q) => (
-                                <label key={q.id} className="q-checkbox-row">
+                                <label key={q.id} className="q-checkbox-row q-checkbox-row-full">
                                   <input
                                     type="checkbox"
                                     checked={selectedIds.has(q.id)}
                                     onChange={() => onToggle(q.id)}
                                   />
-                                  <span>{q.question_text}</span>
+                                  <span className="q-checkbox-body">
+                                    <span className="q-checkbox-question">{q.question_text}</span>
+                                    <span className="q-checkbox-options">
+                                      {['A', 'B', 'C', 'D'].map((letter) => (
+                                        <span
+                                          key={letter}
+                                          className={letter === q.correct_option ? 'q-checkbox-opt q-checkbox-opt-correct' : 'q-checkbox-opt'}
+                                        >
+                                          {letter}. {q[`option_${letter.toLowerCase()}`]}
+                                        </span>
+                                      ))}
+                                    </span>
+                                  </span>
                                 </label>
                               ))}
                               {(questionsByChapter[ch.id] || []).length === 0 && (

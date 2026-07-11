@@ -1766,3 +1766,149 @@ body {
   text-align: center;
   flex-shrink: 0;
 }
+
+/* ---------- Manual question selector with options visible ---------- */
+.q-checkbox-row-full {
+  align-items: flex-start !important;
+}
+.q-checkbox-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.q-checkbox-question {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.q-checkbox-options {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.q-checkbox-opt {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.q-checkbox-opt-correct {
+  color: var(--green);
+  font-weight: 700;
+}
+
+/* ---------- Super Admin Overview dashboard ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.stat-card {
+  background: #FAF9F5;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px;
+}
+.stat-card-value {
+  font-family: Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.stat-card-label {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+}
+.stat-card-sub {
+  font-size: 11px;
+  color: var(--gold);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.quick-actions-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.quick-actions-row button { flex: 1; min-width: 130px; }
+
+.attention-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.attention-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #FDFBF3;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.attention-icon { font-size: 15px; flex-shrink: 0; }
+.attention-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+
+.mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 120px;
+  margin-top: 16px;
+  padding-top: 10px;
+}
+.mini-chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.mini-chart-bar-wrap {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+}
+.mini-chart-bar {
+  width: 100%;
+  background: var(--teal);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+}
+.mini-chart-label {
+  font-size: 10px;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+.mini-chart-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.recent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+.recent-row:last-child { border-bottom: none; }
+.recent-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }

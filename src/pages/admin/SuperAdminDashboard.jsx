@@ -8,6 +8,7 @@ import FeatureTogglesPanel from '../../components/FeatureTogglesPanel';
 import ChangePasswordPanel from '../../components/ChangePasswordPanel';
 import StaffChatInbox from '../../components/StaffChatInbox';
 import NoticeBoardAdminPage from '../../components/NoticeBoardAdminPage';
+import SuperAdminOverview from '../../components/SuperAdminOverview';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -19,18 +20,6 @@ const navItems = [
   { to: '/admin/chat', label: 'Messages' },
   { to: '/admin/settings', label: 'Settings' },
 ];
-
-function Overview() {
-  return (
-    <div className="panel">
-      <h2>Super Admin Overview</h2>
-      <p className="muted">
-        This is your control center. Category, question bank, exam, moderator, and student
-        management panels will appear here as we build them out.
-      </p>
-    </div>
-  );
-}
 
 function Placeholder({ label }) {
   return (
@@ -54,7 +43,7 @@ export default function SuperAdminDashboard() {
   return (
     <DashboardLayout title="Super Admin" navItems={navItems}>
       <Routes>
-        <Route index element={<Overview />} />
+        <Route index element={<SuperAdminOverview />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
