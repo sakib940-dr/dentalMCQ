@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import PracticePage from '../../components/PracticePage';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
+import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
   { to: '/dashboard', label: 'Home', end: true },
@@ -36,9 +37,11 @@ function Placeholder({ label }) {
 }
 
 function LiveExamGate({ label }) {
+  const { profile } = useAuth();
   const { value: liveExamOn, loading } = useAppSetting('live_exam_enabled_global', true);
   if (loading) return null;
   if (!liveExamOn) return <LockedFeature />;
+  if (profile && profile.live_exam_enabled === false) return <LockedFeature />;
   return <Placeholder label={label} />;
 }
 

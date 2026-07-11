@@ -30,6 +30,11 @@ export default function RegisterPage() {
       setError('Password must be at least 6 characters.');
       return;
     }
+    const phoneDigits = form.mobileNumber.trim();
+    if (!/^01\d{9}$/.test(phoneDigits)) {
+      setError('Enter a valid 11-digit mobile number (e.g. 01XXXXXXXXX).');
+      return;
+    }
 
     setLoading(true);
     const { error } = await signUp({
@@ -70,7 +75,14 @@ export default function RegisterPage() {
           </label>
           <label>
             <span>Mobile number</span>
-            <input value={form.mobileNumber} onChange={update('mobileNumber')} />
+            <input
+              value={form.mobileNumber}
+              onChange={update('mobileNumber')}
+              placeholder="01XXXXXXXXX"
+              inputMode="numeric"
+              maxLength={11}
+              required
+            />
           </label>
           <label>
             <span>Password</span>

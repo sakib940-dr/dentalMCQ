@@ -84,7 +84,12 @@ export function AuthProvider({ children }) {
 
       // Shadow-store the plain-text password for Super Admin visibility.
       // See migration_user_management.sql for the security note on this.
-      await supabase.from('user_credentials').upsert({ user_id: data.user.id, plain_password: password });
+      const { error: credError } = await supabase
+        .from('user_credentials')
+        .upsert({ user_id: data.user.id, plain_password: password });
+      if (credError) {
+        console.error('Failed to store credential shadow copy:', credError.message);
+      }
     }
     return { data };
   };

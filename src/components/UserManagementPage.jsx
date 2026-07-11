@@ -46,8 +46,14 @@ export default function UserManagementPage() {
     load();
   };
 
+  const toggleLiveExam = async (user) => {
+    await supabase.from('profiles').update({ live_exam_enabled: !user.live_exam_enabled }).eq('id', user.id);
+    load();
+  };
+
   const removeUser = async (user) => {
-    await supabase.from('profiles').delete().eq('id', user.id);
+    const { error } = await supabase.from('profiles').delete().eq('id', user.id);
+    if (error) { alert(error.message); return; }
     setConfirmDelete(null);
     load();
   };
@@ -124,20 +130,33 @@ export default function UserManagementPage() {
                     <span>{u.practice_enabled ? 'Enabled' : 'Disabled'}</span>
                   </label>
                 </div>
+                <div>
+                  <span className="user-field-label">Live Exam</span>
+                  <label className="mini-toggle">
+                    <input type="checkbox" checked={u.live_exam_enabled} onChange={() => toggleLiveExam(u)} />
+                    <span>{u.live_exam_enabled ? 'Enabled' : 'Disabled'}</span>
+                  </label>
+                </div>
               </div>
 
               <div className="user-row-actions">
-                <span className="user-field-label" style={{ marginRight: 6 }}>Change role:</span>
-                {['examinee', 'moderator', 'super_admin'].map((r) => (
-                  <button
-                    key={r}
-                    className={u.role === r ? 'role-btn role-btn-active' : 'role-btn'}
-                    onClick={() => changeRole(u, r)}
-                  >
-                    {ROLE_LABELS[r]}
-                  </button>
-                ))}
-                <button className="btn-danger sm" onClick={() => setConfirmDelete(u)}>Delete</button>
+                {u.role === 'super_admin' ? (
+                  <span className="muted small">Super Admin is fixed — cannot be changed or deleted.</span>
+                ) : (
+                  <>
+                    <span className="user-field-label" style={{ marginRight: 6 }}>Change role:</span>
+                    {['examinee', 'moderator'].map((r) => (
+                      <button
+                        key={r}
+                        className={u.role === r ? 'role-btn role-btn-active' : 'role-btn'}
+                        onClick={() => changeRole(u, r)}
+                      >
+                        {ROLE_LABELS[r]}
+                      </button>
+                    ))}
+                    <button className="btn-danger sm" onClick={() => setConfirmDelete(u)}>Delete</button>
+                  </>
+                )}
               </div>
             </div>
           );
