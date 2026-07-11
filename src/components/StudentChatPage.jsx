@@ -1,0 +1,112 @@
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+export default function StudentChatPage() {
+  const { user } = useAuth();
+  const [threadId, setThreadId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  const ensureThread = useCallback(async () => {
+    const { data: existing } = await supabase.from('chat_threads').select('*').eq('student_id', user.id).maybeSingle();
+    if (existing) return existing.id;
+    const { data: created, error } = await supabase.from('chat_threads').insert({ student_id: user.id }).select().single();
+    if (error) {
+      console.error('Failed to create chat thread:', error.message);
+      return null;
+    }
+    return created.id;
+  }, [user.id]);
+
+  const loadMessages = useCallback(async (tid) => {
+    const { data } = await supabase.from('chat_messages').select('*').eq('thread_id', tid).order('created_at', { ascending: true });
+    setMessages(data || []);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      const tid = await ensureThread();
+      if (cancelled || !tid) { setLoading(false); return; }
+      setThreadId(tid);
+      await loadMessages(tid);
+      setLoading(false);
+
+      // Mark staff messages as read by the student
+      await supabase.from('chat_messages').update({ read_by_student: true }).eq('thread_id', tid).neq('sender_role', 'examinee');
+    }
+    init();
+    return () => { cancelled = true; };
+  }, [ensureThread, loadMessages]);
+
+  // Live updates via Supabase Realtime
+  useEffect(() => {
+    if (!threadId) return;
+    const channel = supabase
+      .channel(`chat_thread_${threadId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `thread_id=eq.${threadId}` }, (payload) => {
+        setMessages((m) => [...m, payload.new]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [threadId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const send = async (e) => {
+    e.preventDefault();
+    if (!text.trim() || !threadId) return;
+    setSending(true);
+    const { error } = await supabase.from('chat_messages').insert({
+      thread_id: threadId,
+      sender_id: user.id,
+      sender_role: 'examinee',
+      body: text.trim(),
+    });
+    setSending(false);
+    if (!error) setText('');
+  };
+
+  if (loading) return <div className="panel"><p className="muted">Loading…</p></div>;
+
+  return (
+    <div className="panel chat-page">
+      <h2>Message the examiner</h2>
+      <p className="muted small">Questions, password help, or anything about your exams — the admin and moderator team will reply here.</p>
+
+      <div className="chat-thread">
+        {messages.length === 0 && <div className="muted" style={{ padding: '20px 0' }}>No messages yet. Say hello below.</div>}
+        {messages.map((m) => (
+          <div key={m.id} className={m.sender_role === 'examinee' ? 'chat-bubble chat-bubble-mine' : 'chat-bubble chat-bubble-theirs'}>
+            {m.sender_role !== 'examinee' && (
+              <div className="chat-bubble-sender">{m.sender_role === 'super_admin' ? 'Admin' : 'Moderator'}</div>
+            )}
+            <div className="chat-bubble-text">{m.body}</div>
+            <div className="chat-bubble-time">{fmtTime(m.created_at)}</div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      <form className="chat-input-row" onSubmit={send}>
+        <input
+          className="chat-input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type a message…"
+        />
+        <button type="submit" className="chat-send-btn" disabled={sending || !text.trim()}>Send</button>
+      </form>
+    </div>
+  );
+}

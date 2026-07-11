@@ -6,6 +6,7 @@ import ExamBuilderPage from '../../components/ExamBuilderPage';
 import UserManagementPage from '../../components/UserManagementPage';
 import FeatureTogglesPanel from '../../components/FeatureTogglesPanel';
 import ChangePasswordPanel from '../../components/ChangePasswordPanel';
+import StaffChatInbox from '../../components/StaffChatInbox';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -14,6 +15,7 @@ const navItems = [
   { to: '/admin/exams', label: 'Exams' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/notices', label: 'Notice Board' },
+  { to: '/admin/chat', label: 'Messages' },
   { to: '/admin/settings', label: 'Settings' },
 ];
 
@@ -57,6 +59,7 @@ export default function SuperAdminDashboard() {
         <Route path="exams" element={<ExamBuilderPage />} />
         <Route path="users" element={<UserManagementPage />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />
+        <Route path="chat" element={<StaffChatInbox />} />
         <Route path="settings" element={<SettingsPage />} />
       </Routes>
     </DashboardLayout>

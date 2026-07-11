@@ -1,6 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import PracticePage from '../../components/PracticePage';
+import LiveExamPage from '../../components/LiveExamPage';
+import StudentChatPage from '../../components/StudentChatPage';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -13,6 +15,7 @@ const navItems = [
   { to: '/dashboard/results', label: 'Results' },
   { to: '/dashboard/merit', label: 'Merit Lists' },
   { to: '/dashboard/notices', label: 'Notice Board' },
+  { to: '/dashboard/chat', label: 'Messages' },
 ];
 
 function Home() {
@@ -36,13 +39,13 @@ function Placeholder({ label }) {
   );
 }
 
-function LiveExamGate({ label }) {
+function LiveExamGate({ children }) {
   const { profile } = useAuth();
   const { value: liveExamOn, loading } = useAppSetting('live_exam_enabled_global', true);
   if (loading) return null;
   if (!liveExamOn) return <LockedFeature />;
   if (profile && profile.live_exam_enabled === false) return <LockedFeature />;
-  return <Placeholder label={label} />;
+  return children;
 }
 
 export default function ExamineeDashboard() {
@@ -50,13 +53,14 @@ export default function ExamineeDashboard() {
     <DashboardLayout title="Examinee" navItems={navItems}>
       <Routes>
         <Route index element={<Home />} />
-        <Route path="live" element={<LiveExamGate label="Live Exams" />} />
-        <Route path="upcoming" element={<LiveExamGate label="Upcoming Exams" />} />
-        <Route path="archived" element={<LiveExamGate label="Archived Exams" />} />
+        <Route path="live" element={<LiveExamGate><LiveExamPage /></LiveExamGate>} />
+        <Route path="upcoming" element={<LiveExamGate><Placeholder label="Upcoming Exams" /></LiveExamGate>} />
+        <Route path="archived" element={<LiveExamGate><Placeholder label="Archived Exams" /></LiveExamGate>} />
         <Route path="practice" element={<PracticePage />} />
         <Route path="results" element={<Placeholder label="Results" />} />
         <Route path="merit" element={<Placeholder label="Merit Lists" />} />
         <Route path="notices" element={<Placeholder label="Notice Board" />} />
+        <Route path="chat" element={<StudentChatPage />} />
       </Routes>
     </DashboardLayout>
   );

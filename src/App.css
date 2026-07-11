@@ -1362,3 +1362,154 @@ body {
 }
 .locked-feature-icon { font-size: 40px; margin-bottom: 12px; }
 .locked-feature h2 { margin-bottom: 10px; }
+
+/* ---------- Live Exam (student side) ---------- */
+.category-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.category-pick-card {
+  background: #fff;
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  padding: 18px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  cursor: pointer;
+  text-align: center;
+  font-family: Georgia, serif;
+}
+
+.exam-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.already-taken-badge {
+  background: #F1EEE5;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+@media (max-width: 420px) {
+  .category-pick-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Chat ---------- */
+.chat-page { display: flex; flex-direction: column; }
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 52vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 4px;
+  margin: 14px 0;
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+}
+.chat-bubble {
+  max-width: 80%;
+  border-radius: 14px;
+  padding: 10px 13px;
+}
+.chat-bubble-mine {
+  align-self: flex-end;
+  background: var(--teal);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble-theirs {
+  align-self: flex-start;
+  background: #EFECE3;
+  color: var(--ink);
+  border-bottom-left-radius: 4px;
+}
+.chat-bubble-sender {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  opacity: 0.75;
+  margin-bottom: 2px;
+}
+.chat-bubble-text { font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.chat-bubble-time { font-size: 10px; opacity: 0.65; margin-top: 4px; }
+
+.chat-input-row { display: flex; gap: 8px; }
+.chat-input {
+  flex: 1;
+  border: 1.5px solid var(--card-border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+}
+.chat-send-btn {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0 20px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- Staff chat inbox ---------- */
+.chat-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.chat-thread-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+}
+.chat-thread-row-left { min-width: 0; }
+.chat-thread-row-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-thread-row-preview {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-thread-row-time { font-size: 11px; color: var(--ink-soft); flex-shrink: 0; }
+.unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
