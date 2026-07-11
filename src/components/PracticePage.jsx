@@ -15,68 +15,278 @@ function shuffle(arr) {
   return a;
 }
 
-function ChapterPicker({ categoryId, onPick }) {
-  const [scopeMode, setScopeMode] = useState('chapter'); // chapter | subject
+// ============================================================
+// Practice setup: Single / Mixed / By chapter
+// ============================================================
+function useSubjects(categoryId) {
   const [subjects, setSubjects] = useState([]);
-  const [subjectId, setSubjectId] = useState('');
-  const [subcategories, setSubcategories] = useState([]);
-  const [subcategoryId, setSubcategoryId] = useState('');
-  const [chapters, setChapters] = useState([]);
-  const [chapterId, setChapterId] = useState('');
-  const [questionCount, setQuestionCount] = useState(0);
-  const [numQuestions, setNumQuestions] = useState(20);
-
   useEffect(() => {
-    setSubjectId(''); setSubcategoryId(''); setChapterId('');
     if (!categoryId) { setSubjects([]); return; }
     supabase.from('subjects').select('*').eq('category_id', categoryId).order('display_order')
       .then(({ data }) => setSubjects(data || []));
   }, [categoryId]);
+  return subjects;
+}
+
+// Fetches every chapter under a subject (flattened across all its
+// sub-categories), with a live question count for each.
+function useChaptersWithCounts(subjectId) {
+  const [chapters, setChapters] = useState(null); // null = loading, [] = loaded empty
+
   useEffect(() => {
-    setSubcategoryId(''); setChapterId('');
-    if (!subjectId) { setSubcategories([]); return; }
-    supabase.from('subcategories').select('*').eq('subject_id', subjectId).order('display_order')
-      .then(({ data }) => setSubcategories(data || []));
+    let cancelled = false;
+    if (!subjectId) { setChapters(null); return; }
+    async function load() {
+      const { data: subcats } = await supabase.from('subcategories').select('id, name').eq('subject_id', subjectId);
+      const subcatIds = (subcats || []).map((s) => s.id);
+      if (subcatIds.length === 0) { if (!cancelled) setChapters([]); return; }
+      const { data: chaps } = await supabase.from('chapters').select('id, name, subcategory_id').in('subcategory_id', subcatIds).order('display_order');
+      if (!chaps || chaps.length === 0) { if (!cancelled) setChapters([]); return; }
+
+      const withCounts = await Promise.all(chaps.map(async (ch) => {
+        const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).eq('chapter_id', ch.id).eq('is_active', true);
+        return { ...ch, available: count || 0 };
+      }));
+      if (!cancelled) setChapters(withCounts);
+    }
+    load();
+    return () => { cancelled = true; };
   }, [subjectId]);
-  useEffect(() => {
-    setChapterId('');
-    if (!subcategoryId) { setChapters([]); return; }
-    supabase.from('chapters').select('*').eq('subcategory_id', subcategoryId).order('display_order')
-      .then(({ data }) => setChapters(data || []));
-  }, [subcategoryId]);
 
-  // Chapter-wise: count questions in the one selected chapter.
-  useEffect(() => {
-    if (scopeMode !== 'chapter' || !chapterId) { if (scopeMode === 'chapter') setQuestionCount(0); return; }
-    supabase.from('questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chapterId).eq('is_active', true)
-      .then(({ count }) => setQuestionCount(count || 0));
-  }, [scopeMode, chapterId]);
+  return chapters;
+}
 
-  // Subject-wise: count questions across every chapter under the selected subject.
+function SingleMode({ categoryId, onPick }) {
+  const subjects = useSubjects(categoryId);
+  const [subjectId, setSubjectId] = useState('');
+  const [available, setAvailable] = useState(0);
+  const [numQuestions, setNumQuestions] = useState(10);
+  const [minutes, setMinutes] = useState(6);
+  const [minutesTouched, setMinutesTouched] = useState(false);
+
   useEffect(() => {
-    if (scopeMode !== 'subject' || !subjectId) { if (scopeMode === 'subject') setQuestionCount(0); return; }
-    async function countForSubject() {
+    if (!subjectId) { setAvailable(0); return; }
+    async function count() {
       const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', subjectId);
       const subcatIds = (subcats || []).map((s) => s.id);
-      if (subcatIds.length === 0) { setQuestionCount(0); return; }
+      if (subcatIds.length === 0) { setAvailable(0); return; }
       const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
       const chapIds = (chaps || []).map((c) => c.id);
-      if (chapIds.length === 0) { setQuestionCount(0); return; }
+      if (chapIds.length === 0) { setAvailable(0); return; }
       const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
-      setQuestionCount(count || 0);
+      setAvailable(count || 0);
     }
-    countForSubject();
-  }, [scopeMode, subjectId]);
+    count();
+  }, [subjectId]);
 
-  const ready = scopeMode === 'chapter' ? !!chapterId : !!subjectId;
+  useEffect(() => {
+    if (minutesTouched) return;
+    setMinutes(Math.max(1, Math.round(numQuestions * 0.6)));
+  }, [numQuestions, minutesTouched]);
+
+  return (
+    <div>
+      <label className="field-block">
+        <span>Subject</span>
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+          <option value="">Select…</option>
+          {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </label>
+      {subjectId && <div className="muted small">{available} question{available !== 1 ? 's' : ''} available</div>}
+
+      <div className="option-grid" style={{ marginTop: 12 }}>
+        <label className="field-block">
+          <span>Number of questions</span>
+          <input type="number" min={1} max={Math.max(1, available)} value={numQuestions}
+            onChange={(e) => setNumQuestions(Math.max(1, parseInt(e.target.value) || 1))} />
+        </label>
+        <label className="field-block">
+          <span>Duration (minutes)</span>
+          <input type="number" min={1} value={minutes}
+            onChange={(e) => { setMinutesTouched(true); setMinutes(Math.max(1, parseInt(e.target.value) || 1)); }} />
+        </label>
+      </div>
+
+      <button
+        className="btn-primary"
+        style={{ marginTop: 14, width: '100%' }}
+        disabled={!subjectId || available === 0}
+        onClick={() => onPick({ mode: 'single', subjectId, count: Math.min(numQuestions, available), minutes })}
+      >
+        Start practice
+      </button>
+    </div>
+  );
+}
+
+function MixedMode({ categoryId, onPick }) {
+  const subjects = useSubjects(categoryId);
+  const [availableBySubject, setAvailableBySubject] = useState({});
+  const [counts, setCounts] = useState({}); // subjectId -> number typed
+  const [minutes, setMinutes] = useState(10);
+  const [minutesTouched, setMinutesTouched] = useState(false);
+
+  useEffect(() => {
+    async function loadCounts() {
+      const results = {};
+      for (const s of subjects) {
+        const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', s.id);
+        const subcatIds = (subcats || []).map((x) => x.id);
+        if (subcatIds.length === 0) { results[s.id] = 0; continue; }
+        const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
+        const chapIds = (chaps || []).map((c) => c.id);
+        if (chapIds.length === 0) { results[s.id] = 0; continue; }
+        const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
+        results[s.id] = count || 0;
+      }
+      setAvailableBySubject(results);
+    }
+    if (subjects.length > 0) loadCounts();
+  }, [subjects]);
+
+  const totalSelected = Object.values(counts).reduce((sum, n) => sum + (parseInt(n) || 0), 0);
+
+  useEffect(() => {
+    if (minutesTouched || totalSelected === 0) return;
+    setMinutes(Math.max(1, Math.round(totalSelected * 0.6)));
+  }, [totalSelected, minutesTouched]);
+
+  const setCount = (subjectId, value) => {
+    const n = Math.max(0, parseInt(value) || 0);
+    setCounts((c) => ({ ...c, [subjectId]: n }));
+  };
 
   const start = () => {
-    if (scopeMode === 'chapter') {
-      onPick({ mode: 'chapter', chapterId, count: numQuestions });
-    } else {
-      onPick({ mode: 'subject', subjectId, count: numQuestions });
-    }
+    const picks = Object.entries(counts)
+      .filter(([, n]) => n > 0)
+      .map(([subjectId, n]) => ({ subjectId, count: Math.min(n, availableBySubject[subjectId] || 0) }));
+    onPick({ mode: 'mixed', subjectPicks: picks, minutes });
   };
+
+  return (
+    <div>
+      <p className="muted small">Select subjects and how many questions to draw from each.</p>
+      <div className="mixed-subject-list">
+        {subjects.map((s) => {
+          const avail = availableBySubject[s.id] ?? '…';
+          const val = counts[s.id] || '';
+          return (
+            <div key={s.id} className="mixed-subject-row">
+              <div>
+                <div className="mixed-subject-name">{s.name}</div>
+                <div className="muted small">{avail} available</div>
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={typeof avail === 'number' ? avail : undefined}
+                value={val}
+                placeholder="0"
+                onChange={(e) => setCount(s.id, e.target.value)}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <label className="field-block" style={{ marginTop: 14 }}>
+        <span>Duration (minutes)</span>
+        <input type="number" min={1} value={minutes}
+          onChange={(e) => { setMinutesTouched(true); setMinutes(Math.max(1, parseInt(e.target.value) || 1)); }} />
+      </label>
+
+      <div className="muted small" style={{ marginTop: 8 }}>{totalSelected} question{totalSelected !== 1 ? 's' : ''} selected total</div>
+
+      <button className="btn-primary" style={{ marginTop: 10, width: '100%' }} disabled={totalSelected === 0} onClick={start}>
+        Start practice
+      </button>
+    </div>
+  );
+}
+
+function ByChapterMode({ categoryId, onPick }) {
+  const subjects = useSubjects(categoryId);
+  const [subjectId, setSubjectId] = useState('');
+  const chapters = useChaptersWithCounts(subjectId);
+  const [counts, setCounts] = useState({}); // chapterId -> number typed
+  const [minutes, setMinutes] = useState(10);
+  const [minutesTouched, setMinutesTouched] = useState(false);
+
+  useEffect(() => { setCounts({}); }, [subjectId]);
+
+  const totalSelected = Object.values(counts).reduce((sum, n) => sum + (parseInt(n) || 0), 0);
+
+  useEffect(() => {
+    if (minutesTouched || totalSelected === 0) return;
+    setMinutes(Math.max(1, Math.round(totalSelected * 0.6)));
+  }, [totalSelected, minutesTouched]);
+
+  const setCount = (chapterId, value, max) => {
+    const n = Math.max(0, Math.min(max, parseInt(value) || 0));
+    setCounts((c) => ({ ...c, [chapterId]: n }));
+  };
+
+  const start = () => {
+    const picks = Object.entries(counts)
+      .filter(([, n]) => n > 0)
+      .map(([chapterId, n]) => ({ chapterId, count: n }));
+    onPick({ mode: 'bychapter', chapterPicks: picks, minutes });
+  };
+
+  return (
+    <div>
+      <label className="field-block">
+        <span>Subject</span>
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+          <option value="">Select…</option>
+          {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </label>
+
+      {subjectId && chapters === null && <div className="muted small" style={{ marginTop: 10 }}>Loading chapters…</div>}
+      {subjectId && chapters && chapters.length === 0 && <div className="muted small" style={{ marginTop: 10 }}>No chapters found.</div>}
+
+      {subjectId && chapters && chapters.length > 0 && (
+        <div className="mixed-subject-list" style={{ marginTop: 12 }}>
+          {chapters.map((ch) => (
+            <div key={ch.id} className="mixed-subject-row">
+              <div>
+                <div className="mixed-subject-name">{ch.name}</div>
+                <div className="muted small">{ch.available} available</div>
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={ch.available}
+                value={counts[ch.id] || ''}
+                placeholder="0"
+                onChange={(e) => setCount(ch.id, e.target.value, ch.available)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {subjectId && chapters && chapters.length > 0 && (
+        <>
+          <label className="field-block" style={{ marginTop: 14 }}>
+            <span>Duration (minutes)</span>
+            <input type="number" min={1} value={minutes}
+              onChange={(e) => { setMinutesTouched(true); setMinutes(Math.max(1, parseInt(e.target.value) || 1)); }} />
+          </label>
+          <div className="muted small" style={{ marginTop: 8 }}>{totalSelected} question{totalSelected !== 1 ? 's' : ''} selected total</div>
+          <button className="btn-primary" style={{ marginTop: 10, width: '100%' }} disabled={totalSelected === 0} onClick={start}>
+            Start practice
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PracticeSetup({ categoryId, onPick }) {
+  const [mode, setMode] = useState('single'); // single | mixed | bychapter
 
   return (
     <div className="panel">
@@ -84,56 +294,14 @@ function ChapterPicker({ categoryId, onPick }) {
       <p className="muted small">Practice sessions never affect your official results or merit list.</p>
 
       <div className="mode-tabs">
-        <button className={scopeMode === 'chapter' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setScopeMode('chapter')}>Chapter-wise</button>
-        <button className={scopeMode === 'subject' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setScopeMode('subject')}>Full subject</button>
+        <button className={mode === 'single' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('single')}>Single</button>
+        <button className={mode === 'mixed' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('mixed')}>Mixed</button>
+        <button className={mode === 'bychapter' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('bychapter')}>By chapter</button>
       </div>
 
-      <div className="hierarchy-picker">
-        <label>
-          <span>Subject</span>
-          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
-            <option value="">Select…</option>
-            {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </label>
-        {scopeMode === 'chapter' && (
-          <>
-            <label>
-              <span>Sub-category</span>
-              <select value={subcategoryId} disabled={!subjectId} onChange={(e) => setSubcategoryId(e.target.value)}>
-                <option value="">Select…</option>
-                {subcategories.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Chapter</span>
-              <select value={chapterId} disabled={!subcategoryId} onChange={(e) => setChapterId(e.target.value)}>
-                <option value="">Select…</option>
-                {chapters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </label>
-          </>
-        )}
-      </div>
-
-      {ready && (
-        <div className="practice-start-box">
-          <div className="muted small">{questionCount} question{questionCount !== 1 ? 's' : ''} available.</div>
-          <label className="inline-num-field">
-            <span>Number of questions</span>
-            <input
-              type="number"
-              min={1}
-              max={Math.max(1, questionCount)}
-              value={numQuestions}
-              onChange={(e) => setNumQuestions(Math.max(1, Math.min(questionCount, parseInt(e.target.value) || 1)))}
-            />
-          </label>
-          <button className="btn-primary" disabled={questionCount === 0} onClick={start}>
-            Start practice
-          </button>
-        </div>
-      )}
+      {mode === 'single' && <SingleMode categoryId={categoryId} onPick={onPick} />}
+      {mode === 'mixed' && <MixedMode categoryId={categoryId} onPick={onPick} />}
+      {mode === 'bychapter' && <ByChapterMode categoryId={categoryId} onPick={onPick} />}
     </div>
   );
 }
@@ -197,12 +365,7 @@ function PracticeSession({ session, onExit }) {
         // fall through to fresh load
       }
 
-      if (session.mode === 'chapter') {
-        const { data } = await supabase.from('questions').select('*').eq('chapter_id', session.chapterId).eq('is_active', true);
-        if (cancelled) return;
-        const picked = shuffle(data || []).slice(0, session.count);
-        setQuestions(picked);
-      } else if (session.mode === 'subject') {
+      if (session.mode === 'single') {
         const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', session.subjectId);
         const subcatIds = (subcats || []).map((s) => s.id);
         if (subcatIds.length === 0) { if (!cancelled) setQuestions([]); return; }
@@ -211,8 +374,29 @@ function PracticeSession({ session, onExit }) {
         if (chapIds.length === 0) { if (!cancelled) setQuestions([]); return; }
         const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true);
         if (cancelled) return;
-        const picked = shuffle(data || []).slice(0, session.count);
-        setQuestions(picked);
+        setQuestions(shuffle(data || []).slice(0, session.count));
+      } else if (session.mode === 'mixed') {
+        const picked = [];
+        for (const p of session.subjectPicks) {
+          const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', p.subjectId);
+          const subcatIds = (subcats || []).map((s) => s.id);
+          if (subcatIds.length === 0) continue;
+          const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
+          const chapIds = (chaps || []).map((c) => c.id);
+          if (chapIds.length === 0) continue;
+          const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true);
+          picked.push(...shuffle(data || []).slice(0, p.count));
+        }
+        if (cancelled) return;
+        setQuestions(shuffle(picked));
+      } else if (session.mode === 'bychapter') {
+        const picked = [];
+        for (const p of session.chapterPicks) {
+          const { data } = await supabase.from('questions').select('*').eq('chapter_id', p.chapterId).eq('is_active', true);
+          picked.push(...shuffle(data || []).slice(0, p.count));
+        }
+        if (cancelled) return;
+        setQuestions(shuffle(picked));
       } else if (session.mode === 'wrong') {
         const { data: wrongRows } = await supabase
           .from('wrong_questions')
@@ -253,7 +437,7 @@ function PracticeSession({ session, onExit }) {
       .from('practice_sessions')
       .insert({
         examinee_id: user.id,
-        chapter_id: session.mode === 'chapter' ? session.chapterId : null,
+        chapter_id: session.mode === 'bychapter' && session.chapterPicks.length === 1 ? session.chapterPicks[0].chapterId : null,
         finished_at: new Date().toISOString(),
         total_questions: questions.length,
         correct_count: result.correct,
@@ -323,7 +507,7 @@ function PracticeSession({ session, onExit }) {
     );
   }
 
-  const durationMinutes = Math.round(questions.length * 0.6);
+  const durationMinutes = session.minutes || Math.round(questions.length * 0.6);
 
   return (
     <ExamRunner
@@ -345,9 +529,9 @@ function findResumablePracticeSession() {
       const key = localStorage.key(i);
       if (!key || !key.startsWith('dentalmcq_practice_')) continue;
       const saved = JSON.parse(localStorage.getItem(key) || 'null');
-      if (saved && saved.phase === 'running' && saved.endAt && saved.endAt > Date.now()) {
+      if (saved && saved.phase === 'running' && saved.endAt && saved.endAt > Date.now() && saved.questionIds?.length) {
         const resumeKey = key.replace('dentalmcq_practice_', '');
-        return { resumeKey, mode: saved.mode || 'chapter', chapterId: saved.chapterId, subjectId: saved.subjectId, count: saved.count };
+        return { resumeKey, mode: 'resume', minutes: saved.customMinutes };
       }
     }
   } catch {
@@ -395,7 +579,7 @@ export default function PracticePage({ categoryId }) {
 
   return (
     <>
-      <ChapterPicker categoryId={categoryId} onPick={setSession} />
+      <PracticeSetup categoryId={categoryId} onPick={setSession} />
       <WrongQuestionsEntry onStart={setSession} />
     </>
   );

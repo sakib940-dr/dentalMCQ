@@ -1716,3 +1716,53 @@ body {
   font-size: 12.5px;
   width: 100%;
 }
+
+/* ---------- Practice setup: Single/Mixed/By-chapter ---------- */
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+.field-block select,
+.field-block input {
+  border: 1.5px solid var(--card-border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink);
+}
+
+.mixed-subject-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mixed-subject-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.mixed-subject-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.mixed-subject-row input {
+  width: 64px;
+  border: 1.5px solid var(--card-border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  text-align: center;
+  flex-shrink: 0;
+}
