@@ -7,35 +7,52 @@ import { NOTO_SANS_BENGALI_BASE64 } from '../assets/notoSansBengaliBase64';
 function emptyMedicine() {
   return { name: '', dose: '', duration: '' };
 }
-function emptyClinicalLine() {
-  return { text: '', tooth_number: '' };
+function emptyClinicalLine(withTooth) {
+  return withTooth
+    ? { text: '', tooth: { ur: '', ul: '', lr: '', ll: '' } }
+    : { text: '' };
+}
+
+// ---------- 4-quadrant tooth notation input: a "+" with four number fields ----------
+function ToothQuadrantInput({ value, onChange }) {
+  const set = (quad, v) => onChange({ ...value, [quad]: v });
+  return (
+    <div className="tooth-quad-input">
+      <div className="tooth-quad-row">
+        <input className="tooth-quad-field" value={value.ul} onChange={(e) => set('ul', e.target.value)} placeholder="" maxLength={2} />
+        <input className="tooth-quad-field" value={value.ur} onChange={(e) => set('ur', e.target.value)} placeholder="" maxLength={2} />
+      </div>
+      <div className="tooth-quad-cross" />
+      <div className="tooth-quad-row">
+        <input className="tooth-quad-field" value={value.ll} onChange={(e) => set('ll', e.target.value)} placeholder="" maxLength={2} />
+        <input className="tooth-quad-field" value={value.lr} onChange={(e) => set('lr', e.target.value)} placeholder="" maxLength={2} />
+      </div>
+    </div>
+  );
 }
 
 // ---------- A repeatable clinical section: C/C, H/O, O/E, Treatment Plan ----------
-function ClinicalSection({ label, lines, onChange }) {
+function ClinicalSection({ label, lines, onChange, withTooth }) {
   const update = (i, field, value) => {
     onChange(lines.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
   };
-  const add = () => onChange([...lines, emptyClinicalLine()]);
+  const add = () => onChange([...lines, emptyClinicalLine(withTooth)]);
   const remove = (i) => onChange(lines.filter((_, idx) => idx !== i));
 
   return (
     <div className="clinical-section">
       <div className="clinical-section-label">{label}</div>
       {lines.map((l, i) => (
-        <div key={i} className="clinical-line-row">
+        <div key={i} className={withTooth ? 'clinical-line-row clinical-line-row-tooth' : 'clinical-line-row'}>
           <input
             className="clinical-line-text"
             placeholder="Description"
             value={l.text}
             onChange={(e) => update(i, 'text', e.target.value)}
           />
-          <input
-            className="clinical-line-tooth"
-            placeholder="Tooth #"
-            value={l.tooth_number}
-            onChange={(e) => update(i, 'tooth_number', e.target.value)}
-          />
+          {withTooth && (
+            <ToothQuadrantInput value={l.tooth} onChange={(v) => update(i, 'tooth', v)} />
+          )}
           {lines.length > 1 && (
             <button type="button" className="icon-btn-danger" onClick={() => remove(i)}>✕</button>
           )}
@@ -113,10 +130,10 @@ export default function PrescriptionPage() {
   const [patientAddress, setPatientAddress] = useState('');
   const [patientMobile, setPatientMobile] = useState('');
 
-  const [chiefComplaint, setChiefComplaint] = useState([emptyClinicalLine()]);
-  const [history, setHistory] = useState([emptyClinicalLine()]);
-  const [onExamination, setOnExamination] = useState([emptyClinicalLine()]);
-  const [treatmentPlan, setTreatmentPlan] = useState([emptyClinicalLine()]);
+  const [chiefComplaint, setChiefComplaint] = useState([emptyClinicalLine(true)]);
+  const [history, setHistory] = useState([emptyClinicalLine(false)]);
+  const [onExamination, setOnExamination] = useState([emptyClinicalLine(true)]);
+  const [treatmentPlan, setTreatmentPlan] = useState([emptyClinicalLine(true)]);
   const [selectedAdvice, setSelectedAdvice] = useState([]); // [{id, text, tooth_number}]
 
   const [medicines, setMedicines] = useState([emptyMedicine()]);
@@ -226,6 +243,29 @@ export default function PrescriptionPage() {
     let clinY = y;
     let rxY = y;
 
+    // Draws a small "+" cross with a tooth number in each of its four
+    // quadrants (upper-left, upper-right, lower-left, lower-right) — the
+    // standard dental notation box. Returns nothing visible if all four
+    // quadrants are empty.
+    const drawToothQuadrant = (x, yCenter, tooth) => {
+      if (!tooth) return;
+      const hasAny = tooth.ur || tooth.ul || tooth.lr || tooth.ll;
+      if (!hasAny) return;
+      const armLen = 4.2;
+      doc.setDrawColor(20, 20, 20);
+      doc.setLineWidth(0.3);
+      doc.line(x - armLen, yCenter, x + armLen, yCenter); // horizontal arm
+      doc.line(x, yCenter - armLen, x, yCenter + armLen); // vertical arm
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(20, 20, 20);
+      if (tooth.ul) doc.text(String(tooth.ul), x - armLen - 1, yCenter - 1.2, { align: 'right' });
+      if (tooth.ur) doc.text(String(tooth.ur), x + armLen + 1, yCenter - 1.2, { align: 'left' });
+      if (tooth.ll) doc.text(String(tooth.ll), x - armLen - 1, yCenter + 4, { align: 'right' });
+      if (tooth.lr) doc.text(String(tooth.lr), x + armLen + 1, yCenter + 4, { align: 'left' });
+    };
+
     const writeSection = (label, lines, startY, useBengaliFont = false) => {
       const items = filteredLines(lines);
       if (items.length === 0) return startY;
@@ -238,15 +278,26 @@ export default function PrescriptionPage() {
       cy += 5.5;
       doc.setFontSize(10);
       items.forEach((l) => {
-        const suffix = l.tooth_number ? `   (Tooth #${l.tooth_number})` : '';
+        const hasToothGraphic = l.tooth && (l.tooth.ur || l.tooth.ul || l.tooth.lr || l.tooth.ll);
+        // Reserve space on the right of the text column for the tooth
+        // cross graphic, matching the reference layout where the box
+        // sits just to the right of the description.
+        const textMaxWidth = dividerX - leftColX - 8 - (hasToothGraphic ? 16 : 0);
+
         if (useBengaliFont) {
           doc.setFont('NotoBengali', 'normal');
         } else {
           doc.setFont('helvetica', 'normal');
         }
-        const wrapped = doc.splitTextToSize(l.text + suffix, dividerX - leftColX - 8);
+        const wrapped = doc.splitTextToSize(l.text, textMaxWidth);
+        const lineStartY = cy;
         doc.text(wrapped, leftColX + 3, cy);
-        cy += wrapped.length * 5;
+
+        if (hasToothGraphic) {
+          drawToothQuadrant(leftColX + 3 + textMaxWidth + 10, lineStartY - 1, l.tooth);
+        }
+
+        cy += Math.max(wrapped.length * 5, hasToothGraphic ? 9 : 0);
       });
       return cy + 4;
     };
@@ -255,7 +306,7 @@ export default function PrescriptionPage() {
     clinY = writeSection('H/O', history, clinY);
     clinY = writeSection('O/E', onExamination, clinY);
     if (selectedAdvice.length > 0) {
-      clinY = writeSection('Advice', selectedAdvice.map((a) => ({ text: a.text, tooth_number: a.tooth_number })), clinY, true);
+      clinY = writeSection('Advice', selectedAdvice.map((a) => ({ text: a.text, tooth: null })), clinY, true);
     }
     clinY = writeSection('Treatment Plan', treatmentPlan, clinY);
 
@@ -396,11 +447,11 @@ export default function PrescriptionPage() {
 
       <div className="panel">
         <h2>Clinical Details</h2>
-        <ClinicalSection label="C/C (Chief Complaint)" lines={chiefComplaint} onChange={setChiefComplaint} />
+        <ClinicalSection label="C/C (Chief Complaint)" lines={chiefComplaint} onChange={setChiefComplaint} withTooth />
         <ClinicalSection label="H/O (History)" lines={history} onChange={setHistory} />
-        <ClinicalSection label="O/E (On Examination)" lines={onExamination} onChange={setOnExamination} />
+        <ClinicalSection label="O/E (On Examination)" lines={onExamination} onChange={setOnExamination} withTooth />
         <AdviceTemplatesPanel userId={user.id} selectedIds={selectedAdvice.map((a) => a.id)} onToggle={toggleAdvice} />
-        <ClinicalSection label="Treatment Plan" lines={treatmentPlan} onChange={setTreatmentPlan} />
+        <ClinicalSection label="Treatment Plan" lines={treatmentPlan} onChange={setTreatmentPlan} withTooth />
       </div>
 
       <div className="panel">
