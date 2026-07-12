@@ -267,25 +267,22 @@ export default function PrescriptionPage() {
 
     try {
       const doc = buildPdf();
-      // doc.save() is unreliable on mobile browsers (Chrome/Safari mobile
-      // frequently fail or silently no-op), and window.open() is often
-      // blocked by mobile popup blockers even on a direct click. The most
-      // reliable cross-browser approach is a programmatic <a download>
-      // click on a blob URL — this works even when popups are blocked,
-      // since it isn't opening a new window.
       const blob = doc.output('blob');
       const blobUrl = URL.createObjectURL(blob);
-      const fileName = `prescription_${patientName.replace(/\s+/g, '_')}.pdf`;
 
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      link.rel = 'noopener';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+      // Auto-download via <a download> is unreliable across mobile
+      // browsers (silently no-ops on several Android/iOS combinations).
+      // Opening the PDF in a new tab uses the browser's own PDF viewer,
+      // which has a reliable built-in save/share/print button — this is
+      // the most consistent approach across devices.
+      const win = window.open(blobUrl, '_blank');
+      if (!win) {
+        setError('Your browser blocked the PDF preview. Please allow pop-ups for this site and try again.');
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+      setSuccess('PDF opened in a new tab — use the download/share icon there to save it.');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
     } catch (pdfError) {
       console.error('PDF generation failed:', pdfError);
       setError(`Could not generate the PDF: ${pdfError.message || pdfError}`);
@@ -307,9 +304,7 @@ export default function PrescriptionPage() {
     });
     if (saveError) {
       console.error('Failed to save prescription record:', saveError.message);
-      setError(`PDF was downloaded, but saving the record failed: ${saveError.message}`);
-    } else {
-      setSuccess('Prescription PDF downloaded — check your phone\'s Downloads folder or notification bar.');
+      setError(`PDF was generated, but saving the record failed: ${saveError.message}`);
     }
     loadRecent();
   };
