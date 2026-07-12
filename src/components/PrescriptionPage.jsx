@@ -180,18 +180,32 @@ export default function PrescriptionPage() {
     doc.addFont('NotoSansBengali.ttf', 'NotoBengali', 'normal');
 
     const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
-    const midX = pageWidth / 2;
-    let y = 14;
 
-    // ---------- Header band (light grey-black background) ----------
-    const headerHeight = 34;
+    // ---------- Fixed A4 band layout ----------
+    // The page is divided into 4 fixed-height horizontal bands (by % of
+    // total page height), matching the requested 6-part structure where
+    // band 1 covers both Doctor+Chamber, and band 3 covers both the
+    // clinical column and the Rx/Advice column side by side.
+    const bandHeaderH = pageHeight * 0.12;   // Doctor + Chamber details
+    const bandPatientH = pageHeight * 0.06;  // Patient details bar
+    const bandFooterH = pageHeight * 0.04;   // Disclaimer footer
+    const bandMainH = pageHeight - bandHeaderH - bandPatientH - bandFooterH; // Clinical + Rx/Advice
+
+    const headerTop = 0;
+    const patientTop = bandHeaderH;
+    const mainTop = bandHeaderH + bandPatientH;
+    const footerTop = pageHeight - bandFooterH;
+
+    // ---------- Band 1: Header (Doctor left, Chamber right) ----------
     doc.setFillColor(238, 238, 236);
-    doc.rect(0, 0, pageWidth, headerHeight, 'F');
+    doc.rect(0, headerTop, pageWidth, bandHeaderH, 'F');
 
     doc.setTextColor(30, 30, 30);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(15);
+    let y = headerTop + 10;
     doc.text(`DR. ${(profile?.full_name || '').toUpperCase()}`, margin, y);
 
     doc.setFontSize(10);
@@ -201,7 +215,7 @@ export default function PrescriptionPage() {
     if (profile?.medical_college) { doc.text(profile.medical_college, margin, leftY); leftY += 4.5; }
     if (profile?.bmdc_number) { doc.text(`BMDC Reg No- ${profile.bmdc_number}`, margin, leftY); leftY += 4.5; }
 
-    let rightY = y;
+    let rightY = y - 4;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text('Chamber', pageWidth - margin, rightY, { align: 'right' }); rightY += 5.5;
@@ -212,41 +226,37 @@ export default function PrescriptionPage() {
     if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
     if (profile?.visit_time || profile?.day_off) {
       const line = [profile?.visit_time && `Visit: ${profile.visit_time}`, profile?.day_off && `${profile.day_off} Off`].filter(Boolean).join('  ·  ');
-      doc.text(line, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5;
+      doc.text(line, pageWidth - margin, rightY, { align: 'right' });
     }
-
     doc.setTextColor(20, 20, 20);
-    y = headerHeight + 8;
 
-    // ---------- Patient row ----------
+    // ---------- Band 2: Patient details bar ----------
+    y = patientTop + 8;
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Patient: ${patientName || '—'}`, margin, y);
+    doc.text(`Name: ${patientName || '—'}`, margin, y);
     doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - margin, y, { align: 'right' });
     y += 6;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    const patientLine2 = [patientAge && `Age: ${patientAge}`, patientMobile && `Mobile: ${patientMobile}`].filter(Boolean).join('     ');
-    if (patientLine2) { doc.text(patientLine2, margin, y); y += 5; }
-    if (patientAddress) { doc.text(`Address: ${patientAddress}`, margin, y); y += 5; }
+    doc.setFontSize(9.5);
+    const patientLine2 = [patientAge && `Age: ${patientAge}`, patientAddress && `Address: ${patientAddress}`].filter(Boolean).join('     ');
+    if (patientLine2) doc.text(patientLine2, margin, y);
+    if (patientMobile) doc.text(`Mobile: ${patientMobile}`, pageWidth - margin, y, { align: 'right' });
 
-    y += 2;
     doc.setDrawColor(80, 80, 80);
     doc.setLineWidth(0.5);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 8;
+    doc.line(margin, mainTop, pageWidth - margin, mainTop);
 
-    // ---------- Two-column body: left = clinical, right = Rx ----------
+    // ---------- Band 3: Clinical (35%) + Rx/Advice (65%) side by side ----------
+    const dividerX = margin + (pageWidth - margin * 2) * 0.35;
     const leftColX = margin;
-    const rightColX = midX + 6;
-    const dividerX = midX;
-    let clinY = y;
-    let rxY = y;
+    const rightColX = dividerX + 8;
+    let clinY = mainTop + 10;
+    let rxY = mainTop + 10;
 
     // Draws a small "+" cross with a tooth number in each of its four
     // quadrants (upper-left, upper-right, lower-left, lower-right) — the
-    // standard dental notation box. Returns nothing visible if all four
-    // quadrants are empty.
+    // standard dental notation box. Renders nothing if all four are empty.
     const drawToothQuadrant = (x, yCenter, tooth) => {
       if (!tooth) return;
       const hasAny = tooth.ur || tooth.ul || tooth.lr || tooth.ll;
@@ -254,9 +264,8 @@ export default function PrescriptionPage() {
       const armLen = 4.2;
       doc.setDrawColor(20, 20, 20);
       doc.setLineWidth(0.3);
-      doc.line(x - armLen, yCenter, x + armLen, yCenter); // horizontal arm
-      doc.line(x, yCenter - armLen, x, yCenter + armLen); // vertical arm
-
+      doc.line(x - armLen, yCenter, x + armLen, yCenter);
+      doc.line(x, yCenter - armLen, x, yCenter + armLen);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(20, 20, 20);
@@ -266,7 +275,7 @@ export default function PrescriptionPage() {
       if (tooth.lr) doc.text(String(tooth.lr), x + armLen + 1, yCenter + 4, { align: 'left' });
     };
 
-    const writeSection = (label, lines, startY, useBengaliFont = false) => {
+    const writeClinicalSection = (label, lines, startY) => {
       const items = filteredLines(lines);
       if (items.length === 0) return startY;
       let cy = startY;
@@ -277,52 +286,37 @@ export default function PrescriptionPage() {
       doc.setTextColor(20, 20, 20);
       cy += 5.5;
       doc.setFontSize(10);
+      const colWidth = dividerX - leftColX - 6;
       items.forEach((l) => {
         const hasToothGraphic = l.tooth && (l.tooth.ur || l.tooth.ul || l.tooth.lr || l.tooth.ll);
-        // Reserve space on the right of the text column for the tooth
-        // cross graphic, matching the reference layout where the box
-        // sits just to the right of the description.
-        const textMaxWidth = dividerX - leftColX - 8 - (hasToothGraphic ? 16 : 0);
-
-        if (useBengaliFont) {
-          doc.setFont('NotoBengali', 'normal');
-        } else {
-          doc.setFont('helvetica', 'normal');
-        }
+        const textMaxWidth = colWidth - (hasToothGraphic ? 16 : 0);
+        doc.setFont('helvetica', 'normal');
         const wrapped = doc.splitTextToSize(l.text, textMaxWidth);
         const lineStartY = cy;
         doc.text(wrapped, leftColX + 3, cy);
-
-        if (hasToothGraphic) {
-          drawToothQuadrant(leftColX + 3 + textMaxWidth + 10, lineStartY - 1, l.tooth);
-        }
-
+        if (hasToothGraphic) drawToothQuadrant(leftColX + 3 + textMaxWidth + 10, lineStartY - 1, l.tooth);
         cy += Math.max(wrapped.length * 5, hasToothGraphic ? 9 : 0);
       });
       return cy + 4;
     };
 
-    clinY = writeSection('C/C', chiefComplaint, clinY);
-    clinY = writeSection('H/O', history, clinY);
-    clinY = writeSection('O/E', onExamination, clinY);
-    if (selectedAdvice.length > 0) {
-      clinY = writeSection('Advice', selectedAdvice.map((a) => ({ text: a.text, tooth: null })), clinY, true);
-    }
-    clinY = writeSection('Treatment Plan', treatmentPlan, clinY);
+    clinY = writeClinicalSection('C/C', chiefComplaint, clinY);
+    clinY = writeClinicalSection('H/O', history, clinY);
+    clinY = writeClinicalSection('O/E', onExamination, clinY);
+    clinY = writeClinicalSection('Treatment Plan', treatmentPlan, clinY);
 
-    // Vertical divider between the two columns
-    const bottomY = Math.max(clinY, rxY, headerHeight + 60);
+    // Vertical divider between the two columns, spanning the main band
     doc.setDrawColor(210, 205, 195);
     doc.setLineWidth(0.4);
-    doc.line(dividerX, y - 4, dividerX, bottomY);
+    doc.line(dividerX, mainTop, dividerX, footerTop - 4);
 
-    // Rx column
+    // Right column: Rx (large, bold italic) → medicines → Advice below
     doc.setFont('helvetica', 'bolditalic');
-    doc.setFontSize(18);
+    doc.setFontSize(20);
     doc.setTextColor(15, 61, 62);
     doc.text('Rx.', rightColX, rxY);
     doc.setTextColor(20, 20, 20);
-    rxY += 9;
+    rxY += 10;
 
     filteredMedicines(medicines).forEach((m, i) => {
       doc.setFont('helvetica', 'bold');
@@ -341,15 +335,31 @@ export default function PrescriptionPage() {
       rxY += 3.5;
     });
 
-    // ---------- Footer ----------
-    const pageHeight = doc.internal.pageSize.getHeight();
+    if (selectedAdvice.length > 0) {
+      rxY += 6;
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 61, 62);
+      doc.text('Advice', rightColX, rxY);
+      doc.setTextColor(20, 20, 20);
+      rxY += 6.5;
+      doc.setFontSize(10);
+      selectedAdvice.forEach((a, i) => {
+        doc.setFont('NotoBengali', 'normal');
+        const wrapped = doc.splitTextToSize(`${i + 1}. ${a.text}`, pageWidth - rightColX - margin - 4);
+        doc.text(wrapped, rightColX + 4, rxY);
+        rxY += wrapped.length * 5;
+      });
+    }
+
+    // ---------- Band 4: Footer ----------
     doc.setDrawColor(80, 80, 80);
     doc.setLineWidth(0.4);
-    doc.line(margin, pageHeight - 16, pageWidth - margin, pageHeight - 16);
+    doc.line(margin, footerTop, pageWidth - margin, footerTop);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
     doc.setTextColor(90, 90, 90);
-    doc.text('Follow the prescribed medication regularly.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text('Follow the prescribed medication regularly.', pageWidth / 2, footerTop + 7, { align: 'center' });
 
     return doc;
   };
