@@ -121,6 +121,7 @@ export default function PrescriptionPage() {
   const [medicines, setMedicines] = useState([emptyMedicine()]);
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const loadRecent = async () => {
     const { data } = await supabase.from('prescriptions').select('*').eq('created_by', user.id).order('created_at', { ascending: false }).limit(5);
@@ -260,27 +261,30 @@ export default function PrescriptionPage() {
 
   const generate = async () => {
     setError('');
+    setSuccess('');
     if (!patientName.trim()) { setError('Enter the patient name.'); return; }
     if (filteredLines(medicines).length === 0) { setError('Add at least one medicine.'); return; }
 
     try {
       const doc = buildPdf();
       // doc.save() is unreliable on mobile browsers (Chrome/Safari mobile
-      // frequently fail or silently no-op). Opening a blob URL in a new
-      // tab is the more reliable cross-browser approach — the browser's
-      // own PDF viewer then offers a proper download/share option.
+      // frequently fail or silently no-op), and window.open() is often
+      // blocked by mobile popup blockers even on a direct click. The most
+      // reliable cross-browser approach is a programmatic <a download>
+      // click on a blob URL — this works even when popups are blocked,
+      // since it isn't opening a new window.
       const blob = doc.output('blob');
       const blobUrl = URL.createObjectURL(blob);
-      const opened = window.open(blobUrl, '_blank');
-      if (!opened) {
-        // Popup blocked — fall back to a direct download link click.
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `prescription_${patientName.replace(/\s+/g, '_')}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      const fileName = `prescription_${patientName.replace(/\s+/g, '_')}.pdf`;
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     } catch (pdfError) {
       console.error('PDF generation failed:', pdfError);
@@ -304,6 +308,8 @@ export default function PrescriptionPage() {
     if (saveError) {
       console.error('Failed to save prescription record:', saveError.message);
       setError(`PDF was downloaded, but saving the record failed: ${saveError.message}`);
+    } else {
+      setSuccess('Prescription PDF downloaded — check your phone\'s Downloads folder or notification bar.');
     }
     loadRecent();
   };
@@ -377,6 +383,7 @@ export default function PrescriptionPage() {
           <button type="button" className="btn-secondary" onClick={addMedicine} style={{ alignSelf: 'flex-start' }}>+ Add medicine</button>
 
           {error && <div className="error-box">{error}</div>}
+          {success && <div className="ok-box">{success}</div>}
           <button className="btn-primary" onClick={generate} style={{ alignSelf: 'flex-start', marginTop: 6 }}>Generate PDF</button>
         </div>
       </div>

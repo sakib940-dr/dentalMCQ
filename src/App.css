@@ -12,6 +12,16 @@
 
 * { box-sizing: border-box; }
 
+/* Global form-field reset: forces light-mode rendering on every input,
+   select, and textarea in the app. Without this, phones/browsers with
+   system dark mode ON can render these with a dark background while our
+   text color stays dark too — making typed text unreadable. */
+input, select, textarea {
+  color-scheme: light;
+  background-color: #fff;
+  color: #1C2321;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -785,6 +795,8 @@ body {
   font-size: 14px;
   font-family: inherit;
   color: var(--ink);
+  background: #fff;
+  color-scheme: light;
 }
 .checkbox-row {
   flex-direction: row !important;

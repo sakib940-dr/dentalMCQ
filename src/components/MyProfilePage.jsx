@@ -129,7 +129,7 @@ export default function MyProfilePage() {
           </label>
           <label>
             <span>Mobile number</span>
-            <input value={form.mobileNumber} onChange={update('mobileNumber')} inputMode="numeric" maxLength={11} />
+            <input value={form.mobileNumber} onChange={update('mobileNumber')} inputMode="numeric" maxLength={11} placeholder="01700000000" />
           </label>
           <label>
             <span>Personal address</span>
@@ -155,11 +155,11 @@ export default function MyProfilePage() {
           </label>
           <label>
             <span>Chamber address</span>
-            <textarea value={chamberForm.chamberAddress} onChange={updateChamber('chamberAddress')} rows={2} placeholder="e.g. Railgate Mor, Sirajganj Sadar" />
+            <textarea value={chamberForm.chamberAddress} onChange={updateChamber('chamberAddress')} rows={2} placeholder="e.g. Dhaka, Bangladesh" />
           </label>
           <label>
             <span>Chamber mobile</span>
-            <input value={chamberForm.chamberMobile} onChange={updateChamber('chamberMobile')} placeholder="e.g. 01780-261790" />
+            <input value={chamberForm.chamberMobile} onChange={updateChamber('chamberMobile')} placeholder="e.g. 01700000000" />
           </label>
           <label>
             <span>Visit time</span>
