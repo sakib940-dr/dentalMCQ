@@ -12,13 +12,25 @@ export default function MyProfilePage() {
     sessionYear: profile?.session_year || '',
     address: profile?.address || '',
     mobileNumber: profile?.mobile_number || '',
+    degrees: profile?.degrees || '',
+    designation: profile?.designation || '',
+  });
+  const [chamberForm, setChamberForm] = useState({
+    chamberName: profile?.chamber_name || '',
+    chamberAddress: profile?.chamber_address || '',
+    chamberMobile: profile?.chamber_mobile || '',
+    visitTime: profile?.visit_time || '',
+    dayOff: profile?.day_off || '',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [chamberSaving, setChamberSaving] = useState(false);
+  const [chamberSaved, setChamberSaved] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const updateChamber = (field) => (e) => setChamberForm((f) => ({ ...f, [field]: e.target.value }));
 
   const save = async (e) => {
     e.preventDefault();
@@ -35,11 +47,32 @@ export default function MyProfilePage() {
         session_year: form.sessionYear.trim() || null,
         address: form.address.trim() || null,
         mobile_number: form.mobileNumber.trim() || null,
+        degrees: form.degrees.trim() || null,
+        designation: form.designation.trim() || null,
       })
       .eq('id', profile.id);
     setSaving(false);
     if (updateError) { setError(updateError.message); return; }
     setSaved(true);
+    refreshProfile();
+  };
+
+  const saveChamber = async (e) => {
+    e.preventDefault();
+    setChamberSaving(true);
+    setChamberSaved(false);
+    await supabase
+      .from('profiles')
+      .update({
+        chamber_name: chamberForm.chamberName.trim() || null,
+        chamber_address: chamberForm.chamberAddress.trim() || null,
+        chamber_mobile: chamberForm.chamberMobile.trim() || null,
+        visit_time: chamberForm.visitTime.trim() || null,
+        day_off: chamberForm.dayOff.trim() || null,
+      })
+      .eq('id', profile.id);
+    setChamberSaving(false);
+    setChamberSaved(true);
     refreshProfile();
   };
 
@@ -62,8 +95,7 @@ export default function MyProfilePage() {
       <div className="panel">
         <h2>My Profile</h2>
         <p className="muted small">
-          This information is used across the app — including auto-filling the prescription
-          generator's doctor details.
+          This information auto-fills the prescription generator's doctor details (left side of the pad).
         </p>
 
         <form className="exam-form-fields" onSubmit={save} style={{ marginTop: 14 }}>
@@ -72,8 +104,16 @@ export default function MyProfilePage() {
             <input value={form.fullName} onChange={update('fullName')} required />
           </label>
           <label>
+            <span>Designation</span>
+            <input value={form.designation} onChange={update('designation')} placeholder="e.g. Oral & Dental Surgeon" />
+          </label>
+          <label>
+            <span>Degrees</span>
+            <input value={form.degrees} onChange={update('degrees')} placeholder="e.g. BDS (DDC), PGT (OMS)" />
+          </label>
+          <label>
             <span>Medical college</span>
-            <input value={form.medicalCollege} onChange={update('medicalCollege')} placeholder="e.g. Dhaka Dental College" />
+            <input value={form.medicalCollege} onChange={update('medicalCollege')} placeholder="e.g. Dhaka Dental College & Hospital" />
           </label>
           <label>
             <span>Session</span>
@@ -85,14 +125,14 @@ export default function MyProfilePage() {
           </label>
           <label>
             <span>BMDC registration number</span>
-            <input value={form.bmdcNumber} onChange={update('bmdcNumber')} placeholder="e.g. BM-12345" />
+            <input value={form.bmdcNumber} onChange={update('bmdcNumber')} placeholder="e.g. 13683" />
           </label>
           <label>
             <span>Mobile number</span>
             <input value={form.mobileNumber} onChange={update('mobileNumber')} inputMode="numeric" maxLength={11} />
           </label>
           <label>
-            <span>Address (chamber / clinic / home)</span>
+            <span>Personal address</span>
             <textarea value={form.address} onChange={update('address')} rows={2} />
           </label>
 
@@ -100,6 +140,39 @@ export default function MyProfilePage() {
           {saved && <div className="ok-box">Profile updated.</div>}
           <button type="submit" className="btn-primary" disabled={saving} style={{ alignSelf: 'flex-start' }}>
             {saving ? 'Saving…' : 'Save profile'}
+          </button>
+        </form>
+      </div>
+
+      <div className="panel">
+        <h2>Chamber Details</h2>
+        <p className="muted small">Shown on the right side of every prescription you generate.</p>
+
+        <form className="exam-form-fields" onSubmit={saveChamber} style={{ marginTop: 14 }}>
+          <label>
+            <span>Chamber / clinic name</span>
+            <input value={chamberForm.chamberName} onChange={updateChamber('chamberName')} placeholder="e.g. Doctor's Dental Clinic" />
+          </label>
+          <label>
+            <span>Chamber address</span>
+            <textarea value={chamberForm.chamberAddress} onChange={updateChamber('chamberAddress')} rows={2} placeholder="e.g. Railgate Mor, Sirajganj Sadar" />
+          </label>
+          <label>
+            <span>Chamber mobile</span>
+            <input value={chamberForm.chamberMobile} onChange={updateChamber('chamberMobile')} placeholder="e.g. 01780-261790" />
+          </label>
+          <label>
+            <span>Visit time</span>
+            <input value={chamberForm.visitTime} onChange={updateChamber('visitTime')} placeholder="e.g. 5PM-9PM" />
+          </label>
+          <label>
+            <span>Day off</span>
+            <input value={chamberForm.dayOff} onChange={updateChamber('dayOff')} placeholder="e.g. Friday" />
+          </label>
+
+          {chamberSaved && <div className="ok-box">Chamber details updated.</div>}
+          <button type="submit" className="btn-primary" disabled={chamberSaving} style={{ alignSelf: 'flex-start' }}>
+            {chamberSaving ? 'Saving…' : 'Save chamber details'}
           </button>
         </form>
       </div>
