@@ -12,7 +12,6 @@ import { useAuth } from '../../contexts/AuthContext';
 const navItems = [
   { to: '/dashboard', label: 'Home', end: true },
   { to: '/dashboard/package', label: 'Package' },
-  { to: '/dashboard/prescription', label: 'Prescription' },
   { to: '/dashboard/notices', label: 'Notice Board' },
   { to: '/dashboard/chat', label: 'Messages' },
   { to: '/dashboard/profile', label: 'My Profile' },
