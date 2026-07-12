@@ -263,10 +263,32 @@ export default function PrescriptionPage() {
     if (!patientName.trim()) { setError('Enter the patient name.'); return; }
     if (filteredLines(medicines).length === 0) { setError('Add at least one medicine.'); return; }
 
-    const doc = buildPdf();
-    doc.save(`prescription_${patientName.replace(/\s+/g, '_')}.pdf`);
+    try {
+      const doc = buildPdf();
+      // doc.save() is unreliable on mobile browsers (Chrome/Safari mobile
+      // frequently fail or silently no-op). Opening a blob URL in a new
+      // tab is the more reliable cross-browser approach — the browser's
+      // own PDF viewer then offers a proper download/share option.
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      const opened = window.open(blobUrl, '_blank');
+      if (!opened) {
+        // Popup blocked — fall back to a direct download link click.
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `prescription_${patientName.replace(/\s+/g, '_')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+    } catch (pdfError) {
+      console.error('PDF generation failed:', pdfError);
+      setError(`Could not generate the PDF: ${pdfError.message || pdfError}`);
+      return;
+    }
 
-    await supabase.from('prescriptions').insert({
+    const { error: saveError } = await supabase.from('prescriptions').insert({
       created_by: user.id,
       patient_name: patientName.trim(),
       patient_age: patientAge.trim() || null,
@@ -279,6 +301,10 @@ export default function PrescriptionPage() {
       advice: selectedAdvice.map((a) => a.text).join('; ') || null,
       medicines: filteredLines(medicines),
     });
+    if (saveError) {
+      console.error('Failed to save prescription record:', saveError.message);
+      setError(`PDF was downloaded, but saving the record failed: ${saveError.message}`);
+    }
     loadRecent();
   };
 

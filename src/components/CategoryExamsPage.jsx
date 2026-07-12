@@ -13,6 +13,7 @@ function fmtDateTime(iso) {
 // Home: category grid
 // ============================================================
 export function CategoryGrid({ onPick }) {
+  const navigate = useNavigate();
   const [categories, setCategories] = useState(null);
 
   useEffect(() => {
@@ -22,18 +23,29 @@ export function CategoryGrid({ onPick }) {
   if (categories === null) return <div className="panel"><p className="muted">Loading categories…</p></div>;
 
   return (
-    <div className="panel">
-      <h2>Exam Categories</h2>
-      <p className="muted small">Pick a category to see its live, upcoming, and archived exams.</p>
-      {categories.length === 0 && <div className="muted">No categories available yet.</div>}
-      <div className="category-pick-grid">
-        {categories.map((c) => (
-          <button key={c.id} className="category-pick-card" onClick={() => onPick(c)}>
-            {c.name}
-          </button>
-        ))}
+    <>
+      <button className="prescription-shortcut-card" onClick={() => navigate('/dashboard/prescription')}>
+        <span className="prescription-shortcut-icon">📝</span>
+        <span className="prescription-shortcut-text">
+          <span className="prescription-shortcut-title">Prescription Generator</span>
+          <span className="prescription-shortcut-sub">Create and download a patient prescription</span>
+        </span>
+        <span className="prescription-shortcut-arrow">›</span>
+      </button>
+
+      <div className="panel">
+        <h2>Exam Categories</h2>
+        <p className="muted small">Pick a category to see its live, upcoming, and archived exams.</p>
+        {categories.length === 0 && <div className="muted">No categories available yet.</div>}
+        <div className="category-pick-grid">
+          {categories.map((c) => (
+            <button key={c.id} className="category-pick-card" onClick={() => onPick(c)}>
+              {c.name}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
