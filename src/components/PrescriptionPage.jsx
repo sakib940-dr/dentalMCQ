@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { NOTO_SANS_BENGALI_BASE64 } from '../assets/notoSansBengaliBase64';
 
 function emptyMedicine() {
   return { name: '', dose: '', duration: '' };
@@ -188,206 +189,187 @@ export default function PrescriptionPage() {
 
   const buildPdf = () => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();   // 210
-    const pageHeight = doc.internal.pageSize.getHeight(); // 297
-    const margin = 12;
 
-    doc.setFont('times', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2); // thin 1px-equivalent borders throughout
+    // Register the Bengali font (used only for Advice text, which is the
+    // one field allowed to contain Bangla script). Everything else stays
+    // in the default Helvetica.
+    doc.addFileToVFS('NotoSansBengali.ttf', NOTO_SANS_BENGALI_BASE64);
+    doc.addFont('NotoSansBengali.ttf', 'NotoBengali', 'normal');
 
-    // ---------- Top-level bands ----------
-    const headerH = pageHeight * 0.20;
-    const patientH = pageHeight * 0.06;
-    const bodyH = pageHeight * 0.70;
-    const footerH = pageHeight * 0.04;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+
+    // ---------- Fixed A4 band layout ----------
+    const bandHeaderH = pageHeight * 0.12;   // Doctor + Chamber details
+    const bandPatientH = pageHeight * 0.06;  // Patient details bar
+    const bandFooterH = pageHeight * 0.04;   // Disclaimer footer
+    const bandMainH = pageHeight - bandHeaderH - bandPatientH - bandFooterH; // Clinical + Rx/Advice
 
     const headerTop = 0;
-    const patientTop = headerH;
-    const bodyTop = headerH + patientH;
-    const footerTop = pageHeight - footerH;
+    const patientTop = bandHeaderH;
+    const mainTop = bandHeaderH + bandPatientH;
+    const footerTop = pageHeight - bandFooterH;
 
-    // Outer border only, plus the boundaries between the 4 top-level bands.
-    doc.rect(margin, headerTop + 2, pageWidth - margin * 2, headerH - 4);
-    doc.rect(margin, patientTop, pageWidth - margin * 2, patientH);
-    doc.rect(margin, bodyTop, pageWidth - margin * 2, bodyH);
-    doc.rect(margin, footerTop, pageWidth - margin * 2, footerH);
+    // ---------- Band 1: Header (Doctor left, Chamber right) ----------
+    doc.setFillColor(238, 238, 236);
+    doc.rect(0, headerTop, pageWidth, bandHeaderH, 'F');
 
-    // ============================================================
-    // HEADER: left 60% doctor, right 40% chamber + barcode — larger font
-    // so the box is well filled, per feedback.
-    // ============================================================
-    const headerDividerX = margin + (pageWidth - margin * 2) * 0.60;
-    doc.line(headerDividerX, headerTop + 2, headerDividerX, headerTop + headerH - 2);
+    doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    let y = headerTop + 10;
+    doc.text(`DR. ${(profile?.full_name || '').toUpperCase()}`, margin, y);
 
-    const padX = 5, padY = 9;
-    let dy = headerTop + padY;
-    doc.setFont('times', 'bold');
-    doc.setFontSize(17);
-    doc.text(`DR. ${(profile?.full_name || '').toUpperCase()}`, margin + padX, dy);
-    dy += 7.5;
-    doc.setFontSize(11.5);
-    if (profile?.designation) { doc.setFont('times', 'bolditalic'); doc.text(profile.designation, margin + padX, dy); doc.setFont('times', 'normal'); dy += 6; }
-    if (profile?.degrees) { doc.text(profile.degrees, margin + padX, dy); dy += 6; }
-    if (profile?.medical_college) { doc.text(profile.medical_college, margin + padX, dy); dy += 6; }
-    if (profile?.bmdc_number) { doc.text(`BMDC Reg No: ${profile.bmdc_number}`, margin + padX, dy); dy += 6; }
+    doc.setFontSize(10);
+    let leftY = y + 6;
+    if (profile?.designation) { doc.setFont('helvetica', 'bold'); doc.text(profile.designation, margin, leftY); doc.setFont('helvetica', 'normal'); leftY += 4.5; }
+    if (profile?.degrees) { doc.text(profile.degrees, margin, leftY); leftY += 4.5; }
+    if (profile?.medical_college) { doc.text(profile.medical_college, margin, leftY); leftY += 4.5; }
+    if (profile?.bmdc_number) { doc.text(`BMDC Reg No- ${profile.bmdc_number}`, margin, leftY); leftY += 4.5; }
 
-    let cy = headerTop + padY;
-    const chamberRightX = pageWidth - margin - padX;
-    doc.setFont('times', 'bold');
-    doc.setFontSize(12.5);
-    doc.text('Chamber', chamberRightX, cy, { align: 'right' }); cy += 6.5;
-    doc.setFont('times', 'normal');
+    let rightY = y - 4;
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    if (profile?.chamber_name) { doc.text(profile.chamber_name, chamberRightX, cy, { align: 'right' }); cy += 5.8; }
-    if (profile?.chamber_address) { doc.text(profile.chamber_address, chamberRightX, cy, { align: 'right' }); cy += 5.8; }
-    if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, chamberRightX, cy, { align: 'right' }); cy += 5.8; }
+    doc.text('Chamber', pageWidth - margin, rightY, { align: 'right' }); rightY += 5.5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    if (profile?.chamber_name) { doc.text(profile.chamber_name, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
+    if (profile?.chamber_address) { doc.text(profile.chamber_address, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
+    if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
     if (profile?.visit_time || profile?.day_off) {
-      const line = [profile?.visit_time && `Visit: ${profile.visit_time}`, profile?.day_off && `${profile.day_off} Off`].filter(Boolean).join('   ·   ');
-      doc.text(line, chamberRightX, cy, { align: 'right' }); cy += 5.8;
+      const line = [profile?.visit_time && `Visit: ${profile.visit_time}`, profile?.day_off && `${profile.day_off} Off`].filter(Boolean).join('  ·  ');
+      doc.text(line, pageWidth - margin, rightY, { align: 'right' });
     }
+    doc.setTextColor(20, 20, 20);
 
-    // Simple barcode-style graphic (decorative, not a scannable barcode)
-    const barcodeY = headerTop + headerH - 13;
-    const barcodeW = 36, barcodeX = pageWidth - margin - padX - barcodeW;
-    let bx = barcodeX;
-    for (let i = 0; i < 22; i++) {
-      const w = (i % 3 === 0) ? 1.0 : 0.45;
-      doc.setFillColor(0, 0, 0);
-      doc.rect(bx, barcodeY, w, 8, 'F');
-      bx += w + 0.75;
-    }
-    doc.setFontSize(7.5);
-    doc.text('0002', barcodeX + barcodeW / 2, barcodeY + 11, { align: 'center' });
-
-    // ============================================================
-    // PATIENT INFO BAND — every field prints, even when blank, so the
-    // form fields are visibly present on the printed page.
-    // ============================================================
-    let py = patientTop + 6.5;
-    doc.setFont('times', 'bold');
+    // ---------- Band 2: Patient details bar ----------
+    y = patientTop + 8;
     doc.setFontSize(11);
-    doc.text(`Name: ${patientName || ''}`, margin + padX, py);
-    doc.text(`Age: ${patientAge || ''}`, margin + (pageWidth - margin * 2) * 0.45, py);
-    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - margin - padX, py, { align: 'right' });
-    py += 6.8;
-    doc.setFont('times', 'normal');
-    doc.setFontSize(10.5);
-    doc.text(`Address: ${patientAddress || ''}`, margin + padX, py);
-    doc.text(`Mobile: ${patientMobile || ''}`, pageWidth - margin - padX, py, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Name: ${patientName || '—'}`, margin, y);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - margin, y, { align: 'right' });
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    const patientLine2 = [patientAge && `Age: ${patientAge}`, patientAddress && `Address: ${patientAddress}`].filter(Boolean).join('     ');
+    if (patientLine2) doc.text(patientLine2, margin, y);
+    if (patientMobile) doc.text(`Mobile: ${patientMobile}`, pageWidth - margin, y, { align: 'right' });
 
-    // ============================================================
-    // MAIN BODY: left 30% clinical, right 70% Rx — single divider only,
-    // no separators inside either panel.
-    // ============================================================
-    const bodyDividerX = margin + (pageWidth - margin * 2) * 0.30;
-    doc.line(bodyDividerX, bodyTop, bodyDividerX, bodyTop + bodyH);
+    doc.setDrawColor(80, 80, 80);
+    doc.setLineWidth(0.5);
+    doc.line(margin, mainTop, pageWidth - margin, mainTop);
 
-    const leftColX = margin + padX;
-    const leftColWidth = bodyDividerX - margin - padX * 2;
+    // ---------- Band 3: Clinical (35%) + Rx/Advice (65%) side by side ----------
+    const dividerX = margin + (pageWidth - margin * 2) * 0.35;
+    const leftColX = margin;
+    const rightColX = dividerX + 8;
+    let clinY = mainTop + 10;
+    let rxY = mainTop + 10;
 
     const drawToothQuadrant = (x, yCenter, tooth) => {
       if (!tooth) return;
       const hasAny = tooth.ur || tooth.ul || tooth.lr || tooth.ll;
       if (!hasAny) return;
-      const armLen = 3.8;
-      doc.setLineWidth(0.2);
+      const armLen = 4.2;
+      doc.setDrawColor(20, 20, 20);
+      doc.setLineWidth(0.3);
       doc.line(x - armLen, yCenter, x + armLen, yCenter);
       doc.line(x, yCenter - armLen, x, yCenter + armLen);
-      doc.setFont('times', 'normal');
-      doc.setFontSize(8);
-      if (tooth.ul) doc.text(String(tooth.ul), x - armLen - 1, yCenter - 1, { align: 'right' });
-      if (tooth.ur) doc.text(String(tooth.ur), x + armLen + 1, yCenter - 1, { align: 'left' });
-      if (tooth.ll) doc.text(String(tooth.ll), x - armLen - 1, yCenter + 3.5, { align: 'right' });
-      if (tooth.lr) doc.text(String(tooth.lr), x + armLen + 1, yCenter + 3.5, { align: 'left' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(20, 20, 20);
+      if (tooth.ul) doc.text(String(tooth.ul), x - armLen - 1, yCenter - 1.2, { align: 'right' });
+      if (tooth.ur) doc.text(String(tooth.ur), x + armLen + 1, yCenter - 1.2, { align: 'left' });
+      if (tooth.ll) doc.text(String(tooth.ll), x - armLen - 1, yCenter + 4, { align: 'right' });
+      if (tooth.lr) doc.text(String(tooth.lr), x + armLen + 1, yCenter + 4, { align: 'left' });
     };
 
-    // Left panel: continuous flowing writeup, one label + lines after
-    // another with NO horizontal separator lines between sections — if a
-    // section has no content it's skipped entirely (no empty gap left).
-    const leftSections = [
-      { label: 'C/C', lines: chiefComplaint, tooth: true },
-      { label: 'H/O', lines: history, tooth: false },
-      { label: 'O/E', lines: onExamination, tooth: true },
-      { label: 'Investigation', lines: investigation, tooth: false },
-      { label: 'Treatment Plan', lines: treatmentPlan, tooth: true },
-    ];
-
-    let ly = bodyTop + 8;
-    leftSections.forEach((section) => {
-      const items = filteredLines(section.lines);
-      if (items.length === 0) return; // skip empty sections, no gap left behind
-
-      doc.setFont('times', 'bolditalic');
+    const writeClinicalSection = (label, lines, startY, tooth) => {
+      const items = filteredLines(lines);
+      if (items.length === 0) return startY;
+      let cy = startY;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(15, 61, 62);
+      doc.text(label.toUpperCase(), leftColX, cy);
+      doc.setTextColor(20, 20, 20);
+      cy += 5.5;
       doc.setFontSize(10);
-      doc.text(section.label, leftColX, ly);
-      ly += 5.5;
-
+      const colWidth = dividerX - leftColX - 6;
       items.forEach((l) => {
-        const hasTooth = section.tooth && l.tooth && (l.tooth.ur || l.tooth.ul || l.tooth.lr || l.tooth.ll);
-        const textMaxWidth = leftColWidth - (hasTooth ? 16 : 0);
-        doc.setFont('times', 'normal');
-        doc.setFontSize(9.5);
+        const hasToothGraphic = tooth && l.tooth && (l.tooth.ur || l.tooth.ul || l.tooth.lr || l.tooth.ll);
+        const textMaxWidth = colWidth - (hasToothGraphic ? 16 : 0);
+        doc.setFont('helvetica', 'normal');
         const wrapped = doc.splitTextToSize(l.text, textMaxWidth);
-        doc.text(wrapped, leftColX, ly);
-        if (hasTooth) drawToothQuadrant(leftColX + textMaxWidth + 9, ly - 1, l.tooth);
-        ly += wrapped.length * 4.6;
+        const lineStartY = cy;
+        doc.text(wrapped, leftColX + 3, cy);
+        if (hasToothGraphic) drawToothQuadrant(leftColX + 3 + textMaxWidth + 10, lineStartY - 1, l.tooth);
+        cy += Math.max(wrapped.length * 5, hasToothGraphic ? 9 : 0);
       });
-      ly += 5; // gap before next section's label
-    });
+      return cy + 4;
+    };
 
-    // ---- Right column: "Rx." title, then ONE continuous open writing
-    // space all the way to the footer — no line under the title, no
-    // section separators. Medicines first, Advice follows directly
-    // beneath in the same open space. ----
-    const rxColX = bodyDividerX + padX + 2;
-    const rxColWidth = pageWidth - margin - padX - rxColX;
+    clinY = writeClinicalSection('C/C', chiefComplaint, clinY, true);
+    clinY = writeClinicalSection('H/O', history, clinY, false);
+    clinY = writeClinicalSection('O/E', onExamination, clinY, true);
+    clinY = writeClinicalSection('Treatment Plan', treatmentPlan, clinY, true);
 
-    doc.setFont('times', 'bolditalic');
-    doc.setFontSize(26);
-    doc.text('Rx.', rxColX, bodyTop + 15);
+    // Vertical divider between the two columns, spanning the main band
+    doc.setDrawColor(210, 205, 195);
+    doc.setLineWidth(0.4);
+    doc.line(dividerX, mainTop, dividerX, footerTop - 4);
 
-    let rxY = bodyTop + 26;
-    doc.setFont('times', 'normal');
+    // Right column: Rx (large, bold italic) → medicines → Advice below
+    doc.setFont('helvetica', 'bolditalic');
+    doc.setFontSize(20);
+    doc.setTextColor(15, 61, 62);
+    doc.text('Rx.', rightColX, rxY);
+    doc.setTextColor(20, 20, 20);
+    rxY += 10;
+
     filteredMedicines(medicines).forEach((m, i) => {
-      doc.setFont('times', 'bold');
-      doc.setFontSize(11.5);
-      const nameLines = doc.splitTextToSize(`${i + 1}.  ${m.name}`, rxColWidth);
-      doc.text(nameLines, rxColX, rxY);
-      rxY += nameLines.length * 5.5;
-      doc.setFont('times', 'normal');
-      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      const nameLines = doc.splitTextToSize(`${i + 1}. ${m.name}`, pageWidth - rightColX - margin);
+      doc.text(nameLines, rightColX, rxY);
+      rxY += nameLines.length * 5.2;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
       const details = [m.dose, m.duration].filter(Boolean).join('   ——   ');
       if (details) {
-        const detailLines = doc.splitTextToSize(details, rxColWidth - 5);
-        doc.text(detailLines, rxColX + 5, rxY);
-        rxY += detailLines.length * 4.8;
+        const detailLines = doc.splitTextToSize(details, pageWidth - rightColX - margin - 4);
+        doc.text(detailLines, rightColX + 4, rxY);
+        rxY += detailLines.length * 4.6;
       }
-      rxY += 4;
+      rxY += 3.5;
     });
 
     if (selectedAdvice.length > 0) {
-      rxY += 4;
-      doc.setFont('times', 'bolditalic');
-      doc.setFontSize(12);
-      doc.text('Advice', rxColX, rxY);
       rxY += 6;
-      doc.setFont('times', 'normal');
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setFontSize(13);
+      doc.setTextColor(15, 61, 62);
+      doc.text('Advice', rightColX, rxY);
+      doc.setTextColor(20, 20, 20);
+      rxY += 6.5;
       doc.setFontSize(10);
       selectedAdvice.forEach((a, i) => {
-        const wrapped = doc.splitTextToSize(`${i + 1}. ${a.text}`, rxColWidth - 5);
-        doc.text(wrapped, rxColX + 5, rxY);
-        rxY += wrapped.length * 4.8;
+        doc.setFont('NotoBengali', 'normal');
+        const wrapped = doc.splitTextToSize(`${i + 1}. ${a.text}`, pageWidth - rightColX - margin - 4);
+        doc.text(wrapped, rightColX + 4, rxY);
+        rxY += wrapped.length * 5;
       });
     }
 
-    // ============================================================
-    // FOOTER: full-width centered, admin/doctor-editable text
-    // ============================================================
-    doc.setFont('times', 'italic');
-    doc.setFontSize(8.5);
-    doc.text(footerText, pageWidth / 2, footerTop + footerH / 2 + 1.5, { align: 'center' });
+    // ---------- Band 4: Footer ----------
+    doc.setDrawColor(80, 80, 80);
+    doc.setLineWidth(0.4);
+    doc.line(margin, footerTop, pageWidth - margin, footerTop);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(90, 90, 90);
+    doc.text(footerText, pageWidth / 2, footerTop + 7, { align: 'center' });
 
     return doc;
   };
