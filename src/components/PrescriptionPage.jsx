@@ -132,6 +132,7 @@ export default function PrescriptionPage() {
   const [chiefComplaint, setChiefComplaint] = useState([emptyClinicalLine(true)]);
   const [history, setHistory] = useState([emptyClinicalLine(false)]);
   const [onExamination, setOnExamination] = useState([emptyClinicalLine(true)]);
+  const [investigation, setInvestigation] = useState([emptyClinicalLine(false)]);
   const [treatmentPlan, setTreatmentPlan] = useState([emptyClinicalLine(true)]);
   const [selectedAdvice, setSelectedAdvice] = useState([]); // [{id, text, tooth_number}]
 
@@ -141,6 +142,22 @@ export default function PrescriptionPage() {
   const [success, setSuccess] = useState('');
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [pdfFileName, setPdfFileName] = useState('');
+  const [footerText, setFooterText] = useState('Follow the prescribed medication regularly.');
+  const [footerEditing, setFooterEditing] = useState(false);
+  const [footerSaving, setFooterSaving] = useState(false);
+
+  const loadFooterText = async () => {
+    const { data } = await supabase.from('app_text_settings').select('value').eq('key', 'prescription_footer_text').maybeSingle();
+    if (data?.value) setFooterText(data.value);
+  };
+  useEffect(() => { loadFooterText(); }, []);
+
+  const saveFooterText = async () => {
+    setFooterSaving(true);
+    await supabase.from('app_text_settings').upsert({ key: 'prescription_footer_text', value: footerText, updated_at: new Date().toISOString() });
+    setFooterSaving(false);
+    setFooterEditing(false);
+  };
 
   const loadRecent = async () => {
     const { data } = await supabase.from('prescriptions').select('*').eq('created_by', user.id).order('created_at', { ascending: false }).limit(5);
@@ -191,88 +208,84 @@ export default function PrescriptionPage() {
     const bodyTop = headerH + patientH;
     const footerTop = pageHeight - footerH;
 
+    // Outer border only, plus the boundaries between the 4 top-level bands.
     doc.rect(margin, headerTop + 2, pageWidth - margin * 2, headerH - 4);
     doc.rect(margin, patientTop, pageWidth - margin * 2, patientH);
     doc.rect(margin, bodyTop, pageWidth - margin * 2, bodyH);
     doc.rect(margin, footerTop, pageWidth - margin * 2, footerH);
 
     // ============================================================
-    // HEADER: left 60% doctor, right 40% chamber + barcode
+    // HEADER: left 60% doctor, right 40% chamber + barcode — larger font
+    // so the box is well filled, per feedback.
     // ============================================================
     const headerDividerX = margin + (pageWidth - margin * 2) * 0.60;
     doc.line(headerDividerX, headerTop + 2, headerDividerX, headerTop + headerH - 2);
 
-    const padX = 4, padY = 7;
+    const padX = 5, padY = 9;
     let dy = headerTop + padY;
     doc.setFont('times', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(17);
     doc.text(`DR. ${(profile?.full_name || '').toUpperCase()}`, margin + padX, dy);
-    dy += 6;
-    doc.setFontSize(10);
-    if (profile?.designation) { doc.setFont('times', 'bolditalic'); doc.text(profile.designation, margin + padX, dy); doc.setFont('times', 'normal'); dy += 5; }
-    if (profile?.degrees) { doc.text(profile.degrees, margin + padX, dy); dy += 5; }
-    if (profile?.medical_college) { doc.text(profile.medical_college, margin + padX, dy); dy += 5; }
-    if (profile?.bmdc_number) { doc.text(`BMDC Reg No: ${profile.bmdc_number}`, margin + padX, dy); dy += 5; }
+    dy += 7.5;
+    doc.setFontSize(11.5);
+    if (profile?.designation) { doc.setFont('times', 'bolditalic'); doc.text(profile.designation, margin + padX, dy); doc.setFont('times', 'normal'); dy += 6; }
+    if (profile?.degrees) { doc.text(profile.degrees, margin + padX, dy); dy += 6; }
+    if (profile?.medical_college) { doc.text(profile.medical_college, margin + padX, dy); dy += 6; }
+    if (profile?.bmdc_number) { doc.text(`BMDC Reg No: ${profile.bmdc_number}`, margin + padX, dy); dy += 6; }
 
     let cy = headerTop + padY;
     const chamberRightX = pageWidth - margin - padX;
     doc.setFont('times', 'bold');
-    doc.setFontSize(11);
-    doc.text('Chamber', chamberRightX, cy, { align: 'right' }); cy += 5.5;
+    doc.setFontSize(12.5);
+    doc.text('Chamber', chamberRightX, cy, { align: 'right' }); cy += 6.5;
     doc.setFont('times', 'normal');
-    doc.setFontSize(10);
-    if (profile?.chamber_name) { doc.text(profile.chamber_name, chamberRightX, cy, { align: 'right' }); cy += 5; }
-    if (profile?.chamber_address) { doc.text(profile.chamber_address, chamberRightX, cy, { align: 'right' }); cy += 5; }
-    if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, chamberRightX, cy, { align: 'right' }); cy += 5; }
+    doc.setFontSize(11);
+    if (profile?.chamber_name) { doc.text(profile.chamber_name, chamberRightX, cy, { align: 'right' }); cy += 5.8; }
+    if (profile?.chamber_address) { doc.text(profile.chamber_address, chamberRightX, cy, { align: 'right' }); cy += 5.8; }
+    if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, chamberRightX, cy, { align: 'right' }); cy += 5.8; }
     if (profile?.visit_time || profile?.day_off) {
       const line = [profile?.visit_time && `Visit: ${profile.visit_time}`, profile?.day_off && `${profile.day_off} Off`].filter(Boolean).join('   ·   ');
-      doc.text(line, chamberRightX, cy, { align: 'right' }); cy += 5;
+      doc.text(line, chamberRightX, cy, { align: 'right' }); cy += 5.8;
     }
 
     // Simple barcode-style graphic (decorative, not a scannable barcode)
-    const barcodeY = headerTop + headerH - 12;
-    const barcodeW = 34, barcodeX = pageWidth - margin - padX - barcodeW;
+    const barcodeY = headerTop + headerH - 13;
+    const barcodeW = 36, barcodeX = pageWidth - margin - padX - barcodeW;
     let bx = barcodeX;
     for (let i = 0; i < 22; i++) {
-      const w = (i % 3 === 0) ? 0.9 : 0.4;
+      const w = (i % 3 === 0) ? 1.0 : 0.45;
       doc.setFillColor(0, 0, 0);
-      doc.rect(bx, barcodeY, w, 7, 'F');
-      bx += w + 0.7;
+      doc.rect(bx, barcodeY, w, 8, 'F');
+      bx += w + 0.75;
     }
-    doc.setFontSize(7);
-    doc.text('0002', barcodeX + barcodeW / 2, barcodeY + 10, { align: 'center' });
+    doc.setFontSize(7.5);
+    doc.text('0002', barcodeX + barcodeW / 2, barcodeY + 11, { align: 'center' });
 
     // ============================================================
-    // PATIENT INFO BAND
+    // PATIENT INFO BAND — every field prints, even when blank, so the
+    // form fields are visibly present on the printed page.
     // ============================================================
-    let py = patientTop + 6;
+    let py = patientTop + 6.5;
     doc.setFont('times', 'bold');
-    doc.setFontSize(10.5);
-    doc.text(`Name: ${patientName || '—'}`, margin + padX, py);
-    doc.text(`Age: ${patientAge || '—'}`, margin + (pageWidth - margin * 2) * 0.45, py);
+    doc.setFontSize(11);
+    doc.text(`Name: ${patientName || ''}`, margin + padX, py);
+    doc.text(`Age: ${patientAge || ''}`, margin + (pageWidth - margin * 2) * 0.45, py);
     doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - margin - padX, py, { align: 'right' });
-    py += 6.5;
+    py += 6.8;
     doc.setFont('times', 'normal');
-    doc.setFontSize(10);
-    doc.text(`Address: ${patientAddress || '—'}`, margin + padX, py);
-    doc.text(`Mobile: ${patientMobile || '—'}`, pageWidth - margin - padX, py, { align: 'right' });
+    doc.setFontSize(10.5);
+    doc.text(`Address: ${patientAddress || ''}`, margin + padX, py);
+    doc.text(`Mobile: ${patientMobile || ''}`, pageWidth - margin - padX, py, { align: 'right' });
 
     // ============================================================
-    // MAIN BODY: left 32% clinical, right 68% Rx
+    // MAIN BODY: left 30% clinical, right 70% Rx — single divider only,
+    // no separators inside either panel.
     // ============================================================
-    const bodyDividerX = margin + (pageWidth - margin * 2) * 0.32;
+    const bodyDividerX = margin + (pageWidth - margin * 2) * 0.30;
     doc.line(bodyDividerX, bodyTop, bodyDividerX, bodyTop + bodyH);
 
-    // ---- Left column: fixed sub-band heights per the spec ----
     const leftColX = margin + padX;
     const leftColWidth = bodyDividerX - margin - padX * 2;
-    const subBands = [
-      { key: 'cc', label: 'C/C', pct: 0.23, lines: chiefComplaint, tooth: true },
-      { key: 'ho', label: 'H/O', pct: 0.14, lines: history, tooth: false },
-      { key: 'oe', label: 'O/E', pct: 0.19, lines: onExamination, tooth: true },
-      { key: 'advice', label: 'Advice', pct: 0.18, lines: null, tooth: false },
-      { key: 'tp', label: 'Treatment Plan', pct: 0.26, lines: treatmentPlan, tooth: true },
-    ];
 
     const drawToothQuadrant = (x, yCenter, tooth) => {
       if (!tooth) return;
@@ -290,57 +303,52 @@ export default function PrescriptionPage() {
       if (tooth.lr) doc.text(String(tooth.lr), x + armLen + 1, yCenter + 3.5, { align: 'left' });
     };
 
-    let subTop = bodyTop;
-    subBands.forEach((band) => {
-      const bandHeight = bodyH * band.pct;
-      if (band.key !== 'cc') {
-        doc.setLineWidth(0.15);
-        doc.line(margin, subTop, bodyDividerX, subTop);
-      }
+    // Left panel: continuous flowing writeup, one label + lines after
+    // another with NO horizontal separator lines between sections — if a
+    // section has no content it's skipped entirely (no empty gap left).
+    const leftSections = [
+      { label: 'C/C', lines: chiefComplaint, tooth: true },
+      { label: 'H/O', lines: history, tooth: false },
+      { label: 'O/E', lines: onExamination, tooth: true },
+      { label: 'Investigation', lines: investigation, tooth: false },
+      { label: 'Treatment Plan', lines: treatmentPlan, tooth: true },
+    ];
+
+    let ly = bodyTop + 8;
+    leftSections.forEach((section) => {
+      const items = filteredLines(section.lines);
+      if (items.length === 0) return; // skip empty sections, no gap left behind
 
       doc.setFont('times', 'bolditalic');
-      doc.setFontSize(9.5);
-      doc.text(band.label, leftColX, subTop + 5);
+      doc.setFontSize(10);
+      doc.text(section.label, leftColX, ly);
+      ly += 5.5;
 
-      if (band.key === 'advice') {
-        let ay = subTop + 10;
+      items.forEach((l) => {
+        const hasTooth = section.tooth && l.tooth && (l.tooth.ur || l.tooth.ul || l.tooth.lr || l.tooth.ll);
+        const textMaxWidth = leftColWidth - (hasTooth ? 16 : 0);
         doc.setFont('times', 'normal');
-        doc.setFontSize(9);
-        selectedAdvice.forEach((a, i) => {
-          const wrapped = doc.splitTextToSize(`${i + 1}. ${a.text}`, leftColWidth);
-          doc.text(wrapped, leftColX, ay);
-          ay += wrapped.length * 4.4;
-        });
-      } else {
-        const items = filteredLines(band.lines);
-        let ly = subTop + 10;
-        items.forEach((l) => {
-          const hasTooth = band.tooth && l.tooth && (l.tooth.ur || l.tooth.ul || l.tooth.lr || l.tooth.ll);
-          const textMaxWidth = leftColWidth - (hasTooth ? 16 : 0);
-          doc.setFont('times', 'normal');
-          doc.setFontSize(9.5);
-          const wrapped = doc.splitTextToSize(l.text, textMaxWidth);
-          doc.text(wrapped, leftColX, ly);
-          if (hasTooth) drawToothQuadrant(leftColX + textMaxWidth + 9, ly - 1, l.tooth);
-          ly += wrapped.length * 4.6;
-        });
-      }
-
-      subTop += bandHeight;
+        doc.setFontSize(9.5);
+        const wrapped = doc.splitTextToSize(l.text, textMaxWidth);
+        doc.text(wrapped, leftColX, ly);
+        if (hasTooth) drawToothQuadrant(leftColX + textMaxWidth + 9, ly - 1, l.tooth);
+        ly += wrapped.length * 4.6;
+      });
+      ly += 5; // gap before next section's label
     });
 
-    // ---- Right column: Rx title (18mm) + medicine writing area ----
+    // ---- Right column: "Rx." title, then ONE continuous open writing
+    // space all the way to the footer — no line under the title, no
+    // section separators. Medicines first, Advice follows directly
+    // beneath in the same open space. ----
     const rxColX = bodyDividerX + padX + 2;
     const rxColWidth = pageWidth - margin - padX - rxColX;
-    const rxTitleH = 18;
 
     doc.setFont('times', 'bolditalic');
-    doc.setFontSize(24);
-    doc.text('Rx.', rxColX, bodyTop + 13);
-    doc.setLineWidth(0.15);
-    doc.line(bodyDividerX, bodyTop + rxTitleH, pageWidth - margin, bodyTop + rxTitleH);
+    doc.setFontSize(26);
+    doc.text('Rx.', rxColX, bodyTop + 15);
 
-    let rxY = bodyTop + rxTitleH + 9;
+    let rxY = bodyTop + 26;
     doc.setFont('times', 'normal');
     filteredMedicines(medicines).forEach((m, i) => {
       doc.setFont('times', 'bold');
@@ -359,12 +367,27 @@ export default function PrescriptionPage() {
       rxY += 4;
     });
 
+    if (selectedAdvice.length > 0) {
+      rxY += 4;
+      doc.setFont('times', 'bolditalic');
+      doc.setFontSize(12);
+      doc.text('Advice', rxColX, rxY);
+      rxY += 6;
+      doc.setFont('times', 'normal');
+      doc.setFontSize(10);
+      selectedAdvice.forEach((a, i) => {
+        const wrapped = doc.splitTextToSize(`${i + 1}. ${a.text}`, rxColWidth - 5);
+        doc.text(wrapped, rxColX + 5, rxY);
+        rxY += wrapped.length * 4.8;
+      });
+    }
+
     // ============================================================
-    // FOOTER: full-width centered disclaimer
+    // FOOTER: full-width centered, admin/doctor-editable text
     // ============================================================
     doc.setFont('times', 'italic');
     doc.setFontSize(8.5);
-    doc.text('Follow the prescribed medication regularly.', pageWidth / 2, footerTop + footerH / 2 + 1.5, { align: 'center' });
+    doc.text(footerText, pageWidth / 2, footerTop + footerH / 2 + 1.5, { align: 'center' });
 
     return doc;
   };
@@ -405,6 +428,7 @@ export default function PrescriptionPage() {
       chief_complaint: filteredLines(chiefComplaint),
       history: filteredLines(history),
       on_examination: filteredLines(onExamination),
+      investigation: filteredLines(investigation),
       treatment_plan: filteredLines(treatmentPlan),
       advice: selectedAdvice.map((a) => a.text).join('; ') || null,
       medicines: filteredMedicines(medicines),
@@ -465,7 +489,7 @@ export default function PrescriptionPage() {
         <ClinicalSection label="C/C (Chief Complaint)" lines={chiefComplaint} onChange={setChiefComplaint} withTooth />
         <ClinicalSection label="H/O (History)" lines={history} onChange={setHistory} />
         <ClinicalSection label="O/E (On Examination)" lines={onExamination} onChange={setOnExamination} withTooth />
-        <AdviceTemplatesPanel userId={user.id} selectedIds={selectedAdvice.map((a) => a.id)} onToggle={toggleAdvice} />
+        <ClinicalSection label="Investigation" lines={investigation} onChange={setInvestigation} />
         <ClinicalSection label="Treatment Plan" lines={treatmentPlan} onChange={setTreatmentPlan} withTooth />
       </div>
 
@@ -483,7 +507,11 @@ export default function PrescriptionPage() {
             </div>
           ))}
           <button type="button" className="btn-secondary" onClick={addMedicine} style={{ alignSelf: 'flex-start' }}>+ Add medicine</button>
+        </div>
 
+        <AdviceTemplatesPanel userId={user.id} selectedIds={selectedAdvice.map((a) => a.id)} onToggle={toggleAdvice} />
+
+        <div className="exam-form-fields" style={{ marginTop: 4 }}>
           {error && <div className="error-box">{error}</div>}
           {success && <div className="ok-box">{success}</div>}
           <button className="btn-primary" onClick={generate} style={{ alignSelf: 'flex-start', marginTop: 6 }}>Generate PDF</button>
@@ -499,6 +527,25 @@ export default function PrescriptionPage() {
             </a>
           )}
         </div>
+      </div>
+
+      <div className="panel">
+        <h2>Footer Text</h2>
+        <p className="muted small">Shown at the bottom of every prescription PDF.</p>
+        {footerEditing ? (
+          <div className="exam-form-fields" style={{ marginTop: 10 }}>
+            <input value={footerText} onChange={(e) => setFooterText(e.target.value)} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-primary" onClick={saveFooterText} disabled={footerSaving}>{footerSaving ? 'Saving…' : 'Save'}</button>
+              <button className="btn-secondary" onClick={() => setFooterEditing(false)}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+            <span className="muted small" style={{ fontStyle: 'italic' }}>"{footerText}"</span>
+            <button className="btn-secondary" onClick={() => setFooterEditing(true)}>Edit</button>
+          </div>
+        )}
       </div>
 
       {pdfBlobUrl && (
