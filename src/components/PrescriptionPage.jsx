@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { NOTO_SANS_BENGALI_BASE64 } from '../assets/notoSansBengaliBase64';
 
 function emptyMedicine() {
   return { name: '', dose: '', duration: '' };
@@ -154,114 +155,150 @@ export default function PrescriptionPage() {
 
   const buildPdf = () => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    // Register the Bengali font (used only for Advice text, which is the
+    // one field allowed to contain Bangla script). Everything else stays
+    // in the default Helvetica.
+    doc.addFileToVFS('NotoSansBengali.ttf', NOTO_SANS_BENGALI_BASE64);
+    doc.addFont('NotoSansBengali.ttf', 'NotoBengali', 'normal');
+
     const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
     const midX = pageWidth / 2;
-    let y = 12;
+    let y = 14;
 
-    // ---------- Header: doctor (left) + chamber (right) ----------
+    // ---------- Header band (light grey-black background) ----------
+    const headerHeight = 34;
+    doc.setFillColor(238, 238, 236);
+    doc.rect(0, 0, pageWidth, headerHeight, 'F');
+
+    doc.setTextColor(30, 30, 30);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text(`DR. ${(profile?.full_name || '').toUpperCase()}`, 8, y);
+    doc.setFontSize(15);
+    doc.text(`DR. ${(profile?.full_name || '').toUpperCase()}`, margin, y);
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    let leftY = y + 5;
-    if (profile?.designation) { doc.setFont('helvetica', 'bold'); doc.text(profile.designation, 8, leftY); doc.setFont('helvetica', 'normal'); leftY += 4; }
-    if (profile?.degrees) { doc.text(profile.degrees, 8, leftY); leftY += 4; }
-    if (profile?.medical_college) { doc.text(profile.medical_college, 8, leftY); leftY += 4; }
-    if (profile?.bmdc_number) { doc.text(`BMDC Reg No- ${profile.bmdc_number}`, 8, leftY); leftY += 4; }
+    doc.setFontSize(10);
+    let leftY = y + 6;
+    if (profile?.designation) { doc.setFont('helvetica', 'bold'); doc.text(profile.designation, margin, leftY); doc.setFont('helvetica', 'normal'); leftY += 4.5; }
+    if (profile?.degrees) { doc.text(profile.degrees, margin, leftY); leftY += 4.5; }
+    if (profile?.medical_college) { doc.text(profile.medical_college, margin, leftY); leftY += 4.5; }
+    if (profile?.bmdc_number) { doc.text(`BMDC Reg No- ${profile.bmdc_number}`, margin, leftY); leftY += 4.5; }
 
     let rightY = y;
     doc.setFont('helvetica', 'bold');
-    doc.text('Chamber:', pageWidth - 8, rightY, { align: 'right' }); rightY += 4;
+    doc.setFontSize(11);
+    doc.text('Chamber', pageWidth - margin, rightY, { align: 'right' }); rightY += 5.5;
     doc.setFont('helvetica', 'normal');
-    if (profile?.chamber_name) { doc.text(profile.chamber_name, pageWidth - 8, rightY, { align: 'right' }); rightY += 4; }
-    if (profile?.chamber_address) { doc.text(profile.chamber_address, pageWidth - 8, rightY, { align: 'right' }); rightY += 4; }
-    if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, pageWidth - 8, rightY, { align: 'right' }); rightY += 4; }
-    if (profile?.visit_time) { doc.text(`Visit Time ${profile.visit_time}`, pageWidth - 8, rightY, { align: 'right' }); rightY += 4; }
-    if (profile?.day_off) { doc.text(`${profile.day_off} Off`, pageWidth - 8, rightY, { align: 'right' }); rightY += 4; }
+    doc.setFontSize(10);
+    if (profile?.chamber_name) { doc.text(profile.chamber_name, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
+    if (profile?.chamber_address) { doc.text(profile.chamber_address, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
+    if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
+    if (profile?.visit_time || profile?.day_off) {
+      const line = [profile?.visit_time && `Visit: ${profile.visit_time}`, profile?.day_off && `${profile.day_off} Off`].filter(Boolean).join('  ·  ');
+      doc.text(line, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5;
+    }
 
-    y = Math.max(leftY, rightY) + 3;
-    doc.setLineWidth(0.4);
-    doc.line(8, y, pageWidth - 8, y);
-    y += 6;
+    doc.setTextColor(20, 20, 20);
+    y = headerHeight + 8;
 
     // ---------- Patient row ----------
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Name: ${patientName}`, 8, y);
-    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 8, y, { align: 'right' });
-    y += 5;
+    doc.text(`Patient: ${patientName || '—'}`, margin, y);
+    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - margin, y, { align: 'right' });
+    y += 6;
     doc.setFont('helvetica', 'normal');
-    const patientLine2 = [patientAge && `Age: ${patientAge}`, patientMobile && `Mobile: ${patientMobile}`].filter(Boolean).join('   ');
-    if (patientLine2) { doc.text(patientLine2, 8, y); y += 5; }
-    if (patientAddress) { doc.text(`Address: ${patientAddress}`, 8, y); y += 5; }
+    doc.setFontSize(10);
+    const patientLine2 = [patientAge && `Age: ${patientAge}`, patientMobile && `Mobile: ${patientMobile}`].filter(Boolean).join('     ');
+    if (patientLine2) { doc.text(patientLine2, margin, y); y += 5; }
+    if (patientAddress) { doc.text(`Address: ${patientAddress}`, margin, y); y += 5; }
 
     y += 2;
-    doc.line(8, y, pageWidth - 8, y);
-    y += 6;
+    doc.setDrawColor(80, 80, 80);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
 
     // ---------- Two-column body: left = clinical, right = Rx ----------
-    const leftColX = 8;
-    const rightColX = midX + 4;
+    const leftColX = margin;
+    const rightColX = midX + 6;
+    const dividerX = midX;
     let clinY = y;
     let rxY = y;
 
-    const writeSection = (label, lines, startY) => {
+    const writeSection = (label, lines, startY, useBengaliFont = false) => {
       const items = filteredLines(lines);
       if (items.length === 0) return startY;
       let cy = startY;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9.5);
-      doc.text(label, leftColX, cy);
-      cy += 4.5;
-      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(15, 61, 62);
+      doc.text(label.toUpperCase(), leftColX, cy);
+      doc.setTextColor(20, 20, 20);
+      cy += 5.5;
+      doc.setFontSize(10);
       items.forEach((l) => {
-        const suffix = l.tooth_number ? `  |${l.tooth_number}` : '';
-        const wrapped = doc.splitTextToSize(l.text + suffix, midX - leftColX - 4);
-        doc.text(wrapped, leftColX + 2, cy);
-        cy += wrapped.length * 4.2;
+        const suffix = l.tooth_number ? `   (Tooth #${l.tooth_number})` : '';
+        if (useBengaliFont) {
+          doc.setFont('NotoBengali', 'normal');
+        } else {
+          doc.setFont('helvetica', 'normal');
+        }
+        const wrapped = doc.splitTextToSize(l.text + suffix, dividerX - leftColX - 8);
+        doc.text(wrapped, leftColX + 3, cy);
+        cy += wrapped.length * 5;
       });
-      return cy + 3;
+      return cy + 4;
     };
 
     clinY = writeSection('C/C', chiefComplaint, clinY);
     clinY = writeSection('H/O', history, clinY);
     clinY = writeSection('O/E', onExamination, clinY);
     if (selectedAdvice.length > 0) {
-      clinY = writeSection('Advice', selectedAdvice.map((a) => ({ text: a.text, tooth_number: a.tooth_number })), clinY);
+      clinY = writeSection('Advice', selectedAdvice.map((a) => ({ text: a.text, tooth_number: a.tooth_number })), clinY, true);
     }
     clinY = writeSection('Treatment Plan', treatmentPlan, clinY);
 
+    // Vertical divider between the two columns
+    const bottomY = Math.max(clinY, rxY, headerHeight + 60);
+    doc.setDrawColor(210, 205, 195);
+    doc.setLineWidth(0.4);
+    doc.line(dividerX, y - 4, dividerX, bottomY);
+
     // Rx column
     doc.setFont('helvetica', 'bolditalic');
-    doc.setFontSize(15);
+    doc.setFontSize(18);
+    doc.setTextColor(15, 61, 62);
     doc.text('Rx.', rightColX, rxY);
-    rxY += 7;
+    doc.setTextColor(20, 20, 20);
+    rxY += 9;
 
-    doc.setFontSize(10);
     filteredMedicines(medicines).forEach((m, i) => {
       doc.setFont('helvetica', 'bold');
-      const nameLines = doc.splitTextToSize(`${i + 1}. ${m.name}`, pageWidth - rightColX - 8);
+      doc.setFontSize(11);
+      const nameLines = doc.splitTextToSize(`${i + 1}. ${m.name}`, pageWidth - rightColX - margin);
       doc.text(nameLines, rightColX, rxY);
-      rxY += nameLines.length * 4.5;
+      rxY += nameLines.length * 5.2;
       doc.setFont('helvetica', 'normal');
-      const details = [m.dose, m.duration].filter(Boolean).join('  ------  ');
+      doc.setFontSize(9.5);
+      const details = [m.dose, m.duration].filter(Boolean).join('   ——   ');
       if (details) {
-        const detailLines = doc.splitTextToSize(details, pageWidth - rightColX - 10);
-        doc.text(detailLines, rightColX + 3, rxY);
-        rxY += detailLines.length * 4.2;
+        const detailLines = doc.splitTextToSize(details, pageWidth - rightColX - margin - 4);
+        doc.text(detailLines, rightColX + 4, rxY);
+        rxY += detailLines.length * 4.6;
       }
-      rxY += 2.5;
+      rxY += 3.5;
     });
 
     // ---------- Footer ----------
     const pageHeight = doc.internal.pageSize.getHeight();
-    doc.setLineWidth(0.3);
-    doc.line(8, pageHeight - 12, pageWidth - 8, pageHeight - 12);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('Follow the prescribed medication regularly.', pageWidth / 2, pageHeight - 7, { align: 'center' });
+    doc.setDrawColor(80, 80, 80);
+    doc.setLineWidth(0.4);
+    doc.line(margin, pageHeight - 16, pageWidth - margin, pageHeight - 16);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(90, 90, 90);
+    doc.text('Follow the prescribed medication regularly.', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
     return doc;
   };
@@ -269,8 +306,8 @@ export default function PrescriptionPage() {
   const generate = async () => {
     setError('');
     setSuccess('');
-    if (!patientName.trim()) { setError('Enter the patient name.'); return; }
-    if (filteredMedicines(medicines).length === 0) { setError('Add at least one medicine.'); return; }
+    // Patient name / medicines are no longer hard-required — a doctor may
+    // want to generate a partial prescription (e.g. just clinical notes).
 
     try {
       const doc = buildPdf();
@@ -285,7 +322,7 @@ export default function PrescriptionPage() {
       // gesture the browser can't block or ignore.
       if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
       setPdfBlobUrl(blobUrl);
-      setPdfFileName(`prescription_${patientName.replace(/\s+/g, '_')}.pdf`);
+      setPdfFileName(`prescription_${(patientName.trim() || 'unnamed').replace(/\s+/g, '_')}.pdf`);
       setSuccess('Your prescription PDF is ready below — tap "Download PDF" to save it.');
     } catch (pdfError) {
       console.error('PDF generation failed:', pdfError);
@@ -295,7 +332,7 @@ export default function PrescriptionPage() {
 
     const { error: saveError } = await supabase.from('prescriptions').insert({
       created_by: user.id,
-      patient_name: patientName.trim(),
+      patient_name: patientName.trim() || 'Unnamed patient',
       patient_age: patientAge.trim() || null,
       patient_address: patientAddress.trim() || null,
       patient_mobile: patientMobile.trim() || null,
