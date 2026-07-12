@@ -149,10 +149,11 @@ export default function PrescriptionPage() {
   const addMedicine = () => setMedicines((m) => [...m, emptyMedicine()]);
   const removeMedicine = (i) => setMedicines((m) => m.filter((_, idx) => idx !== i));
 
-  const filteredLines = (lines) => lines.filter((l) => l.text.trim());
+  const filteredLines = (lines) => lines.filter((l) => (l.text || '').trim());
+  const filteredMedicines = (meds) => meds.filter((m) => (m.name || '').trim());
 
   const buildPdf = () => {
-    const doc = new jsPDF({ unit: 'mm', format: 'a5' });
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const midX = pageWidth / 2;
     let y = 12;
@@ -239,7 +240,7 @@ export default function PrescriptionPage() {
     rxY += 7;
 
     doc.setFontSize(10);
-    filteredLines(medicines).forEach((m, i) => {
+    filteredMedicines(medicines).forEach((m, i) => {
       doc.setFont('helvetica', 'bold');
       const nameLines = doc.splitTextToSize(`${i + 1}. ${m.name}`, pageWidth - rightColX - 8);
       doc.text(nameLines, rightColX, rxY);
@@ -269,7 +270,7 @@ export default function PrescriptionPage() {
     setError('');
     setSuccess('');
     if (!patientName.trim()) { setError('Enter the patient name.'); return; }
-    if (filteredLines(medicines).length === 0) { setError('Add at least one medicine.'); return; }
+    if (filteredMedicines(medicines).length === 0) { setError('Add at least one medicine.'); return; }
 
     try {
       const doc = buildPdf();
@@ -303,7 +304,7 @@ export default function PrescriptionPage() {
       on_examination: filteredLines(onExamination),
       treatment_plan: filteredLines(treatmentPlan),
       advice: selectedAdvice.map((a) => a.text).join('; ') || null,
-      medicines: filteredLines(medicines),
+      medicines: filteredMedicines(medicines),
     });
     if (saveError) {
       console.error('Failed to save prescription record:', saveError.message);
