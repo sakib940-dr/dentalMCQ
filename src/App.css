@@ -1940,3 +1940,43 @@ body {
 }
 .recent-row:last-child { border-bottom: none; }
 .recent-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+
+/* ---------- Install app banner ---------- */
+.install-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--teal-deep);
+  color: #fff;
+  padding: 10px 16px;
+}
+.install-banner-text {
+  font-size: 12.5px;
+  line-height: 1.35;
+  flex: 1;
+}
+.install-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.install-banner-btn {
+  background: var(--gold);
+  color: var(--teal-deep);
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.install-banner-dismiss {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px;
+}

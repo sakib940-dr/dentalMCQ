@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ToothMark from './ToothMark';
+import InstallAppButton from './InstallAppButton';
 
 export default function DashboardLayout({ title, navItems, children }) {
   const { profile, signOut } = useAuth();
@@ -39,6 +40,8 @@ export default function DashboardLayout({ title, navItems, children }) {
           </NavLink>
         ))}
       </nav>
+
+      <InstallAppButton />
 
       <main className="dash-content">{children}</main>
     </div>
