@@ -313,6 +313,7 @@ export default function PrescriptionPage() {
     clinY = writeClinicalSection('C/C', chiefComplaint, clinY, true);
     clinY = writeClinicalSection('H/O', history, clinY, false);
     clinY = writeClinicalSection('O/E', onExamination, clinY, true);
+    clinY = writeClinicalSection('Investigation', investigation, clinY, false);
     clinY = writeClinicalSection('Treatment Plan', treatmentPlan, clinY, true);
 
     // Vertical divider between the two columns, spanning the main band
