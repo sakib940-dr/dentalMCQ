@@ -6,6 +6,48 @@ function fmtDateTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+function TrialSettings() {
+  const [days, setDays] = useState(15);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('app_number_settings').select('value').eq('key', 'free_trial_days').maybeSingle();
+    if (data) setDays(data.value);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setSaved(false);
+    await supabase.from('app_number_settings').upsert({ key: 'free_trial_days', value: days, updated_at: new Date().toISOString() });
+    setSaving(false);
+    setSaved(true);
+  };
+
+  return (
+    <div className="panel">
+      <h2>Free Trial</h2>
+      <p className="muted small">
+        Every student gets this many free days of exam/practice access, starting from the moment
+        they first open a paid category. After it runs out, access locks until payment is
+        approved. Prescription is always free and never affected by this.
+      </p>
+      <form className="exam-form-fields" onSubmit={save} style={{ marginTop: 12 }}>
+        <label>
+          <span>Free trial length (days)</span>
+          <input type="number" min={0} max={365} value={days} onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))} />
+        </label>
+        {saved && <div className="ok-box">Saved.</div>}
+        <button type="submit" className="btn-primary" disabled={saving} style={{ alignSelf: 'flex-start' }}>
+          {saving ? 'Saving…' : 'Save trial length'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function PackageSettings() {
   const [pkg, setPkg] = useState(null);
   const [name, setName] = useState('');
@@ -82,27 +124,26 @@ function PackageSettings() {
 function PaymentClaimsInbox() {
   const { user } = useAuth();
   const [claims, setClaims] = useState(null);
-  const [filter, setFilter] = useState('pending');
+  const [filter, setFilter] = useState('all');
 
   const load = useCallback(async () => {
     let query = supabase.from('payment_claims').select('*, profiles(full_name, username, mobile_number), categories(name)').order('created_at', { ascending: false });
     if (filter !== 'all') query = query.eq('status', filter);
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) console.error('Failed to load payment claims:', error.message);
     setClaims(data || []);
   }, [filter]);
 
   useEffect(() => { load(); }, [load]);
 
   const review = async (claim, status) => {
-    await supabase.from('payment_claims').update({ status, reviewed_by: user.id, reviewed_at: new Date().toISOString() }).eq('id', claim.id);
-    if (status === 'approved' && claim.category_id) {
-      await supabase.from('category_access_grants').upsert({
-        examinee_id: claim.examinee_id,
-        category_id: claim.category_id,
-        granted_by: user.id,
-        source_claim_id: claim.id,
-      }, { onConflict: 'examinee_id,category_id' });
-    }
+    // Granting category access on approval is now handled server-side by
+    // the auto_grant_on_approval trigger — this update alone is enough.
+    const { error } = await supabase
+      .from('payment_claims')
+      .update({ status, reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+      .eq('id', claim.id);
+    if (error) console.error('Failed to review claim:', error.message);
     load();
   };
 
@@ -150,6 +191,7 @@ function PaymentClaimsInbox() {
 export default function PaymentAdminPage() {
   return (
     <>
+      <TrialSettings />
       <PackageSettings />
       <PaymentClaimsInbox />
     </>

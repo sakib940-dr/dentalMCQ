@@ -11,6 +11,7 @@ import NoticeBoardAdminPage from '../../components/NoticeBoardAdminPage';
 import SuperAdminOverview from '../../components/SuperAdminOverview';
 import ExamSchedulePage from '../../components/ExamSchedulePage';
 import PaymentAdminPage from '../../components/PaymentAdminPage';
+import AccessControlPage from '../../components/AccessControlPage';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -19,6 +20,7 @@ const navItems = [
   { to: '/admin/questions', label: 'Question Bank' },
   { to: '/admin/exams', label: 'Exams' },
   { to: '/admin/users', label: 'Users' },
+  { to: '/admin/access', label: 'Access Control' },
   { to: '/admin/payments', label: 'Payments' },
   { to: '/admin/notices', label: 'Notice Board' },
   { to: '/admin/chat', label: 'Messages' },
@@ -53,6 +55,7 @@ export default function SuperAdminDashboard() {
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
         <Route path="users" element={<UserManagementPage />} />
+        <Route path="access" element={<AccessControlPage />} />
         <Route path="payments" element={<PaymentAdminPage />} />
         <Route path="notices" element={<NoticeBoardAdminPage />} />
         <Route path="chat" element={<StaffChatInbox />} />

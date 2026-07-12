@@ -303,27 +303,75 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
   const [tab, setTab] = useState('schedule'); // schedule | upcoming | live | archive | practice
   const [hasAccess, setHasAccess] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     async function checkAccess() {
-      if (!category.requires_payment) {
-        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
+      // 1) Super Admin can manually force-lock a category for this student —
+      // this always wins, even if they've paid or are mid-trial.
+      const { data: manualLock } = await supabase
+        .from('manual_category_locks')
+        .select('id')
+        .eq('examinee_id', user.id)
+        .eq('category_id', category.id)
+        .maybeSingle();
+      if (manualLock) {
+        if (!cancelled) { setHasAccess(false); setAccessChecked(true); }
         return;
       }
-      const { data } = await supabase
+
+      // 2) Already has an approved grant for this category (trial claim or paid).
+      const { data: grant } = await supabase
         .from('category_access_grants')
         .select('id')
         .eq('examinee_id', user.id)
         .eq('category_id', category.id)
         .maybeSingle();
-      if (cancelled) return;
-      setHasAccess(!!data);
-      setAccessChecked(true);
+      if (grant) {
+        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
+        return;
+      }
+
+      if (!category.requires_payment) {
+        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
+        return;
+      }
+
+      // 3) No grant yet — check trial window. Starting the trial (if not
+      // already started) happens on first real use, not here, so this is
+      // just a read to see if they're still within it.
+      const [{ data: profileRow }, { data: settingRow }] = await Promise.all([
+        supabase.from('profiles').select('trial_started_at').eq('id', user.id).single(),
+        supabase.from('app_number_settings').select('value').eq('key', 'free_trial_days').maybeSingle(),
+      ]);
+      const trialDays = settingRow?.value ?? 15;
+      if (!profileRow?.trial_started_at) {
+        // Trial hasn't started yet — they still have the full window
+        // available; it starts the moment they open Live/Practice.
+        if (!cancelled) { setHasAccess(true); setTrialDaysLeft(trialDays); setAccessChecked(true); }
+        return;
+      }
+      const startedAt = new Date(profileRow.trial_started_at);
+      const daysElapsed = (Date.now() - startedAt.getTime()) / (1000 * 60 * 60 * 24);
+      const remaining = Math.ceil(trialDays - daysElapsed);
+      if (!cancelled) {
+        setHasAccess(remaining > 0);
+        setTrialDaysLeft(remaining);
+        setAccessChecked(true);
+      }
     }
     checkAccess();
     return () => { cancelled = true; };
   }, [category.id, category.requires_payment, user.id]);
+
+  // Starts the trial clock the first time the student actually opens a
+  // gated tab (Live/Upcoming/Archive/Practice), not just on page load.
+  const ensureTrialStarted = async () => {
+    if (category.requires_payment) {
+      await supabase.rpc('start_trial_if_needed');
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -374,7 +422,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         </div>
         <div className="locked-feature">
           <div className="locked-feature-icon">🔒</div>
-          <h2>This category requires a package</h2>
+          <h2>{trialDaysLeft !== null && trialDaysLeft <= 0 ? 'Your free trial has ended' : 'This category requires a package'}</h2>
           <p className="muted">Unlock live exams, practice, and results for this category.</p>
           <button className="btn-primary" onClick={() => navigate('/dashboard/package')}>View packages</button>
         </div>
@@ -382,17 +430,25 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
     );
   }
 
+  const goToTab = (t) => {
+    setTab(t);
+    if (t !== 'schedule') ensureTrialStarted();
+  };
+
   return (
     <div className="panel">
       <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Categories</button>
       <h2>{category.name}</h2>
+      {category.requires_payment && trialDaysLeft !== null && trialDaysLeft > 0 && (
+        <div className="trial-banner">Free trial: {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left for this category</div>
+      )}
 
       <div className="mode-tabs">
-        <button className={tab === 'schedule' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('schedule')}>Exam Schedule</button>
-        <button className={tab === 'upcoming' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('upcoming')}>Upcoming ({upcoming.length})</button>
-        <button className={tab === 'live' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('live')}>Live ({live.length})</button>
-        <button className={tab === 'archive' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('archive')}>Archive ({archived.length})</button>
-        <button className={tab === 'practice' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('practice')}>Practice</button>
+        <button className={tab === 'schedule' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => goToTab('schedule')}>Exam Schedule</button>
+        <button className={tab === 'upcoming' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => goToTab('upcoming')}>Upcoming ({upcoming.length})</button>
+        <button className={tab === 'live' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => goToTab('live')}>Live ({live.length})</button>
+        <button className={tab === 'archive' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => goToTab('archive')}>Archive ({archived.length})</button>
+        <button className={tab === 'practice' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => goToTab('practice')}>Practice</button>
       </div>
 
       {tab === 'schedule' && <ExamSchedulePanel categoryId={category.id} />}
