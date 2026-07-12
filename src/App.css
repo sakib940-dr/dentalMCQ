@@ -1980,3 +1980,103 @@ body {
   cursor: pointer;
   padding: 4px;
 }
+
+/* ---------- Referral box ---------- */
+.referral-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.referral-input {
+  flex: 1;
+  border: 1.5px solid var(--card-border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-family: monospace;
+  color: var(--ink-soft);
+  background: #FAF9F5;
+}
+
+/* ---------- Package / pricing ---------- */
+.package-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 12px 0;
+}
+.package-price-original {
+  font-size: 16px;
+  color: var(--ink-soft);
+  text-decoration: line-through;
+}
+.package-price-final {
+  font-family: Georgia, serif;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.package-discount-tag {
+  background: #E4F1EA;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+.claim-free-box {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
+/* ---------- Payment claims (admin) ---------- */
+.claims-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.claim-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.claim-row-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+.claim-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ---------- Prescription generator ---------- */
+.prescription-doctor-preview {
+  background: #FAF9F5;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+.prescription-doctor-name {
+  font-family: Georgia, serif;
+  font-size: 15px;
+  color: var(--teal-deep);
+  margin-bottom: 3px;
+}
+.prescription-med-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.prescription-med-row input {
+  border: 1.5px solid var(--card-border);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+@media (max-width: 480px) {
+  .prescription-med-row { grid-template-columns: 1fr; }
+}

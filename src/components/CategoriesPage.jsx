@@ -201,7 +201,7 @@ export default function CategoriesPage() {
   useEffect(() => { loadCategories(); }, [loadCategories]);
 
   const selectCategory = (cat) => {
-    setSelectedCategory((prev) => (prev?.id === cat.id ? null : { id: cat.id, name: cat.name }));
+    setSelectedCategory((prev) => (prev?.id === cat.id ? null : cat));
     setSelectedSubject(null);
     setSelectedSubcategory(null);
   };
@@ -241,6 +241,23 @@ export default function CategoriesPage() {
           }}
         />
       </div>
+
+      {selectedCategory && (
+        <div className="tree-panel tree-panel-nested">
+          <label className="mini-toggle">
+            <input
+              type="checkbox"
+              checked={!!selectedCategory.requires_payment}
+              onChange={async (e) => {
+                await supabase.from('categories').update({ requires_payment: e.target.checked }).eq('id', selectedCategory.id);
+                setSelectedCategory((c) => ({ ...c, requires_payment: e.target.checked }));
+                loadCategories();
+              }}
+            />
+            <span>Requires payment/package to access</span>
+          </label>
+        </div>
+      )}
 
       <SubjectsPanel
         categoryId={selectedCategory?.id}

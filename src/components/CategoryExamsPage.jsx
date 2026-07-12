@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
@@ -284,9 +285,33 @@ function computeEffectiveStatus(ex) {
 
 function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onViewResult, onViewMerit }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [exams, setExams] = useState(null);
   const [myAttempts, setMyAttempts] = useState({});
-  const [tab, setTab] = useState('schedule'); // schedule | upcoming | live | archive
+  const [tab, setTab] = useState('schedule'); // schedule | upcoming | live | archive | practice
+  const [hasAccess, setHasAccess] = useState(true);
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkAccess() {
+      if (!category.requires_payment) {
+        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
+        return;
+      }
+      const { data } = await supabase
+        .from('category_access_grants')
+        .select('id')
+        .eq('examinee_id', user.id)
+        .eq('category_id', category.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setHasAccess(!!data);
+      setAccessChecked(true);
+    }
+    checkAccess();
+    return () => { cancelled = true; };
+  }, [category.id, category.requires_payment, user.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -317,11 +342,33 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
     return () => { cancelled = true; };
   }, [category.id, user.id]);
 
-  if (exams === null) return <div className="panel"><p className="muted">Loading exams…</p></div>;
+  if (!accessChecked || exams === null) return <div className="panel"><p className="muted">Loading exams…</p></div>;
 
   const live = exams.filter((e) => computeEffectiveStatus(e) === 'live');
   const upcoming = exams.filter((e) => computeEffectiveStatus(e) === 'upcoming');
   const archived = exams.filter((e) => computeEffectiveStatus(e) === 'archived');
+
+  if (!hasAccess && tab !== 'schedule') {
+    return (
+      <div className="panel">
+        <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Categories</button>
+        <h2>{category.name}</h2>
+        <div className="mode-tabs">
+          <button className={tab === 'schedule' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('schedule')}>Exam Schedule</button>
+          <button className="mode-tab" disabled>Upcoming</button>
+          <button className="mode-tab" disabled>Live</button>
+          <button className="mode-tab" disabled>Archive</button>
+          <button className="mode-tab" disabled>Practice</button>
+        </div>
+        <div className="locked-feature">
+          <div className="locked-feature-icon">🔒</div>
+          <h2>This category requires a package</h2>
+          <p className="muted">Unlock live exams, practice, and results for this category.</p>
+          <button className="btn-primary" onClick={() => navigate('/dashboard/package')}>View packages</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="panel">

@@ -8,6 +8,7 @@ import StaffChatInbox from '../../components/StaffChatInbox';
 import NoticeBoardAdminPage from '../../components/NoticeBoardAdminPage';
 import ModeratorOverview from '../../components/ModeratorOverview';
 import ExamSchedulePage from '../../components/ExamSchedulePage';
+import PaymentAdminPage from '../../components/PaymentAdminPage';
 
 const navItems = [
   { to: '/moderator', label: 'Overview', end: true },
@@ -15,6 +16,7 @@ const navItems = [
   { to: '/moderator/schedule', label: 'Exam Schedule' },
   { to: '/moderator/questions', label: 'Question Bank' },
   { to: '/moderator/exams', label: 'Exams' },
+  { to: '/moderator/payments', label: 'Payments' },
   { to: '/moderator/notices', label: 'Notice Board' },
   { to: '/moderator/chat', label: 'Messages' },
   { to: '/moderator/settings', label: 'Settings' },
@@ -38,6 +40,7 @@ export default function ModeratorDashboard() {
         <Route path="schedule" element={<ExamSchedulePage />} />
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
+        <Route path="payments" element={<PaymentAdminPage />} />
         <Route path="notices" element={<NoticeBoardAdminPage />} />
         <Route path="chat" element={<StaffChatInbox />} />
         <Route path="settings" element={<ChangePasswordPanel />} />
