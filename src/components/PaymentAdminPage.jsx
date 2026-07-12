@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { useAuth } from '../contexts/AuthContext';
 
 function fmtDateTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -122,30 +121,24 @@ function PackageSettings() {
 }
 
 function PaymentClaimsInbox() {
-  const { user } = useAuth();
   const [claims, setClaims] = useState(null);
   const [filter, setFilter] = useState('all');
 
   const load = useCallback(async () => {
-    let query = supabase.from('payment_claims').select('*, profiles(full_name, username, mobile_number), categories(name)').order('created_at', { ascending: false });
-    if (filter !== 'all') query = query.eq('status', filter);
-    const { data, error } = await query;
+    const { data, error } = await supabase.rpc('get_all_payment_claims');
     if (error) console.error('Failed to load payment claims:', error.message);
     setClaims(data || []);
-  }, [filter]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const review = async (claim, status) => {
-    // Granting category access on approval is now handled server-side by
-    // the auto_grant_on_approval trigger — this update alone is enough.
-    const { error } = await supabase
-      .from('payment_claims')
-      .update({ status, reviewed_by: user.id, reviewed_at: new Date().toISOString() })
-      .eq('id', claim.id);
+    const { error } = await supabase.rpc('review_payment_claim', { claim_id: claim.id, new_status: status });
     if (error) console.error('Failed to review claim:', error.message);
     load();
   };
+
+  const visibleClaims = (claims || []).filter((c) => filter === 'all' || c.status === filter);
 
   return (
     <div className="panel">
@@ -159,14 +152,14 @@ function PaymentClaimsInbox() {
       </div>
 
       {claims === null && <div className="muted small">Loading…</div>}
-      {claims && claims.length === 0 && <div className="muted small">No {filter !== 'all' ? filter : ''} claims.</div>}
+      {claims && visibleClaims.length === 0 && <div className="muted small">No {filter !== 'all' ? filter : ''} claims.</div>}
 
       <div className="claims-list">
-        {claims?.map((c) => (
+        {visibleClaims.map((c) => (
           <div key={c.id} className="claim-row">
             <div className="claim-row-main">
-              <div className="claim-row-name">{c.profiles?.full_name || 'Student'}</div>
-              <div className="muted small">{c.profiles?.mobile_number} · {c.categories?.name || 'All categories'}</div>
+              <div className="claim-row-name">{c.student_full_name || 'Student'}</div>
+              <div className="muted small">{c.student_mobile} · {c.category_name || 'All categories'}</div>
               <div className="muted small">
                 {c.method === 'discount_claim' ? 'Free discount claim' : `${c.method} · TXN: ${c.transaction_id}`}
                 {c.amount_paid != null && ` · ৳${c.amount_paid}`}
