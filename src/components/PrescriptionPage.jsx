@@ -122,12 +122,18 @@ export default function PrescriptionPage() {
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
+  const [pdfFileName, setPdfFileName] = useState('');
 
   const loadRecent = async () => {
     const { data } = await supabase.from('prescriptions').select('*').eq('created_by', user.id).order('created_at', { ascending: false }).limit(5);
     setRecent(data || []);
   };
   useEffect(() => { loadRecent(); }, [user.id]);
+
+  useEffect(() => {
+    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
+  }, [pdfBlobUrl]);
 
   const toggleAdvice = (template) => {
     setSelectedAdvice((s) => {
@@ -270,19 +276,16 @@ export default function PrescriptionPage() {
       const blob = doc.output('blob');
       const blobUrl = URL.createObjectURL(blob);
 
-      // Auto-download via <a download> is unreliable across mobile
-      // browsers (silently no-ops on several Android/iOS combinations).
-      // Opening the PDF in a new tab uses the browser's own PDF viewer,
-      // which has a reliable built-in save/share/print button — this is
-      // the most consistent approach across devices.
-      const win = window.open(blobUrl, '_blank');
-      if (!win) {
-        setError('Your browser blocked the PDF preview. Please allow pop-ups for this site and try again.');
-        URL.revokeObjectURL(blobUrl);
-        return;
-      }
-      setSuccess('PDF opened in a new tab — use the download/share icon there to save it.');
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      // window.open() and programmatic <a download> clicks are both
+      // unreliable across mobile browsers — some silently no-op with no
+      // error and no popup-blocked warning. The one thing that reliably
+      // works everywhere is a REAL, visible <a href=... download> link
+      // that the user taps themselves — that's always a genuine user
+      // gesture the browser can't block or ignore.
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+      setPdfBlobUrl(blobUrl);
+      setPdfFileName(`prescription_${patientName.replace(/\s+/g, '_')}.pdf`);
+      setSuccess('Your prescription PDF is ready below — tap "Download PDF" to save it.');
     } catch (pdfError) {
       console.error('PDF generation failed:', pdfError);
       setError(`Could not generate the PDF: ${pdfError.message || pdfError}`);
@@ -380,8 +383,27 @@ export default function PrescriptionPage() {
           {error && <div className="error-box">{error}</div>}
           {success && <div className="ok-box">{success}</div>}
           <button className="btn-primary" onClick={generate} style={{ alignSelf: 'flex-start', marginTop: 6 }}>Generate PDF</button>
+
+          {pdfBlobUrl && (
+            <a
+              href={pdfBlobUrl}
+              download={pdfFileName}
+              className="btn-primary pdf-download-link"
+              style={{ alignSelf: 'flex-start', textDecoration: 'none', display: 'inline-block' }}
+            >
+              ⬇ Download PDF
+            </a>
+          )}
         </div>
       </div>
+
+      {pdfBlobUrl && (
+        <div className="panel">
+          <h2>Preview</h2>
+          <p className="muted small">If the download button above doesn't work, long-press this preview and choose "Download" or "Save".</p>
+          <iframe src={pdfBlobUrl} title="Prescription preview" className="pdf-preview-frame" />
+        </div>
+      )}
 
       {recent.length > 0 && (
         <div className="panel">
