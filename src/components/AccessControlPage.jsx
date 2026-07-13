@@ -7,7 +7,7 @@ export default function AccessControlPage() {
   const [students, setStudents] = useState([]);
   const [categories, setCategories] = useState([]);
   const [studentId, setStudentId] = useState('');
-  const [locks, setLocks] = useState([]);
+  const [locks, setLocks] = useState([]); // array of { resource_type, category_id }
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -17,18 +17,28 @@ export default function AccessControlPage() {
 
   const loadLocks = useCallback(async () => {
     if (!studentId) { setLocks([]); return; }
-    const { data } = await supabase.from('manual_category_locks').select('category_id').eq('examinee_id', studentId);
-    setLocks((data || []).map((l) => l.category_id));
+    const { data } = await supabase.from('manual_category_locks').select('resource_type, category_id').eq('examinee_id', studentId);
+    setLocks(data || []);
   }, [studentId]);
 
   useEffect(() => { loadLocks(); }, [loadLocks]);
 
-  const toggleLock = async (categoryId) => {
+  const isLocked = (resourceType, categoryId) =>
+    locks.some((l) => l.resource_type === resourceType && l.category_id === categoryId);
+
+  const toggleLock = async (resourceType, categoryId) => {
     setSaving(true);
-    if (locks.includes(categoryId)) {
-      await supabase.from('manual_category_locks').delete().eq('examinee_id', studentId).eq('category_id', categoryId);
+    if (isLocked(resourceType, categoryId)) {
+      let q = supabase.from('manual_category_locks').delete().eq('examinee_id', studentId).eq('resource_type', resourceType);
+      q = categoryId ? q.eq('category_id', categoryId) : q.is('category_id', null);
+      await q;
     } else {
-      await supabase.from('manual_category_locks').insert({ examinee_id: studentId, category_id: categoryId, locked_by: user.id });
+      await supabase.from('manual_category_locks').insert({
+        examinee_id: studentId,
+        category_id: categoryId,
+        resource_type: resourceType,
+        locked_by: user.id,
+      });
     }
     setSaving(false);
     loadLocks();
@@ -40,8 +50,8 @@ export default function AccessControlPage() {
     <div className="panel">
       <h2>Access Control</h2>
       <p className="muted small">
-        Manually lock specific categories (exams, practice) for a specific student — this
-        overrides their free trial or paid access. Prescription is never affected here.
+        Manually lock specific categories or prescription access for a specific student — this
+        overrides their free trial or paid access.
       </p>
 
       <label className="field-block" style={{ marginTop: 14 }}>
@@ -54,16 +64,28 @@ export default function AccessControlPage() {
 
       {studentId && (
         <>
-          <h3 className="section-subtitle">Categories for {selectedStudent?.full_name}</h3>
+          <h3 className="section-subtitle">Resources for {selectedStudent?.full_name}</h3>
           <div className="access-lock-list">
+            <div className="access-lock-row">
+              <span className="access-lock-name">Prescription</span>
+              <label className="mini-toggle">
+                <input
+                  type="checkbox"
+                  checked={!isLocked('prescription', null)}
+                  disabled={saving}
+                  onChange={() => toggleLock('prescription', null)}
+                />
+                <span>{isLocked('prescription', null) ? 'Locked' : 'Unlocked'}</span>
+              </label>
+            </div>
             {categories.map((c) => {
-              const isLocked = locks.includes(c.id);
+              const locked = isLocked('category', c.id);
               return (
                 <div key={c.id} className="access-lock-row">
                   <span className="access-lock-name">{c.name}</span>
                   <label className="mini-toggle">
-                    <input type="checkbox" checked={!isLocked} disabled={saving} onChange={() => toggleLock(c.id)} />
-                    <span>{isLocked ? 'Locked' : 'Unlocked'}</span>
+                    <input type="checkbox" checked={!locked} disabled={saving} onChange={() => toggleLock('category', c.id)} />
+                    <span>{locked ? 'Locked' : 'Unlocked'}</span>
                   </label>
                 </div>
               );

@@ -51,6 +51,9 @@ function PromoCodesPanel() {
   const [codes, setCodes] = useState(null);
   const [newCode, setNewCode] = useState('');
   const [newDiscount, setNewDiscount] = useState(10);
+  const [newMaxUses, setNewMaxUses] = useState('');
+  const [newMaxPerStudent, setNewMaxPerStudent] = useState(1);
+  const [newExpiresAt, setNewExpiresAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -68,11 +71,17 @@ function PromoCodesPanel() {
     const { error: insertError } = await supabase.from('promo_codes').insert({
       code: newCode.trim().toUpperCase(),
       discount_percent: newDiscount,
+      max_uses: newMaxUses === '' ? null : Math.max(1, parseInt(newMaxUses) || 1),
+      max_uses_per_student: Math.max(1, parseInt(newMaxPerStudent) || 1),
+      expires_at: newExpiresAt ? new Date(newExpiresAt).toISOString() : null,
     });
     setSaving(false);
     if (insertError) { setError(insertError.message); return; }
     setNewCode('');
     setNewDiscount(10);
+    setNewMaxUses('');
+    setNewMaxPerStudent(1);
+    setNewExpiresAt('');
     load();
   };
 
@@ -103,6 +112,20 @@ function PromoCodesPanel() {
             <input type="number" min={1} max={100} value={newDiscount} onChange={(e) => setNewDiscount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))} />
           </label>
         </div>
+        <div className="option-grid">
+          <label>
+            <span>Total use limit (blank = unlimited)</span>
+            <input type="number" min={1} value={newMaxUses} onChange={(e) => setNewMaxUses(e.target.value)} placeholder="Unlimited" />
+          </label>
+          <label>
+            <span>Uses per student</span>
+            <input type="number" min={1} value={newMaxPerStudent} onChange={(e) => setNewMaxPerStudent(e.target.value)} />
+          </label>
+        </div>
+        <label>
+          <span>Expires on (blank = never)</span>
+          <input type="date" value={newExpiresAt} onChange={(e) => setNewExpiresAt(e.target.value)} />
+        </label>
         {error && <div className="error-box">{error}</div>}
         <button type="submit" className="btn-primary" disabled={saving} style={{ alignSelf: 'flex-start' }}>
           {saving ? 'Adding…' : '+ Add promo code'}
@@ -115,8 +138,12 @@ function PromoCodesPanel() {
           {codes.map((c) => (
             <div key={c.id} className="claim-row">
               <div className="claim-row-main">
-                <div className="claim-row-name">{c.code}</div>
-                <div className="muted small">{c.discount_percent}% off</div>
+                <div className="claim-row-name">{c.code} {!c.is_active && <span className="muted small">(inactive)</span>}</div>
+                <div className="muted small">
+                  {c.discount_percent}% off · Used {c.uses_count}{c.max_uses ? `/${c.max_uses}` : ''} ·
+                  {' '}{c.max_uses_per_student} per student
+                  {c.expires_at && ` · Expires ${new Date(c.expires_at).toLocaleDateString('en-GB')}`}
+                </div>
               </div>
               <div className="claim-row-actions">
                 <button className="btn-secondary" onClick={() => toggleActive(c)}>{c.is_active ? 'Deactivate' : 'Activate'}</button>

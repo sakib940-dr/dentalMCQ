@@ -529,6 +529,7 @@ function LiveExamSession({ exam, onExit }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState(null);
   const [blocked, setBlocked] = useState(null);
+  const [effectiveDuration, setEffectiveDuration] = useState(exam.duration_minutes);
 
   const persistKey = `dentalmcq_liveexam_${exam.id}_${user.id}`;
 
@@ -547,6 +548,20 @@ function LiveExamSession({ exam, onExit }) {
         if (cancelled) return;
         setBlocked('You have already submitted this exam. Duplicate official attempts are not allowed.');
         return;
+      }
+
+      // Cap the student's timer against the exam's official closing
+      // time, computed server-side so a manipulated device clock can't
+      // extend it — starting near end_time now yields a shorter timer
+      // instead of the full duration_minutes.
+      const nowIso = new Date().toISOString();
+      const { data: effectiveEnd } = await supabase.rpc('get_effective_exam_end', {
+        exam_id: exam.id,
+        attempt_started_at: nowIso,
+      });
+      if (!cancelled && effectiveEnd) {
+        const capMinutes = Math.max(1, Math.round((new Date(effectiveEnd) - new Date(nowIso)) / 60000));
+        setEffectiveDuration(Math.min(exam.duration_minutes, capMinutes));
       }
 
       const { data: eqRows } = await supabase
@@ -643,13 +658,15 @@ function LiveExamSession({ exam, onExit }) {
     );
   }
 
+  const windowIsBinding = effectiveDuration < exam.duration_minutes;
+
   return (
     <ExamRunner
       questions={questions}
-      durationMinutes={exam.duration_minutes}
+      durationMinutes={effectiveDuration}
       negativeMarking={exam.negative_marking || 0}
       title={exam.title}
-      allowTimeAdjust={!!exam.allow_student_time_adjust}
+      allowTimeAdjust={!!exam.allow_student_time_adjust && !windowIsBinding}
       persistKey={persistKey}
       onSubmit={handleSubmit}
       onExit={onExit}

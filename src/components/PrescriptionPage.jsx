@@ -141,6 +141,20 @@ export default function PrescriptionPage() {
         if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
         return;
       }
+
+      // A Super Admin's manual lock always wins, even if the student has
+      // an active grant or the global toggle is off.
+      const { data: manualLock } = await supabase
+        .from('manual_category_locks')
+        .select('id')
+        .eq('examinee_id', user.id)
+        .eq('resource_type', 'prescription')
+        .maybeSingle();
+      if (manualLock) {
+        if (!cancelled) { setHasAccess(false); setAccessChecked(true); }
+        return;
+      }
+
       const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'prescription_requires_payment').maybeSingle();
       const locked = !!setting?.value;
       if (!locked) {

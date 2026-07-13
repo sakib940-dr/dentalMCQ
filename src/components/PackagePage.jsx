@@ -111,15 +111,18 @@ export default function PackagePage() {
     setPromoError('');
     if (!promoInput.trim()) { setPromoError('Enter a promo code.'); return; }
     setApplyingPromo(true);
-    const { data, error } = await supabase
-      .from('promo_codes')
-      .select('*')
-      .eq('code', promoInput.trim().toUpperCase())
-      .eq('is_active', true)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('validate_and_redeem_promo', { promo_code: promoInput.trim() });
     setApplyingPromo(false);
-    if (error || !data) { setPromoError('Invalid or expired promo code.'); setAppliedPromo(null); return; }
-    setAppliedPromo(data);
+    const result = data?.[0];
+    if (error || !result?.valid) {
+      setPromoError(result?.message || error?.message || 'Invalid promo code.');
+      setAppliedPromo(null);
+      return;
+    }
+    // Store the code + discount for display; the actual redemption
+    // record is only written once the payment claim itself is submitted
+    // (see submitTxn / claimFree), not just on a validation check.
+    setAppliedPromo({ id: result.promo_code_id, code: promoInput.trim().toUpperCase(), discount_percent: result.discount_percent });
   };
 
   const removePromo = () => {
@@ -137,7 +140,7 @@ export default function PackagePage() {
     if (!txnId.trim()) { setTxnError('Enter your transaction ID.'); return; }
 
     setSubmittingTxn(true);
-    const { error } = await supabase.from('payment_claims').insert({
+    const { data: inserted, error } = await supabase.from('payment_claims').insert({
       examinee_id: user.id,
       package_id: selectedPkg.id,
       method,
@@ -149,11 +152,26 @@ export default function PackagePage() {
       category_id: selectedPkg.resource_type === 'category' ? categoryId : null,
       resource_type: selectedPkg.resource_type,
       status: 'pending',
-    });
+    }).select('id').single();
+
+    if (error) {
+      setSubmittingTxn(false);
+      if (error.code === '23505') {
+        setTxnError('You already have a pending submission for this — please wait for it to be reviewed before submitting another.');
+      } else {
+        setTxnError(error.message);
+      }
+      return;
+    }
+
+    if (appliedPromo?.id) {
+      await supabase.rpc('record_promo_redemption', { target_promo_code_id: appliedPromo.id, target_claim_id: inserted.id });
+    }
+
     setSubmittingTxn(false);
-    if (error) { setTxnError(error.message); return; }
     setTxnSuccess('Submitted! An admin will review and activate your access shortly.');
     setTxnId('');
+    removePromo();
     load();
   };
 
