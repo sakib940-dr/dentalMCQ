@@ -2314,3 +2314,43 @@ body {
   cursor: pointer;
   font-weight: 700;
 }
+
+/* ---------- Package card list (multi-package selection) ---------- */
+.package-card-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+@media (max-width: 480px) {
+  .package-card-list { grid-template-columns: 1fr; }
+}
+.package-card {
+  text-align: left;
+  border: 1.5px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  cursor: pointer;
+}
+.package-card-selected {
+  border-color: var(--teal);
+  background: #F4F9F7;
+}
+.package-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.package-card-duration {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.package-card-price {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  margin-top: 6px;
+}

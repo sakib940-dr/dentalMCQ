@@ -321,14 +321,16 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         return;
       }
 
-      // 2) Already has an approved grant for this category (trial claim or paid).
+      // 2) Already has a grant for this category (trial claim or paid) —
+      // but it must not have expired. Expired grants fall through to the
+      // trial-window check below, same as if they'd never had a grant.
       const { data: grant } = await supabase
         .from('category_access_grants')
-        .select('id')
+        .select('expires_at')
         .eq('examinee_id', user.id)
         .eq('category_id', category.id)
         .maybeSingle();
-      if (grant) {
+      if (grant && new Date(grant.expires_at) > new Date()) {
         if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
         return;
       }

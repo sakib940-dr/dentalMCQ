@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -125,6 +126,38 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
 
 export default function PrescriptionPage() {
   const { profile, user } = useAuth();
+  const navigate = useNavigate();
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [hasAccess, setHasAccess] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkAccess() {
+      // Staff (super_admin/admin/moderator) always have access — the
+      // lock only ever applies to examinees.
+      if (profile?.role !== 'examinee') {
+        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
+        return;
+      }
+      const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'prescription_requires_payment').maybeSingle();
+      const locked = !!setting?.value;
+      if (!locked) {
+        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
+        return;
+      }
+      const { data: grant } = await supabase
+        .from('category_access_grants')
+        .select('expires_at')
+        .eq('examinee_id', user.id)
+        .eq('resource_type', 'prescription')
+        .maybeSingle();
+      const active = grant && new Date(grant.expires_at) > new Date();
+      if (!cancelled) { setHasAccess(!!active); setAccessChecked(true); }
+    }
+    checkAccess();
+    return () => { cancelled = true; };
+  }, [profile?.role, user?.id]);
+
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState('');
   const [patientAddress, setPatientAddress] = useState('');
@@ -422,6 +455,21 @@ export default function PrescriptionPage() {
     }
     loadRecent();
   };
+
+  if (!accessChecked) return <div className="panel"><p className="muted">Loading…</p></div>;
+
+  if (!hasAccess) {
+    return (
+      <div className="panel">
+        <div className="locked-feature">
+          <div className="locked-feature-icon">🔒</div>
+          <h2>Prescription requires a package</h2>
+          <p className="muted">Unlock the prescription generator with an active subscription.</p>
+          <button className="btn-primary" onClick={() => navigate('/dashboard/package')}>View packages</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
