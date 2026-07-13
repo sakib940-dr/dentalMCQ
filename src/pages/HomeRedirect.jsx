@@ -13,7 +13,7 @@ export default function HomeRedirect() {
   }
 
   if (role === 'super_admin') return <Navigate to="/admin" replace />;
-  if (role === 'moderator') return <Navigate to="/moderator" replace />;
+  if (role === 'moderator' || role === 'admin') return <Navigate to="/moderator" replace />;
   if (role === 'examinee') return <Navigate to="/dashboard" replace />;
 
   // Profile not loaded yet or unknown role — send to login

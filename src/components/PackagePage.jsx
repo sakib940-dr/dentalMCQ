@@ -23,6 +23,11 @@ export default function PackagePage() {
   const [txnError, setTxnError] = useState('');
   const [txnSuccess, setTxnSuccess] = useState('');
 
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null); // { code, discount_percent } | null
+  const [promoError, setPromoError] = useState('');
+  const [applyingPromo, setApplyingPromo] = useState(false);
+
   const load = async () => {
     const [{ data: pkgData }, { data: catData }, { data: grantData }, { data: claimData }] = await Promise.all([
       supabase.from('packages').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
@@ -49,6 +54,27 @@ export default function PackagePage() {
     load();
   };
 
+  const applyPromo = async () => {
+    setPromoError('');
+    if (!promoInput.trim()) { setPromoError('Enter a promo code.'); return; }
+    setApplyingPromo(true);
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .eq('code', promoInput.trim().toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle();
+    setApplyingPromo(false);
+    if (error || !data) { setPromoError('Invalid or expired promo code.'); setAppliedPromo(null); return; }
+    setAppliedPromo(data);
+  };
+
+  const removePromo = () => {
+    setAppliedPromo(null);
+    setPromoInput('');
+    setPromoError('');
+  };
+
   const submitTxn = async (e) => {
     e.preventDefault();
     setTxnError('');
@@ -57,12 +83,17 @@ export default function PackagePage() {
     if (!txnId.trim()) { setTxnError('Enter your transaction ID.'); return; }
 
     setSubmittingTxn(true);
+    const combinedDiscount = Math.min(100, pkg.discount_percent + (appliedPromo?.discount_percent || 0));
+    const finalAmount = pkg.price * (1 - combinedDiscount / 100);
     const { error } = await supabase.from('payment_claims').insert({
       examinee_id: user.id,
       package_id: pkg?.id,
       method,
       transaction_id: txnId.trim(),
-      amount_paid: pkg ? pkg.price * (1 - pkg.discount_percent / 100) : null,
+      amount_paid: finalAmount,
+      final_amount: finalAmount,
+      discount_percent: combinedDiscount,
+      promo_code_id: appliedPromo?.id || null,
       category_id: categoryId,
       status: 'pending',
     });
@@ -75,18 +106,52 @@ export default function PackagePage() {
 
   if (!pkg) return <div className="panel"><p className="muted">Loading…</p></div>;
 
-  const finalPrice = pkg.price * (1 - pkg.discount_percent / 100);
+  const combinedDiscount = Math.min(100, pkg.discount_percent + (appliedPromo?.discount_percent || 0));
+  const finalPrice = pkg.price * (1 - combinedDiscount / 100);
 
   return (
     <>
       <div className="panel">
         <h2>{pkg.name}</h2>
-        <div className="package-price-row">
-          {pkg.discount_percent > 0 && <span className="package-price-original">৳{pkg.price}</span>}
-          <span className="package-price-final">৳{finalPrice.toFixed(0)}</span>
-          {pkg.discount_percent > 0 && <span className="package-discount-tag">{pkg.discount_percent}% OFF</span>}
+
+        <div className="payment-breakdown">
+          <div className="payment-breakdown-row">
+            <span>Original Amount</span>
+            <span>৳{pkg.price}</span>
+          </div>
+          <div className="payment-breakdown-row">
+            <span>Discount ({combinedDiscount}%)</span>
+            <span>− ৳{(pkg.price - finalPrice).toFixed(0)}</span>
+          </div>
+          <div className="payment-breakdown-row payment-breakdown-final">
+            <span>Amount to Pay</span>
+            <span>৳{finalPrice.toFixed(0)}</span>
+          </div>
         </div>
-        <p className="muted small">Unlocks full access (live exams, practice, results) for the category you choose.</p>
+
+        <div className="promo-apply-row">
+          {appliedPromo ? (
+            <div className="promo-applied-tag">
+              ✓ "{appliedPromo.code}" applied (+{appliedPromo.discount_percent}% off)
+              <button className="promo-remove-btn" onClick={removePromo}>✕</button>
+            </div>
+          ) : (
+            <>
+              <input
+                className="promo-input"
+                placeholder="Promo code"
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value)}
+              />
+              <button className="btn-secondary" onClick={applyPromo} disabled={applyingPromo}>
+                {applyingPromo ? '…' : 'Apply'}
+              </button>
+            </>
+          )}
+        </div>
+        {promoError && <div className="error-box" style={{ marginTop: 8 }}>{promoError}</div>}
+
+        <p className="muted small" style={{ marginTop: 12 }}>Unlocks full access (live exams, practice, results) for the category you choose.</p>
 
         {pkg.discount_percent >= 100 && (
           <div className="claim-free-box">

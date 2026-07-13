@@ -5,7 +5,7 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-const ROLE_LABELS = { super_admin: 'Super Admin', moderator: 'Moderator', examinee: 'Student' };
+const ROLE_LABELS = { super_admin: 'Super Admin', admin: 'Admin', moderator: 'Moderator', examinee: 'Student' };
 
 function RoleBadge({ role }) {
   return <span className={`role-badge role-badge-${role}`}>{ROLE_LABELS[role] || role}</span>;
@@ -86,6 +86,7 @@ export default function UserManagementPage() {
         <select className="role-filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="all">All roles</option>
           <option value="super_admin">Super Admin</option>
+          <option value="admin">Admin</option>
           <option value="moderator">Moderator</option>
           <option value="examinee">Student</option>
         </select>
@@ -145,7 +146,7 @@ export default function UserManagementPage() {
                 ) : (
                   <>
                     <span className="user-field-label" style={{ marginRight: 6 }}>Change role:</span>
-                    {['examinee', 'moderator'].map((r) => (
+                    {['examinee', 'moderator', 'admin'].map((r) => (
                       <button
                         key={r}
                         className={u.role === r ? 'role-btn role-btn-active' : 'role-btn'}

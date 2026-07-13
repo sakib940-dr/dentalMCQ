@@ -47,6 +47,89 @@ function TrialSettings() {
   );
 }
 
+function PromoCodesPanel() {
+  const [codes, setCodes] = useState(null);
+  const [newCode, setNewCode] = useState('');
+  const [newDiscount, setNewDiscount] = useState(10);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('promo_codes').select('*').order('created_at', { ascending: false });
+    setCodes(data || []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const addCode = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!newCode.trim()) { setError('Enter a code.'); return; }
+    setSaving(true);
+    const { error: insertError } = await supabase.from('promo_codes').insert({
+      code: newCode.trim().toUpperCase(),
+      discount_percent: newDiscount,
+    });
+    setSaving(false);
+    if (insertError) { setError(insertError.message); return; }
+    setNewCode('');
+    setNewDiscount(10);
+    load();
+  };
+
+  const toggleActive = async (code) => {
+    await supabase.from('promo_codes').update({ is_active: !code.is_active }).eq('id', code.id);
+    load();
+  };
+
+  const removeCode = async (code) => {
+    if (!confirm(`Delete promo code "${code.code}"?`)) return;
+    await supabase.from('promo_codes').delete().eq('id', code.id);
+    load();
+  };
+
+  return (
+    <div className="panel">
+      <h2>Promo Codes</h2>
+      <p className="muted small">Codes students can apply at checkout for an extra discount.</p>
+
+      <form className="exam-form-fields" onSubmit={addCode} style={{ marginTop: 12 }}>
+        <div className="option-grid">
+          <label>
+            <span>Code</span>
+            <input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="e.g. WELCOME10" />
+          </label>
+          <label>
+            <span>Discount (%)</span>
+            <input type="number" min={1} max={100} value={newDiscount} onChange={(e) => setNewDiscount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))} />
+          </label>
+        </div>
+        {error && <div className="error-box">{error}</div>}
+        <button type="submit" className="btn-primary" disabled={saving} style={{ alignSelf: 'flex-start' }}>
+          {saving ? 'Adding…' : '+ Add promo code'}
+        </button>
+      </form>
+
+      {codes === null && <div className="muted small" style={{ marginTop: 12 }}>Loading…</div>}
+      {codes && codes.length > 0 && (
+        <div className="claims-list" style={{ marginTop: 14 }}>
+          {codes.map((c) => (
+            <div key={c.id} className="claim-row">
+              <div className="claim-row-main">
+                <div className="claim-row-name">{c.code}</div>
+                <div className="muted small">{c.discount_percent}% off</div>
+              </div>
+              <div className="claim-row-actions">
+                <button className="btn-secondary" onClick={() => toggleActive(c)}>{c.is_active ? 'Deactivate' : 'Activate'}</button>
+                <button className="btn-danger sm" onClick={() => removeCode(c)}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PackageSettings() {
   const [pkg, setPkg] = useState(null);
   const [name, setName] = useState('');
@@ -186,6 +269,7 @@ export default function PaymentAdminPage() {
     <>
       <TrialSettings />
       <PackageSettings />
+      <PromoCodesPanel />
       <PaymentClaimsInbox />
     </>
   );

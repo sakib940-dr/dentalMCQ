@@ -1312,6 +1312,7 @@ body {
   border-radius: 20px;
 }
 .role-badge-super_admin { background: #F4E4C1; color: #8A5A0A; }
+.role-badge-admin { background: #E0E7F5; color: #3B4E8A; }
 .role-badge-moderator { background: #DCEAE6; color: var(--teal); }
 .role-badge-examinee { background: #EEECE5; color: var(--ink-soft); }
 
@@ -2257,4 +2258,59 @@ body {
   width: 1px;
   height: 4px;
   background: var(--ink-soft);
+}
+
+/* ---------- Payment breakdown and promo code ---------- */
+.payment-breakdown {
+  margin-top: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.payment-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--card-border);
+}
+.payment-breakdown-row:last-child { border-bottom: none; }
+.payment-breakdown-final {
+  background: #FAF9F5;
+  font-weight: 700;
+  color: var(--teal-deep);
+  font-size: 16px;
+}
+.promo-apply-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.promo-input {
+  flex: 1;
+  border: 1.5px solid var(--card-border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  text-transform: uppercase;
+}
+.promo-applied-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #E4F1EA;
+  color: var(--green);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 9px;
+}
+.promo-remove-btn {
+  background: none;
+  border: none;
+  color: var(--green);
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 700;
 }
