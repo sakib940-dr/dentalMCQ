@@ -2478,3 +2478,93 @@ body {
   text-decoration: underline;
   align-self: flex-start;
 }
+
+/* ---------- Notification bell ---------- */
+.notif-bell-root {
+  position: relative;
+}
+.notif-bell-btn {
+  background: none;
+  border: none;
+  font-size: 19px;
+  cursor: pointer;
+  position: relative;
+  padding: 4px 6px;
+  line-height: 1;
+}
+.notif-bell-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--red);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  border-radius: 999px;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  max-width: 85vw;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.14);
+  z-index: 60;
+  overflow: hidden;
+}
+.notif-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.notif-mark-read-btn {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.notif-dropdown-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.notif-empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+.notif-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border: none;
+  border-bottom: 1px solid var(--card-border);
+  background: #fff;
+  cursor: pointer;
+}
+.notif-row:last-child { border-bottom: none; }
+.notif-row-unread { background: #F4F9F7; }
+.notif-row-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.notif-row-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.notif-row-title { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.notif-row-text { font-size: 11.5px; color: var(--ink-soft); line-height: 1.35; }
+.notif-row-time { font-size: 10px; color: var(--ink-soft); margin-top: 1px; }

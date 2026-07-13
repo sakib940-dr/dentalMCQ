@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ToothMark from './ToothMark';
 import InstallAppButton from './InstallAppButton';
+import NotificationBell from './NotificationBell';
 
 export default function DashboardLayout({ title, navItems, children }) {
   const { profile, signOut } = useAuth();
@@ -23,6 +24,7 @@ export default function DashboardLayout({ title, navItems, children }) {
           </div>
         </div>
         <div className="dash-topbar-user">
+          <NotificationBell />
           <span>{profile?.full_name}</span>
           <button onClick={handleLogout} className="btn-logout">Log out</button>
         </div>
