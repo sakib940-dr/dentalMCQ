@@ -2509,11 +2509,13 @@ body {
   padding: 0 3px;
 }
 .notif-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 320px;
-  max-width: 85vw;
+  position: fixed;
+  top: 64px;
+  right: 12px;
+  left: 12px;
+  width: auto;
+  max-width: 360px;
+  margin-left: auto;
   background: #fff;
   border: 1px solid var(--card-border);
   border-radius: 14px;
