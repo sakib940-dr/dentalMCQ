@@ -41,25 +41,27 @@ function ClinicalSection({ label, lines, onChange, withTooth }) {
   const remove = (i) => onChange(lines.filter((_, idx) => idx !== i));
 
   return (
-    <div className="clinical-section">
-      <div className="clinical-section-label">{label}</div>
-      {lines.map((l, i) => (
-        <div key={i} className={withTooth ? 'clinical-line-row clinical-line-row-tooth' : 'clinical-line-row'}>
-          <input
-            className="clinical-line-text"
-            placeholder="Description"
-            value={l.text}
-            onChange={(e) => update(i, 'text', e.target.value)}
-          />
-          {withTooth && (
-            <ToothQuadrantInput value={l.tooth} onChange={(v) => update(i, 'tooth', v)} />
-          )}
-          {lines.length > 1 && (
-            <button type="button" className="icon-btn-danger" onClick={() => remove(i)}>✕</button>
-          )}
-        </div>
-      ))}
-      <button type="button" className="clinical-add-line-btn" onClick={add}>+ Add line</button>
+    <div className="clinical-section-compact">
+      <div className="clinical-section-compact-label">{label}:</div>
+      <div className="clinical-section-compact-body">
+        {lines.map((l, i) => (
+          <div key={i} className={withTooth ? 'clinical-line-row clinical-line-row-tooth' : 'clinical-line-row'}>
+            <input
+              className="clinical-line-text-compact"
+              placeholder="Type here"
+              value={l.text}
+              onChange={(e) => update(i, 'text', e.target.value)}
+            />
+            {withTooth && (
+              <ToothQuadrantInput value={l.tooth} onChange={(v) => update(i, 'tooth', v)} />
+            )}
+            {lines.length > 1 && (
+              <button type="button" className="icon-btn-danger" onClick={() => remove(i)}>✕</button>
+            )}
+          </div>
+        ))}
+        <button type="button" className="clinical-add-line-btn-compact" onClick={add}>+ Add line</button>
+      </div>
     </div>
   );
 }
@@ -220,7 +222,22 @@ export default function PrescriptionPage() {
   const filteredLines = (lines) => lines.filter((l) => (l.text || '').trim());
   const filteredMedicines = (meds) => meds.filter((m) => (m.name || '').trim());
 
-  const buildPdf = () => {
+  const fetchImageAsDataUrl = async (url) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null; // logo fetch failing should never block prescription generation
+    }
+  };
+
+  const buildPdf = async () => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
     // Register the Bengali font (used only for Advice text, which is the
@@ -232,6 +249,27 @@ export default function PrescriptionPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
+
+    // ---------- Watermark: the doctor's uploaded logo, large, centered,
+    // and very faint, sitting behind everything else on the page. Drawn
+    // first so all subsequent text/lines render on top of it. ----------
+    if (profile?.prescription_logo_url) {
+      const logoDataUrl = await fetchImageAsDataUrl(profile.prescription_logo_url);
+      if (logoDataUrl) {
+        try {
+          const wmSize = pageWidth * 0.65; // large, but leaves margin
+          const wmX = (pageWidth - wmSize) / 2;
+          const wmY = (pageHeight - wmSize) / 2;
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.07 }));
+          doc.addImage(logoDataUrl, 'PNG', wmX, wmY, wmSize, wmSize, undefined, 'FAST');
+          doc.restoreGraphicsState();
+        } catch {
+          // A malformed/corrupt logo should never block the prescription
+          // itself from generating — just skip the watermark silently.
+        }
+      }
+    }
 
     // ---------- Fixed A4 band layout ----------
     const bandHeaderH = pageHeight * 0.12;   // Doctor + Chamber details
@@ -415,7 +453,7 @@ export default function PrescriptionPage() {
     // want to generate a partial prescription (e.g. just clinical notes).
 
     try {
-      const doc = buildPdf();
+      const doc = await buildPdf();
       const blob = doc.output('blob');
       const blobUrl = URL.createObjectURL(blob);
 
@@ -480,48 +518,57 @@ export default function PrescriptionPage() {
           type medicine names directly.
         </p>
 
-        <div className="prescription-doctor-preview">
-          <div className="prescription-doctor-name">Dr. {profile?.full_name}</div>
-          <div className="muted small">
-            {[profile?.designation, profile?.degrees, profile?.bmdc_number && `BMDC: ${profile.bmdc_number}`]
-              .filter(Boolean).join(' · ') || 'Complete your profile to show details here.'}
+        <div className="compact-info-grid">
+          <div className="compact-info-box">
+            <div className="compact-info-box-title">Doctor Information</div>
+            <div className="compact-info-box-name">Dr. {profile?.full_name || '—'}</div>
+            <div className="muted small">
+              {[profile?.designation, profile?.degrees, profile?.bmdc_number && `BMDC: ${profile.bmdc_number}`]
+                .filter(Boolean).join(' · ') || 'Complete your profile to show details here.'}
+            </div>
           </div>
-          <div className="muted small" style={{ marginTop: 3 }}>
-            {profile?.chamber_name || 'Add chamber details in My Profile to show them on the prescription.'}
+          <div className="compact-info-box">
+            <div className="compact-info-box-title">Chamber Information</div>
+            <div className="compact-info-box-name">{profile?.chamber_name || '—'}</div>
+            <div className="muted small">
+              {[profile?.chamber_address, profile?.chamber_mobile && `Mobile: ${profile.chamber_mobile}`]
+                .filter(Boolean).join(' · ') || 'Add chamber details in My Profile.'}
+            </div>
           </div>
         </div>
 
-        <div className="exam-form-fields" style={{ marginTop: 14 }}>
-          <div className="option-grid">
-            <label>
-              <span>Patient name</span>
-              <input value={patientName} onChange={(e) => setPatientName(e.target.value)} />
-            </label>
-            <label>
-              <span>Age</span>
-              <input value={patientAge} onChange={(e) => setPatientAge(e.target.value)} placeholder="e.g. 34" />
-            </label>
+        <div className="compact-field-heading">Patient Information</div>
+        <div className="compact-field-list">
+          <div className="compact-field-row">
+            <span className="compact-field-label">Name:</span>
+            <input className="compact-field-input" value={patientName} onChange={(e) => setPatientName(e.target.value)} />
           </div>
-          <div className="option-grid">
-            <label>
-              <span>Patient mobile</span>
-              <input value={patientMobile} onChange={(e) => setPatientMobile(e.target.value)} />
-            </label>
-            <label>
-              <span>Patient address</span>
-              <input value={patientAddress} onChange={(e) => setPatientAddress(e.target.value)} />
-            </label>
+          <div className="compact-field-row">
+            <span className="compact-field-label">Age:</span>
+            <input className="compact-field-input" value={patientAge} onChange={(e) => setPatientAge(e.target.value)} placeholder="e.g. 35 Year" />
+          </div>
+          <div className="compact-field-row">
+            <span className="compact-field-label">Phone:</span>
+            <input className="compact-field-input" value={patientMobile} onChange={(e) => setPatientMobile(e.target.value)} placeholder="017xxxxxxxx" />
+          </div>
+          <div className="compact-field-row">
+            <span className="compact-field-label">Address:</span>
+            <input className="compact-field-input" value={patientAddress} onChange={(e) => setPatientAddress(e.target.value)} placeholder="e.g. Dhanmondi, Dhaka" />
           </div>
         </div>
       </div>
 
       <div className="panel">
-        <h2>Clinical Details</h2>
-        <ClinicalSection label="C/C (Chief Complaint)" lines={chiefComplaint} onChange={setChiefComplaint} withTooth />
-        <ClinicalSection label="H/O (History)" lines={history} onChange={setHistory} />
-        <ClinicalSection label="O/E (On Examination)" lines={onExamination} onChange={setOnExamination} withTooth />
+        <div className="compact-field-heading" style={{ marginTop: 0 }}>Clinical Features</div>
+        <ClinicalSection label="C/C" lines={chiefComplaint} onChange={setChiefComplaint} withTooth />
+        <ClinicalSection label="H/O" lines={history} onChange={setHistory} />
         <ClinicalSection label="Investigation" lines={investigation} onChange={setInvestigation} />
-        <ClinicalSection label="Treatment Plan" lines={treatmentPlan} onChange={setTreatmentPlan} withTooth />
+        <ClinicalSection label="O/E" lines={onExamination} onChange={setOnExamination} withTooth />
+      </div>
+
+      <div className="panel">
+        <div className="compact-field-heading" style={{ marginTop: 0 }}>Treatment Plan</div>
+        <ClinicalSection label="Plan" lines={treatmentPlan} onChange={setTreatmentPlan} withTooth />
       </div>
 
       <div className="panel">
@@ -530,7 +577,7 @@ export default function PrescriptionPage() {
           {medicines.map((m, i) => (
             <div key={i} className="prescription-med-row">
               <input placeholder="Medicine name" value={m.name} onChange={(e) => updateMedicine(i, 'name', e.target.value)} />
-              <input placeholder="Dose (e.g. 1+0+1)" value={m.dose} onChange={(e) => updateMedicine(i, 'dose', e.target.value)} />
+              <input placeholder="Dose (e.g. 1+0+1, 30 min after meal)" value={m.dose} onChange={(e) => updateMedicine(i, 'dose', e.target.value)} />
               <input placeholder="Duration (e.g. 5 days)" value={m.duration} onChange={(e) => updateMedicine(i, 'duration', e.target.value)} />
               {medicines.length > 1 && (
                 <button type="button" className="icon-btn-danger" onClick={() => removeMedicine(i)}>✕</button>

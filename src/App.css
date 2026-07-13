@@ -2354,3 +2354,127 @@ body {
   color: var(--teal-deep);
   margin-top: 6px;
 }
+
+/* ---------- Prescription logo upload ---------- */
+.logo-preview-box {
+  margin-top: 12px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 14px;
+  background: #FAF9F5;
+  display: flex;
+  justify-content: center;
+}
+.logo-preview-box img {
+  max-width: 140px;
+  max-height: 140px;
+  object-fit: contain;
+}
+
+/* ---------- Compact prescription info boxes ---------- */
+.compact-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+@media (max-width: 480px) {
+  .compact-info-grid { grid-template-columns: 1fr; }
+}
+.compact-info-box {
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #FAF9F5;
+}
+.compact-info-box-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+.compact-info-box-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.compact-field-heading {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--teal);
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+.compact-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.compact-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.compact-field-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  width: 60px;
+  flex-shrink: 0;
+}
+.compact-field-input {
+  flex: 1;
+  border: 1px solid var(--card-border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+/* Compact clinical section layout */
+.clinical-section-compact {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+.clinical-section-compact:last-child { border-bottom: none; }
+.clinical-section-compact-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  width: 90px;
+  flex-shrink: 0;
+  padding-top: 6px;
+}
+.clinical-section-compact-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.clinical-line-text-compact {
+  flex: 1;
+  border: 1px solid var(--card-border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.clinical-add-line-btn-compact {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 0;
+  text-decoration: underline;
+  align-self: flex-start;
+}

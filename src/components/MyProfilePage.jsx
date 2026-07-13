@@ -2,6 +2,104 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
+const MAX_LOGO_BYTES = 200 * 1024; // 200KB
+
+function LogoUploadPanel() {
+  const { profile, user, refreshProfile } = useAuth();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const logoPath = `${user.id}/logo.png`;
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+    setError('');
+    setSuccess('');
+
+    if (file.type !== 'image/png') {
+      setError('Only PNG files are allowed.');
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setError(`File is too large (${(file.size / 1024).toFixed(0)}KB). Max size is 200KB.`);
+      return;
+    }
+
+    setUploading(true);
+    // upsert: true overwrites any existing file at this exact path, so
+    // each user can only ever have one logo — a re-upload replaces it.
+    const { error: uploadError } = await supabase.storage
+      .from('prescription-logos')
+      .upload(logoPath, file, { upsert: true, contentType: 'image/png' });
+
+    if (uploadError) {
+      setUploading(false);
+      setError(uploadError.message);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from('prescription-logos').getPublicUrl(logoPath);
+    // Cache-bust so the browser doesn't keep showing a stale cached logo
+    // after a replace.
+    const bustedUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ prescription_logo_url: bustedUrl })
+      .eq('id', profile.id);
+
+    setUploading(false);
+    if (profileError) { setError(profileError.message); return; }
+    setSuccess('Logo uploaded.');
+    refreshProfile();
+  };
+
+  const removeLogo = async () => {
+    if (!confirm('Remove your prescription logo?')) return;
+    setError('');
+    setSuccess('');
+    await supabase.storage.from('prescription-logos').remove([logoPath]);
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ prescription_logo_url: null })
+      .eq('id', profile.id);
+    if (profileError) { setError(profileError.message); return; }
+    setSuccess('Logo removed.');
+    refreshProfile();
+  };
+
+  return (
+    <div className="panel">
+      <h2>Prescription Logo</h2>
+      <p className="muted small">
+        Appears as a faint watermark on your generated prescriptions. PNG only, max 200KB.
+      </p>
+
+      {profile?.prescription_logo_url && (
+        <div className="logo-preview-box">
+          <img src={profile.prescription_logo_url} alt="Your prescription logo" />
+        </div>
+      )}
+
+      {error && <div className="error-box" style={{ marginTop: 10 }}>{error}</div>}
+      {success && <div className="ok-box" style={{ marginTop: 10 }}>{success}</div>}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <label className="btn-secondary" style={{ cursor: 'pointer' }}>
+          {uploading ? 'Uploading…' : profile?.prescription_logo_url ? 'Replace logo' : 'Upload logo'}
+          <input type="file" accept="image/png" onChange={handleFile} disabled={uploading} style={{ display: 'none' }} />
+        </label>
+        {profile?.prescription_logo_url && (
+          <button className="btn-danger sm" onClick={removeLogo}>Delete</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MyProfilePage() {
   const { profile, refreshProfile } = useAuth();
   const [form, setForm] = useState({
@@ -176,6 +274,8 @@ export default function MyProfilePage() {
           </button>
         </form>
       </div>
+
+      <LogoUploadPanel />
 
       <div className="panel">
         <h2>Referral</h2>
