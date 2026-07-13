@@ -55,13 +55,15 @@ function TreeRow({ name, active, onSelect, onRename, onDelete }) {
       )}
       <div className="tree-row-actions">
         <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setValue(name); setEditing(true); }} title="Rename">✎</button>
-        <button className="icon-btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete">✕</button>
+        {onDelete && (
+          <button className="icon-btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete">✕</button>
+        )}
       </div>
     </div>
   );
 }
 
-function ChaptersPanel({ subcategoryId, subcategoryName }) {
+function ChaptersPanel({ subcategoryId, subcategoryName, hideDelete }) {
   const [chapters, setChapters] = useState([]);
 
   const load = useCallback(async () => {
@@ -83,7 +85,7 @@ function ChaptersPanel({ subcategoryId, subcategoryName }) {
           key={c.id}
           name={c.name}
           onRename={async (name) => { await supabase.from('chapters').update({ name }).eq('id', c.id); load(); }}
-          onDelete={async () => {
+          onDelete={hideDelete ? null : async () => {
             if (!confirm(`Delete chapter "${c.name}"? Questions inside it will also be deleted.`)) return;
             await supabase.from('chapters').delete().eq('id', c.id);
             load();
@@ -101,7 +103,7 @@ function ChaptersPanel({ subcategoryId, subcategoryName }) {
   );
 }
 
-function SubcategoriesPanel({ subjectId, subjectName, selected, onSelect }) {
+function SubcategoriesPanel({ subjectId, subjectName, selected, onSelect, hideDelete }) {
   const [subcategories, setSubcategories] = useState([]);
 
   const load = useCallback(async () => {
@@ -125,7 +127,7 @@ function SubcategoriesPanel({ subjectId, subjectName, selected, onSelect }) {
           active={selected === s.id}
           onSelect={() => onSelect(selected === s.id ? null : { id: s.id, name: s.name })}
           onRename={async (name) => { await supabase.from('subcategories').update({ name }).eq('id', s.id); load(); }}
-          onDelete={async () => {
+          onDelete={hideDelete ? null : async () => {
             if (!confirm(`Delete sub-category "${s.name}"? Its chapters and questions will also be deleted.`)) return;
             await supabase.from('subcategories').delete().eq('id', s.id);
             if (selected === s.id) onSelect(null);
@@ -144,7 +146,7 @@ function SubcategoriesPanel({ subjectId, subjectName, selected, onSelect }) {
   );
 }
 
-function SubjectsPanel({ categoryId, categoryName, selected, onSelect }) {
+function SubjectsPanel({ categoryId, categoryName, selected, onSelect, hideDelete }) {
   const [subjects, setSubjects] = useState([]);
 
   const load = useCallback(async () => {
@@ -168,7 +170,7 @@ function SubjectsPanel({ categoryId, categoryName, selected, onSelect }) {
           active={selected === s.id}
           onSelect={() => onSelect(selected === s.id ? null : { id: s.id, name: s.name })}
           onRename={async (name) => { await supabase.from('subjects').update({ name }).eq('id', s.id); load(); }}
-          onDelete={async () => {
+          onDelete={hideDelete ? null : async () => {
             if (!confirm(`Delete subject "${s.name}"? Everything inside it will also be deleted.`)) return;
             await supabase.from('subjects').delete().eq('id', s.id);
             if (selected === s.id) onSelect(null);
@@ -187,7 +189,7 @@ function SubjectsPanel({ categoryId, categoryName, selected, onSelect }) {
   );
 }
 
-export default function CategoriesPage() {
+export default function CategoriesPage({ hideDelete }) {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null); // { id, name }
   const [selectedSubject, setSelectedSubject] = useState(null); // { id, name }
@@ -213,6 +215,7 @@ export default function CategoriesPage() {
         Create folders like "Dubai Licence Exam" or "BDS Professional". Click a category's name
         to manage its Subjects, then click a Subject to manage its Sub-categories, then a
         Sub-category to manage its Chapters — where questions actually live.
+        {hideDelete && ' As an Admin, you can create and edit but not delete.'}
       </p>
 
       <div className="tree-panel">
@@ -225,7 +228,7 @@ export default function CategoriesPage() {
             active={selectedCategory?.id === c.id}
             onSelect={() => selectCategory(c)}
             onRename={async (name) => { await supabase.from('categories').update({ name, slug: slugify(name) }).eq('id', c.id); loadCategories(); }}
-            onDelete={async () => {
+            onDelete={hideDelete ? null : async () => {
               if (!confirm(`Delete category "${c.name}"? Everything inside it will also be deleted.`)) return;
               await supabase.from('categories').delete().eq('id', c.id);
               if (selectedCategory?.id === c.id) { setSelectedCategory(null); setSelectedSubject(null); setSelectedSubcategory(null); }
@@ -264,16 +267,19 @@ export default function CategoriesPage() {
         categoryName={selectedCategory?.name}
         selected={selectedSubject?.id}
         onSelect={setSelectedSubject}
+        hideDelete={hideDelete}
       />
       <SubcategoriesPanel
         subjectId={selectedSubject?.id}
         subjectName={selectedSubject?.name}
         selected={selectedSubcategory?.id}
         onSelect={setSelectedSubcategory}
+        hideDelete={hideDelete}
       />
       <ChaptersPanel
         subcategoryId={selectedSubcategory?.id}
         subcategoryName={selectedSubcategory?.name}
+        hideDelete={hideDelete}
       />
     </div>
   );

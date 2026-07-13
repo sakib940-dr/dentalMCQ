@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import QuestionBankPage from '../../components/QuestionBankPage';
 import ExamBuilderPage from '../../components/ExamBuilderPage';
+import CategoriesPage from '../../components/CategoriesPage';
 import ChangePasswordPanel from '../../components/ChangePasswordPanel';
 import StaffChatInbox from '../../components/StaffChatInbox';
 import NoticeBoardAdminPage from '../../components/NoticeBoardAdminPage';
@@ -9,7 +10,7 @@ import ModeratorOverview from '../../components/ModeratorOverview';
 import ExamSchedulePage from '../../components/ExamSchedulePage';
 import { useAuth } from '../../contexts/AuthContext';
 
-const navItems = [
+const baseNavItems = [
   { to: '/moderator', label: 'Overview', end: true },
   { to: '/moderator/schedule', label: 'Exam Schedule' },
   { to: '/moderator/questions', label: 'Question Bank' },
@@ -21,12 +22,20 @@ const navItems = [
 
 export default function ModeratorDashboard() {
   const { profile } = useAuth();
-  const title = profile?.role === 'admin' ? 'Admin' : 'Moderator';
+  const isAdmin = profile?.role === 'admin';
+  const title = isAdmin ? 'Admin' : 'Moderator';
+
+  // Admin can create/edit (not delete) categories — Moderator has no
+  // category access at all, per RBAC spec.
+  const navItems = isAdmin
+    ? [baseNavItems[0], { to: '/moderator/categories', label: 'Categories' }, ...baseNavItems.slice(1)]
+    : baseNavItems;
 
   return (
     <DashboardLayout title={title} navItems={navItems}>
       <Routes>
         <Route index element={<ModeratorOverview />} />
+        {isAdmin && <Route path="categories" element={<CategoriesPage hideDelete />} />}
         <Route path="schedule" element={<ExamSchedulePage />} />
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
