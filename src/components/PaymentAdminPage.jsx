@@ -282,8 +282,9 @@ function PackageSettings() {
   };
 
   const removePackage = async (pkg) => {
-    if (!confirm(`Delete package "${pkg.name}"? This won't affect students who already have access.`)) return;
-    await supabase.from('packages').delete().eq('id', pkg.id);
+    if (!confirm(`Delete package "${pkg.name}"? Students who already have access keep it — this only removes the package from the list.`)) return;
+    const { error } = await supabase.from('packages').delete().eq('id', pkg.id);
+    if (error) { alert(`Could not delete: ${error.message}`); return; }
     load();
   };
 
