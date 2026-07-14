@@ -299,89 +299,35 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
   const [exams, setExams] = useState(null);
   const [myAttempts, setMyAttempts] = useState({});
   const [tab, setTab] = useState('schedule'); // schedule | upcoming | live | archive | practice
-  const [hasAccess, setHasAccess] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
   const [accessChecked, setAccessChecked] = useState(false);
-  const [trialDaysLeft, setTrialDaysLeft] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     async function checkAccess() {
-      // 1) Super Admin can manually force-lock a category for this student —
-      // this always wins, even if they've paid or are mid-trial.
-      const { data: manualLock } = await supabase
-        .from('manual_category_locks')
-        .select('id')
-        .eq('examinee_id', user.id)
-        .eq('resource_type', 'category')
-        .eq('category_id', category.id)
-        .maybeSingle();
-      if (manualLock) {
-        if (!cancelled) { setHasAccess(false); setAccessChecked(true); }
-        return;
+      // The ONLY question that matters: is there an active subscription
+      // record for this student + this category? No default access, no
+      // trial window, no "requires_payment" flag — access exists if and
+      // only if an active category_access_grants row exists (and isn't
+      // overridden by a manual lock), checked server-side via
+      // has_active_access() so the rule lives in exactly one place.
+      const { data, error } = await supabase.rpc('has_active_access', {
+        target_examinee_id: user.id,
+        target_category_id: category.id,
+        target_resource_type: 'category',
+      });
+      if (cancelled) return;
+      if (error) {
+        console.error('Access check failed:', error.message);
+        setHasAccess(false); // fail closed, never fail open
+      } else {
+        setHasAccess(!!data);
       }
-
-      // 2) Already has a grant for this category (trial claim or paid) —
-      // but it must not have expired. Expired grants fall through to the
-      // trial-window check below, same as if they'd never had a grant.
-      const { data: grant } = await supabase
-        .from('category_access_grants')
-        .select('expires_at')
-        .eq('examinee_id', user.id)
-        .eq('resource_type', 'category')
-        .eq('category_id', category.id)
-        .maybeSingle();
-      if (grant && new Date(grant.expires_at) > new Date()) {
-        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
-        return;
-      }
-
-      if (!category.requires_payment) {
-        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
-        return;
-      }
-
-      // 3) No grant yet — check trial window. Starting the trial (if not
-      // already started) happens on first real use, not here, so this is
-      // just a read to see if they're still within it.
-      const [{ data: profileRow }, { data: settingRow }] = await Promise.all([
-        supabase.from('profiles').select('trial_started_at').eq('id', user.id).single(),
-        supabase.from('app_number_settings').select('value').eq('key', 'free_trial_days').maybeSingle(),
-      ]);
-      const trialDays = settingRow?.value ?? 15;
-
-      if (trialDays <= 0) {
-        // Admin has set the trial to 0 days — there is no free window at
-        // all, regardless of whether the trial has "started" yet.
-        if (!cancelled) { setHasAccess(false); setTrialDaysLeft(0); setAccessChecked(true); }
-        return;
-      }
-
-      if (!profileRow?.trial_started_at) {
-        // Trial hasn't started yet — they still have the full window
-        // available; it starts the moment they open Live/Practice.
-        if (!cancelled) { setHasAccess(true); setTrialDaysLeft(trialDays); setAccessChecked(true); }
-        return;
-      }
-      const startedAt = new Date(profileRow.trial_started_at);
-      const daysElapsed = (Date.now() - startedAt.getTime()) / (1000 * 60 * 60 * 24);
-      const remaining = Math.ceil(trialDays - daysElapsed);
-      if (!cancelled) {
-        setHasAccess(remaining > 0);
-        setTrialDaysLeft(remaining);
-        setAccessChecked(true);
-      }
+      setAccessChecked(true);
     }
     checkAccess();
     return () => { cancelled = true; };
-  }, [category.id, category.requires_payment, user.id]);
-
-  // Starts the trial clock the first time the student actually opens a
-  // gated tab (Live/Upcoming/Archive/Practice), not just on page load.
-  const ensureTrialStarted = async () => {
-    if (category.requires_payment) {
-      await supabase.rpc('start_trial_if_needed');
-    }
-  };
+  }, [category.id, user.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -432,26 +378,20 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         </div>
         <div className="locked-feature">
           <div className="locked-feature-icon">🔒</div>
-          <h2>{trialDaysLeft !== null && trialDaysLeft <= 0 ? 'Your free trial has ended' : 'This category requires a package'}</h2>
-          <p className="muted">Unlock live exams, practice, and results for this category.</p>
+          <h2>This category requires an active subscription.</h2>
+          <p className="muted">Claim or purchase a package that includes this category to unlock it.</p>
           <button className="btn-primary" onClick={() => navigate('/dashboard/package')}>View packages</button>
         </div>
       </div>
     );
   }
 
-  const goToTab = (t) => {
-    setTab(t);
-    if (t !== 'schedule') ensureTrialStarted();
-  };
+  const goToTab = (t) => setTab(t);
 
   return (
     <div className="panel">
       <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Categories</button>
       <h2>{category.name}</h2>
-      {category.requires_payment && trialDaysLeft !== null && trialDaysLeft > 0 && (
-        <div className="trial-banner">Free trial: {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left for this category</div>
-      )}
 
       <div className="mode-tabs">
         <button className={tab === 'schedule' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => goToTab('schedule')}>Exam Schedule</button>

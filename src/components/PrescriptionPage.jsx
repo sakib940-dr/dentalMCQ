@@ -137,45 +137,35 @@ export default function PrescriptionPage() {
   const { profile, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [accessChecked, setAccessChecked] = useState(false);
-  const [hasAccess, setHasAccess] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     async function checkAccess() {
-      // Staff (super_admin/admin/moderator) always have access — the
-      // lock only ever applies to examinees.
+      // Staff (super_admin/admin/moderator) always have access — this is
+      // a role exemption for the people running the platform, not a
+      // "default access" loophole for students. Students always go
+      // through the subscription check below with no exceptions.
       if (profile?.role !== 'examinee') {
         if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
         return;
       }
 
-      // A Super Admin's manual lock always wins, even if the student has
-      // an active grant or the global toggle is off.
-      const { data: manualLock } = await supabase
-        .from('manual_category_locks')
-        .select('id')
-        .eq('examinee_id', user.id)
-        .eq('resource_type', 'prescription')
-        .maybeSingle();
-      if (manualLock) {
-        if (!cancelled) { setHasAccess(false); setAccessChecked(true); }
-        return;
+      // The ONLY question: is there an active subscription record for
+      // prescription access? No global toggle, no default-free state.
+      const { data, error } = await supabase.rpc('has_active_access', {
+        target_examinee_id: user.id,
+        target_category_id: null,
+        target_resource_type: 'prescription',
+      });
+      if (cancelled) return;
+      if (error) {
+        console.error('Access check failed:', error.message);
+        setHasAccess(false); // fail closed
+      } else {
+        setHasAccess(!!data);
       }
-
-      const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'prescription_requires_payment').maybeSingle();
-      const locked = !!setting?.value;
-      if (!locked) {
-        if (!cancelled) { setHasAccess(true); setAccessChecked(true); }
-        return;
-      }
-      const { data: grant } = await supabase
-        .from('category_access_grants')
-        .select('expires_at')
-        .eq('examinee_id', user.id)
-        .eq('resource_type', 'prescription')
-        .maybeSingle();
-      const active = grant && new Date(grant.expires_at) > new Date();
-      if (!cancelled) { setHasAccess(!!active); setAccessChecked(true); }
+      setAccessChecked(true);
     }
     checkAccess();
     return () => { cancelled = true; };
@@ -561,7 +551,7 @@ export default function PrescriptionPage() {
       <div className="panel">
         <div className="locked-feature">
           <div className="locked-feature-icon">🔒</div>
-          <h2>Prescription requires a package</h2>
+          <h2>This category requires an active subscription.</h2>
           <p className="muted">Unlock the prescription generator with an active subscription.</p>
           <button className="btn-primary" onClick={() => navigate('/dashboard/package')}>View packages</button>
         </div>

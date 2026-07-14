@@ -247,18 +247,11 @@ export default function CategoriesPage({ hideDelete }) {
 
       {selectedCategory && (
         <div className="tree-panel tree-panel-nested">
-          <label className="mini-toggle">
-            <input
-              type="checkbox"
-              checked={!!selectedCategory.requires_payment}
-              onChange={async (e) => {
-                await supabase.from('categories').update({ requires_payment: e.target.checked }).eq('id', selectedCategory.id);
-                setSelectedCategory((c) => ({ ...c, requires_payment: e.target.checked }));
-                loadCategories();
-              }}
-            />
-            <span>Requires payment/package to access</span>
-          </label>
+          <p className="muted small">
+            Access to this category is always subscription-based — students need an active
+            package purchase (via Payments → Packages) that includes this category. There is no
+            "free" mode for any category.
+          </p>
         </div>
       )}
 

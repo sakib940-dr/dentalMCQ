@@ -3,48 +3,6 @@ import { supabase } from '../lib/supabaseClient';
 import { fmtDateTime } from '../lib/formatters';
 
 
-function TrialSettings() {
-  const [days, setDays] = useState(15);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('app_number_settings').select('value').eq('key', 'free_trial_days').maybeSingle();
-    if (data) setDays(data.value);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const save = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setSaved(false);
-    await supabase.from('app_number_settings').upsert({ key: 'free_trial_days', value: days, updated_at: new Date().toISOString() });
-    setSaving(false);
-    setSaved(true);
-  };
-
-  return (
-    <div className="panel">
-      <h2>Free Trial</h2>
-      <p className="muted small">
-        Every student gets this many free days of exam/practice access, starting from the moment
-        they first open a paid category. After it runs out, access locks until payment is
-        approved. Prescription is always free and never affected by this.
-      </p>
-      <form className="exam-form-fields" onSubmit={save} style={{ marginTop: 12 }}>
-        <label>
-          <span>Free trial length (days)</span>
-          <input type="number" min={0} max={365} value={days} onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))} />
-        </label>
-        {saved && <div className="ok-box">Saved.</div>}
-        <button type="submit" className="btn-primary" disabled={saving} style={{ alignSelf: 'flex-start' }}>
-          {saving ? 'Saving…' : 'Save trial length'}
-        </button>
-      </form>
-    </div>
-  );
-}
-
 function PromoCodesPanel() {
   const [codes, setCodes] = useState(null);
   const [newCode, setNewCode] = useState('');
@@ -151,40 +109,6 @@ function PromoCodesPanel() {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function PrescriptionLockSettings() {
-  const [locked, setLocked] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('app_settings').select('value').eq('key', 'prescription_requires_payment').maybeSingle();
-    if (data) setLocked(!!data.value);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const toggle = async () => {
-    setSaving(true);
-    const newValue = !locked;
-    await supabase.from('app_settings').upsert({ key: 'prescription_requires_payment', value: newValue });
-    setLocked(newValue);
-    setSaving(false);
-  };
-
-  return (
-    <div className="panel">
-      <h2>Prescription Access</h2>
-      <p className="muted small">
-        When locked, students need an active "Prescription" package to use the prescription
-        generator — same payment/promo/approval flow as exam categories. Currently free for
-        everyone until you turn this on.
-      </p>
-      <label className="mini-toggle" style={{ marginTop: 10 }}>
-        <input type="checkbox" checked={locked} disabled={saving} onChange={toggle} />
-        <span>{locked ? 'Locked — requires an active package' : 'Free for everyone'}</span>
-      </label>
     </div>
   );
 }
@@ -491,8 +415,6 @@ function PaymentClaimsInbox() {
 export default function PaymentAdminPage() {
   return (
     <>
-      <TrialSettings />
-      <PrescriptionLockSettings />
       <PackageSettings />
       <PromoCodesPanel />
       <PaymentClaimsInbox />
