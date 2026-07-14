@@ -834,6 +834,7 @@ body {
   margin: 12px 0;
 }
 .btn-danger.sm { padding: 6px 10px; font-size: 12px; }
+.btn-secondary.sm { padding: 6px 10px; font-size: 12px; }
 
 .chapter-browser { display: flex; flex-direction: column; gap: 4px; }
 .browser-node { margin-left: 0; }

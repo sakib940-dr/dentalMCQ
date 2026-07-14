@@ -57,6 +57,9 @@ export default function SuperAdminOverview() {
         usersResult,
         attemptsResult,
         subjectsResult,
+        { count: pendingClaims },
+        { count: activeSubscriptions },
+        revenueResult,
       ] = await Promise.all([
         supabase.from('questions').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'examinee'),
@@ -68,6 +71,9 @@ export default function SuperAdminOverview() {
         supabase.from('profiles').select('id, full_name, role, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('exam_attempts').select('*, profiles(full_name), exams(title)').eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(5),
         supabase.from('subjects').select('id, name, category_id'),
+        supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('category_access_grants').select('id', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString()),
+        supabase.from('payment_claims').select('final_amount').eq('status', 'approved').neq('method', 'discount_claim'),
       ]);
 
       if (cancelled) return;
@@ -83,6 +89,8 @@ export default function SuperAdminOverview() {
         else archived++;
       });
 
+      const totalRevenue = (revenueResult.data || []).reduce((sum, r) => sum + (r.final_amount || 0), 0);
+
       setStats({
         totalQuestions: totalQuestions || 0,
         totalStudents: totalStudents || 0,
@@ -92,6 +100,9 @@ export default function SuperAdminOverview() {
         totalExams: (examStatusRows || []).length,
         live, upcoming, archived, draft,
         attemptsToday: attemptsToday || 0,
+        pendingClaims: pendingClaims || 0,
+        activeSubscriptions: activeSubscriptions || 0,
+        totalRevenue,
       });
       setRecentUsers(usersResult.data || []);
       setRecentAttempts(attemptsResult.data || []);
@@ -163,6 +174,9 @@ export default function SuperAdminOverview() {
           <StatCard label="Total Exams" value={stats.totalExams} sub={`${stats.live} live · ${stats.upcoming} upcoming`} />
           <StatCard label="Attempts Today" value={stats.attemptsToday} />
           <StatCard label="Archived Exams" value={stats.archived} />
+          <StatCard label="Pending Payments" value={stats.pendingClaims} sub={stats.pendingClaims > 0 ? 'Needs review' : undefined} />
+          <StatCard label="Active Subscriptions" value={stats.activeSubscriptions} />
+          <StatCard label="Total Revenue" value={`৳${stats.totalRevenue.toFixed(0)}`} />
         </div>
       </div>
 
@@ -173,6 +187,11 @@ export default function SuperAdminOverview() {
           <button className="btn-secondary" onClick={() => navigate('/admin/categories')}>+ New Category</button>
           <button className="btn-secondary" onClick={() => navigate('/admin/questions')}>+ Add Questions</button>
           <button className="btn-secondary" onClick={() => navigate('/admin/notices')}>+ Post Notice</button>
+          {stats.pendingClaims > 0 && (
+            <button className="btn-primary" onClick={() => navigate('/admin/payments')}>
+              Review {stats.pendingClaims} Pending Payment{stats.pendingClaims !== 1 ? 's' : ''}
+            </button>
+          )}
         </div>
       </div>
 

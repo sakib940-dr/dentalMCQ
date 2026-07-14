@@ -222,6 +222,28 @@ export default function PrescriptionPage() {
   };
   useEffect(() => { loadRecent(); }, [user.id]);
 
+  const loadIntoForm = (p) => {
+    setPatientName(p.patient_name || '');
+    setPatientAge(p.patient_age || '');
+    setPatientAddress(p.patient_address || '');
+    setPatientMobile(p.patient_mobile || '');
+    setChiefComplaint((p.chief_complaint?.length ? p.chief_complaint : [emptyClinicalLine(true)]));
+    setHistory((p.history?.length ? p.history : [emptyClinicalLine(false)]));
+    setOnExamination((p.on_examination?.length ? p.on_examination : [emptyClinicalLine(true)]));
+    setInvestigation((p.investigation?.length ? p.investigation : [emptyClinicalLine(false)]));
+    setTreatmentPlan((p.treatment_plan?.length ? p.treatment_plan : [emptyClinicalLine(true)]));
+    setMedicines((p.medicines?.length ? p.medicines : [emptyMedicine()]));
+    // Advice was saved as a flattened text string, not structured
+    // template references, so it can't be restored as checked templates
+    // — but we show it so the doctor knows it existed and can re-select.
+    if (p.advice) {
+      setSuccess(`Loaded prescription #${p.serial_number} for ${p.patient_name}. Previous advice was: "${p.advice}" — re-select matching templates below if needed.`);
+    } else {
+      setSuccess(`Loaded prescription #${p.serial_number} for ${p.patient_name}.`);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
   }, [pdfBlobUrl]);
@@ -662,7 +684,10 @@ export default function PrescriptionPage() {
             {recent.map((p) => (
               <div key={p.id} className="recent-row">
                 <span className="recent-name">#{p.serial_number} · {p.patient_name}</span>
-                <span className="muted small">{new Date(p.created_at).toLocaleDateString('en-GB')}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="muted small">{new Date(p.created_at).toLocaleDateString('en-GB')}</span>
+                  <button className="btn-secondary sm" onClick={() => loadIntoForm(p)}>Reprint / Edit</button>
+                </div>
               </div>
             ))}
           </div>
