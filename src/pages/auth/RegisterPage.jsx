@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import BrandWordmark from '../../components/BrandWordmark';
 
 export default function RegisterPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get('ref');
   const [form, setForm] = useState({
     fullName: '',
     username: '',
@@ -53,6 +56,11 @@ export default function RegisterPage() {
     if (credentialWarning) {
       alert('Registration succeeded, but there was a problem saving your password for admin visibility:\n\n' + credentialWarning);
     }
+    if (referralCode) {
+      // Best-effort — a failed referral capture should never block
+      // registration itself.
+      await supabase.rpc('set_referred_by', { referral_code_input: referralCode }).catch(() => {});
+    }
     navigate('/', { replace: true });
   };
 
@@ -62,6 +70,7 @@ export default function RegisterPage() {
         <BrandWordmark />
         <h1>Create your account</h1>
         <p className="auth-sub">Register to sit exams</p>
+        {referralCode && <div className="ok-box" style={{ marginBottom: 4 }}>Referral code applied: {referralCode}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label>

@@ -82,7 +82,7 @@ export default function ExamSchedulePage() {
                   <div className="schedule-admin-syllabus">{e.subject_syllabus}</div>
                   {e.notes && <div className="muted small">{e.notes}</div>}
                 </div>
-                <button className="icon-btn-danger" onClick={() => removeEntry(e.id)}>✕</button>
+                <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove">✕</button>
               </div>
             ))}
           </div>

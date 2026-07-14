@@ -2633,3 +2633,14 @@ body {
   text-transform: uppercase;
   margin-left: 6px;
 }
+
+/* ---------- Accessibility: visible focus indicator ---------- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}

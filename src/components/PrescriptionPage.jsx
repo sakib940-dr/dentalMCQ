@@ -56,7 +56,7 @@ function ClinicalSection({ label, lines, onChange, withTooth }) {
               <ToothQuadrantInput value={l.tooth} onChange={(v) => update(i, 'tooth', v)} />
             )}
             {lines.length > 1 && (
-              <button type="button" className="icon-btn-danger" onClick={() => remove(i)}>✕</button>
+              <button type="button" className="icon-btn-danger" onClick={() => remove(i)} aria-label="Remove">✕</button>
             )}
           </div>
         ))}
@@ -112,7 +112,7 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
           <span className="advice-template-text">
             {t.text}{t.tooth_number && <span className="advice-template-tooth"> (#{t.tooth_number})</span>}
           </span>
-          <button type="button" className="icon-btn-danger" onClick={(e) => { e.preventDefault(); removeTemplate(t.id); }}>✕</button>
+          <button type="button" className="icon-btn-danger" onClick={(e) => { e.preventDefault(); removeTemplate(t.id); }} aria-label="Remove">✕</button>
         </label>
       ))}
 
@@ -601,7 +601,7 @@ export default function PrescriptionPage() {
               <input placeholder="Dose (e.g. 1+0+1, 30 min after meal)" value={m.dose} onChange={(e) => updateMedicine(i, 'dose', e.target.value)} />
               <input placeholder="Duration (e.g. 5 days)" value={m.duration} onChange={(e) => updateMedicine(i, 'duration', e.target.value)} />
               {medicines.length > 1 && (
-                <button type="button" className="icon-btn-danger" onClick={() => removeMedicine(i)}>✕</button>
+                <button type="button" className="icon-btn-danger" onClick={() => removeMedicine(i)} aria-label="Remove">✕</button>
               )}
             </div>
           ))}

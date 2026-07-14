@@ -314,6 +314,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         .from('manual_category_locks')
         .select('id')
         .eq('examinee_id', user.id)
+        .eq('resource_type', 'category')
         .eq('category_id', category.id)
         .maybeSingle();
       if (manualLock) {
@@ -328,6 +329,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         .from('category_access_grants')
         .select('expires_at')
         .eq('examinee_id', user.id)
+        .eq('resource_type', 'category')
         .eq('category_id', category.id)
         .maybeSingle();
       if (grant && new Date(grant.expires_at) > new Date()) {
