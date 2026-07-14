@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { fmtDateTime } from '../lib/formatters';
 
-
 function PromoCodesPanel() {
   const [codes, setCodes] = useState(null);
   const [newCode, setNewCode] = useState('');
@@ -365,7 +364,9 @@ function PaymentClaimsInbox() {
 
   const review = async (claim, status) => {
     const { error } = await supabase.rpc('review_payment_claim', { claim_id: claim.id, new_status: status });
-    if (error) console.error('Failed to review claim:', error.message);
+    if (error) {
+      alert(`Failed to ${status === 'approved' ? 'approve' : 'reject'} this payment: ${error.message}`);
+    }
     load();
   };
 

@@ -129,17 +129,29 @@ function MixedMode({ categoryId, onPick }) {
 
   useEffect(() => {
     async function loadCounts() {
+      if (subjects.length === 0) { setAvailableBySubject({}); return; }
+      const subjectIds = subjects.map((s) => s.id);
+
+      const { data: allSubcats } = await supabase.from('subcategories').select('id, subject_id').in('subject_id', subjectIds);
+      const subcatIds = (allSubcats || []).map((sc) => sc.id);
+      const subcatToSubject = new Map((allSubcats || []).map((sc) => [sc.id, sc.subject_id]));
+
+      const { data: allChapters } = subcatIds.length
+        ? await supabase.from('chapters').select('id, subcategory_id').in('subcategory_id', subcatIds)
+        : { data: [] };
+      const chapterToSubject = new Map((allChapters || []).map((ch) => [ch.id, subcatToSubject.get(ch.subcategory_id)]));
+      const allChapterIds = (allChapters || []).map((ch) => ch.id);
+
+      const { data: allQuestions } = allChapterIds.length
+        ? await supabase.from('questions').select('chapter_id').in('chapter_id', allChapterIds).eq('is_active', true)
+        : { data: [] };
+
       const results = {};
-      for (const s of subjects) {
-        const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', s.id);
-        const subcatIds = (subcats || []).map((x) => x.id);
-        if (subcatIds.length === 0) { results[s.id] = 0; continue; }
-        const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
-        const chapIds = (chaps || []).map((c) => c.id);
-        if (chapIds.length === 0) { results[s.id] = 0; continue; }
-        const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
-        results[s.id] = count || 0;
-      }
+      subjects.forEach((s) => { results[s.id] = 0; });
+      (allQuestions || []).forEach((q) => {
+        const subjId = chapterToSubject.get(q.chapter_id);
+        if (subjId != null) results[subjId] = (results[subjId] || 0) + 1;
+      });
       setAvailableBySubject(results);
     }
     if (subjects.length > 0) loadCounts();

@@ -2013,30 +2013,10 @@ body {
 }
 
 /* ---------- Package / pricing ---------- */
-.package-price-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 12px 0;
-}
 .package-price-original {
   font-size: 16px;
   color: var(--ink-soft);
   text-decoration: line-through;
-}
-.package-price-final {
-  font-family: Georgia, serif;
-  font-size: 30px;
-  font-weight: 700;
-  color: var(--teal-deep);
-}
-.package-discount-tag {
-  background: #E4F1EA;
-  color: var(--green);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 20px;
 }
 .claim-free-box {
   margin-top: 16px;
@@ -2190,17 +2170,7 @@ body {
   flex-shrink: 0;
 }
 
-/* ---------- Trial banner and access control ---------- */
-.trial-banner {
-  background: #FDFBF3;
-  border: 1px solid var(--gold);
-  color: #8A5A0A;
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
+/* ---------- Access control ---------- */
 .access-lock-list {
   display: flex;
   flex-direction: column;
