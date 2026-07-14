@@ -41,6 +41,7 @@ export default function SuperAdminOverview() {
   const [attention, setAttention] = useState([]);
   const [signupChart, setSignupChart] = useState([]);
   const [topExams, setTopExams] = useState([]);
+  const [topPrescribers, setTopPrescribers] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +61,8 @@ export default function SuperAdminOverview() {
         { count: pendingClaims },
         { count: activeSubscriptions },
         revenueResult,
+        { count: totalPrescriptions },
+        topPrescribersResult,
       ] = await Promise.all([
         supabase.from('questions').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'examinee'),
@@ -74,6 +77,8 @@ export default function SuperAdminOverview() {
         supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('category_access_grants').select('id', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString()),
         supabase.from('payment_claims').select('final_amount').eq('status', 'approved').neq('method', 'discount_claim'),
+        supabase.from('prescriptions').select('id', { count: 'exact', head: true }),
+        supabase.from('prescription_usage_summary').select('*').limit(5),
       ]);
 
       if (cancelled) return;
@@ -103,7 +108,9 @@ export default function SuperAdminOverview() {
         pendingClaims: pendingClaims || 0,
         activeSubscriptions: activeSubscriptions || 0,
         totalRevenue,
+        totalPrescriptions: totalPrescriptions || 0,
       });
+      setTopPrescribers(topPrescribersResult.data || []);
       setRecentUsers(usersResult.data || []);
       setRecentAttempts(attemptsResult.data || []);
 
@@ -177,6 +184,7 @@ export default function SuperAdminOverview() {
           <StatCard label="Pending Payments" value={stats.pendingClaims} sub={stats.pendingClaims > 0 ? 'Needs review' : undefined} />
           <StatCard label="Active Subscriptions" value={stats.activeSubscriptions} />
           <StatCard label="Total Revenue" value={`৳${stats.totalRevenue.toFixed(0)}`} />
+          <StatCard label="Prescriptions Generated" value={stats.totalPrescriptions} />
         </div>
       </div>
 
@@ -260,6 +268,26 @@ export default function SuperAdminOverview() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {topPrescribers.length > 0 && (
+        <div className="panel">
+          <h2>Top Prescription Generators</h2>
+          <div className="recent-list">
+            {topPrescribers.map((p) => (
+              <div key={p.user_id} className="recent-row">
+                <div>
+                  <span className="recent-name">{p.full_name}</span>
+                  <span className={`role-badge role-badge-${p.role}`} style={{ marginLeft: 6 }}>{p.role}</span>
+                </div>
+                <span className="muted small">{p.total_prescriptions} prescription{p.total_prescriptions !== 1 ? 's' : ''}</span>
+              </div>
+            ))}
+          </div>
+          <button className="btn-secondary" onClick={() => navigate('/admin/prescriptions')} style={{ marginTop: 10 }}>
+            View all prescription activity
+          </button>
         </div>
       )}
     </>

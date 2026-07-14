@@ -14,6 +14,7 @@ import PaymentAdminPage from '../../components/PaymentAdminPage';
 import AccessControlPage from '../../components/AccessControlPage';
 import StuckAttemptsPage from '../../components/StuckAttemptsPage';
 import AuditLogPage from '../../components/AuditLogPage';
+import PrescriptionActivityPage from '../../components/PrescriptionActivityPage';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -24,6 +25,7 @@ const navItems = [
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/access', label: 'Access Control' },
   { to: '/admin/payments', label: 'Payments' },
+  { to: '/admin/prescriptions', label: 'Prescriptions' },
   { to: '/admin/notices', label: 'Notice Board' },
   { to: '/admin/chat', label: 'Messages' },
   { to: '/admin/settings', label: 'Settings' },
@@ -59,6 +61,7 @@ export default function SuperAdminDashboard() {
         <Route path="users" element={<UserManagementPage />} />
         <Route path="access" element={<><AccessControlPage /><StuckAttemptsPage /><AuditLogPage /></>} />
         <Route path="payments" element={<PaymentAdminPage />} />
+        <Route path="prescriptions" element={<PrescriptionActivityPage />} />
         <Route path="notices" element={<NoticeBoardAdminPage />} />
         <Route path="chat" element={<StaffChatInbox />} />
         <Route path="settings" element={<SettingsPage />} />
