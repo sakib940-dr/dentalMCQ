@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -12,6 +13,7 @@ function RoleBadge({ role }) {
 }
 
 export default function UserManagementPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [credentials, setCredentials] = useState({}); // user_id -> plain_password
   const [search, setSearch] = useState('');
@@ -33,11 +35,16 @@ export default function UserManagementPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const logAudit = async (action, targetUserId, details) => {
+    await supabase.from('audit_log').insert({ actor_id: currentUser.id, action, target_user_id: targetUserId, details });
+  };
+
   const changeRole = async (user, newRole) => {
     if (user.role === newRole) return;
     if (!confirm(`Change ${user.full_name}'s role from ${ROLE_LABELS[user.role]} to ${ROLE_LABELS[newRole]}?`)) return;
     const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', user.id);
     if (error) { alert(error.message); return; }
+    await logAudit('role_change', user.id, { from: user.role, to: newRole });
     load();
   };
 
@@ -54,6 +61,7 @@ export default function UserManagementPage() {
   const removeUser = async (user) => {
     const { error } = await supabase.from('profiles').delete().eq('id', user.id);
     if (error) { alert(error.message); return; }
+    await logAudit('account_delete', user.id, { full_name: user.full_name, role: user.role });
     setConfirmDelete(null);
     load();
   };

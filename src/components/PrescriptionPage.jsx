@@ -72,6 +72,7 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
   const [newText, setNewText] = useState('');
   const [newTooth, setNewTooth] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [error, setError] = useState('');
 
   const load = async () => {
     const { data } = await supabase.from('advice_templates').select('*').eq('doctor_id', userId).order('display_order');
@@ -81,13 +82,15 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
 
   const addTemplate = async (e) => {
     e.preventDefault();
+    setError('');
     if (!newText.trim()) return;
-    await supabase.from('advice_templates').insert({
+    const { error: insertError } = await supabase.from('advice_templates').insert({
       doctor_id: userId,
       text: newText.trim(),
       tooth_number: newTooth.trim() || null,
       display_order: templates.length,
     });
+    if (insertError) { setError(insertError.message); return; }
     setNewText('');
     setNewTooth('');
     setShowAdd(false);
@@ -101,7 +104,7 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
 
   return (
     <div className="clinical-section">
-      <div className="clinical-section-label">Advice</div>
+      <div className="clinical-section-label">Advice ({templates.length}/30)</div>
       {templates.length === 0 && <div className="muted small">No saved advice templates yet.</div>}
       {templates.map((t) => (
         <label key={t.id} className="advice-template-row">
@@ -113,6 +116,8 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
         </label>
       ))}
 
+      {error && <div className="error-box" style={{ marginTop: 6 }}>{error}</div>}
+
       {showAdd ? (
         <form className="clinical-line-row" onSubmit={addTemplate} style={{ marginTop: 8 }}>
           <input className="clinical-line-text" placeholder="New advice text" value={newText} onChange={(e) => setNewText(e.target.value)} />
@@ -120,7 +125,9 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
           <button type="submit" className="btn-secondary" style={{ flexShrink: 0 }}>Save</button>
         </form>
       ) : (
-        <button type="button" className="clinical-add-line-btn" onClick={() => setShowAdd(true)}>+ New advice template</button>
+        <button type="button" className="clinical-add-line-btn" onClick={() => setShowAdd(true)} disabled={templates.length >= 30}>
+          {templates.length >= 30 ? 'Limit reached (30/30)' : '+ New advice template'}
+        </button>
       )}
     </div>
   );

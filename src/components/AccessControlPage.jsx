@@ -48,7 +48,8 @@ export default function AccessControlPage() {
 
   const toggleLock = async (resourceType, categoryId) => {
     setSaving(true);
-    if (isLocked(resourceType, categoryId)) {
+    const wasLocked = isLocked(resourceType, categoryId);
+    if (wasLocked) {
       let q = supabase.from('manual_category_locks').delete().eq('examinee_id', studentId).eq('resource_type', resourceType);
       q = categoryId ? q.eq('category_id', categoryId) : q.is('category_id', null);
       await q;
@@ -60,6 +61,12 @@ export default function AccessControlPage() {
         locked_by: user.id,
       });
     }
+    await supabase.from('audit_log').insert({
+      actor_id: user.id,
+      action: wasLocked ? 'manual_unlock' : 'manual_lock',
+      target_user_id: studentId,
+      details: { resource_type: resourceType, category_id: categoryId },
+    });
     setSaving(false);
     loadStatus();
   };

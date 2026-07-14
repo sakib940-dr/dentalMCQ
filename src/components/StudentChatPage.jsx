@@ -6,6 +6,8 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024; // 2MB
+
 export default function StudentChatPage() {
   const { user } = useAuth();
   const [threadId, setThreadId] = useState(null);
@@ -13,6 +15,7 @@ export default function StudentChatPage() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [attachError, setAttachError] = useState('');
   const bottomRef = useRef(null);
 
   const ensureThread = useCallback(async () => {
@@ -77,6 +80,42 @@ export default function StudentChatPage() {
     if (!error) setText('');
   };
 
+  const sendImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !threadId) return;
+    setAttachError('');
+
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setAttachError('Only JPG or PNG images are allowed.');
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setAttachError('Image is too large — max 2MB.');
+      return;
+    }
+
+    setSending(true);
+    const ext = file.type === 'image/png' ? 'png' : 'jpg';
+    const path = `${threadId}/${crypto.randomUUID()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(path, file, { contentType: file.type });
+    if (uploadError) {
+      setSending(false);
+      setAttachError(uploadError.message);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from('chat-attachments').getPublicUrl(path);
+
+    const { error } = await supabase.from('chat_messages').insert({
+      thread_id: threadId,
+      sender_id: user.id,
+      sender_role: 'examinee',
+      attachment_url: urlData.publicUrl,
+    });
+    setSending(false);
+    if (error) setAttachError(error.message);
+  };
+
   if (loading) return <div className="panel"><p className="muted">Loading…</p></div>;
 
   return (
@@ -91,14 +130,25 @@ export default function StudentChatPage() {
             {m.sender_role !== 'examinee' && (
               <div className="chat-bubble-sender">{m.sender_role === 'super_admin' ? 'Admin' : 'Moderator'}</div>
             )}
-            <div className="chat-bubble-text">{m.body}</div>
+            {m.attachment_url && (
+              <a href={m.attachment_url} target="_blank" rel="noopener noreferrer">
+                <img src={m.attachment_url} alt="Attachment" className="chat-bubble-image" />
+              </a>
+            )}
+            {m.body && <div className="chat-bubble-text">{m.body}</div>}
             <div className="chat-bubble-time">{fmtTime(m.created_at)}</div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
+      {attachError && <div className="error-box" style={{ marginBottom: 8 }}>{attachError}</div>}
+
       <form className="chat-input-row" onSubmit={send}>
+        <label className="chat-attach-btn">
+          📎
+          <input type="file" accept="image/jpeg,image/png" onChange={sendImage} disabled={sending} style={{ display: 'none' }} />
+        </label>
         <input
           className="chat-input"
           value={text}

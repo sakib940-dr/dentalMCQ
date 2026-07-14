@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Papa from 'papaparse';
 import { supabase } from '../lib/supabaseClient';
 
@@ -19,6 +19,9 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
+  const [duplicateTexts, setDuplicateTexts] = useState(new Set());
+  const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
   const reset = () => {
     setRows([]);
@@ -89,6 +92,23 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
     });
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    async function checkDuplicates() {
+      if (rows.length === 0 || !chapterId) { setDuplicateTexts(new Set()); return; }
+      setCheckingDuplicates(true);
+      const { data, error } = await supabase.rpc('find_duplicate_questions', {
+        target_chapter_id: chapterId,
+        question_texts: rows.map((r) => r.question_text),
+      });
+      setCheckingDuplicates(false);
+      if (cancelled || error) return;
+      setDuplicateTexts(new Set((data || []).filter((d) => d.is_duplicate).map((d) => d.question_text)));
+    }
+    checkDuplicates();
+    return () => { cancelled = true; };
+  }, [rows, chapterId]);
+
   const handleImport = async () => {
     if (!chapterId) {
       setErrors((e) => [...e, 'Select a chapter before importing.']);
@@ -97,7 +117,14 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
     if (rows.length === 0) return;
 
     setImporting(true);
-    const payload = rows.map((r) => ({ ...r, chapter_id: chapterId }));
+    const rowsToImport = skipDuplicates ? rows.filter((r) => !duplicateTexts.has(r.question_text)) : rows;
+    const payload = rowsToImport.map((r) => ({ ...r, chapter_id: chapterId }));
+
+    if (payload.length === 0) {
+      setImporting(false);
+      setResult({ inserted: 0, failed: 'All rows were duplicates and were skipped.' });
+      return;
+    }
 
     // Insert in batches of 500 to stay well under request size limits
     const batchSize = 500;
@@ -164,6 +191,18 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
             {rows.length} valid question{rows.length !== 1 ? 's' : ''} ready to import
             {!chapterId && <span className="warn-inline"> — select a chapter above first</span>}
           </div>
+
+          {checkingDuplicates && <div className="muted small">Checking for duplicates…</div>}
+          {!checkingDuplicates && duplicateTexts.size > 0 && (
+            <div className="warn-box">
+              {duplicateTexts.size} question{duplicateTexts.size !== 1 ? 's' : ''} already exist{duplicateTexts.size === 1 ? 's' : ''} in this chapter (exact text match).
+              <label className="checkbox-row" style={{ marginTop: 6 }}>
+                <input type="checkbox" checked={skipDuplicates} onChange={(e) => setSkipDuplicates(e.target.checked)} />
+                <span>Skip duplicates on import</span>
+              </label>
+            </div>
+          )}
+
           <div className="csv-preview-table-wrap">
             <table className="csv-preview-table">
               <thead>
@@ -171,9 +210,12 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
               </thead>
               <tbody>
                 {rows.slice(0, 8).map((r, i) => (
-                  <tr key={i}>
+                  <tr key={i} className={duplicateTexts.has(r.question_text) ? 'csv-row-duplicate' : ''}>
                     <td>{i + 1}</td>
-                    <td className="q-cell">{r.question_text}</td>
+                    <td className="q-cell">
+                      {r.question_text}
+                      {duplicateTexts.has(r.question_text) && <span className="csv-duplicate-tag"> duplicate</span>}
+                    </td>
                     <td>{r.correct_option}</td>
                   </tr>
                 ))}
@@ -184,8 +226,8 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
 
           <div className="csv-importer-actions">
             <button className="btn-secondary" onClick={reset} disabled={importing}>Cancel</button>
-            <button className="btn-primary" onClick={handleImport} disabled={importing || !chapterId}>
-              {importing ? 'Importing…' : `Import ${rows.length} question${rows.length !== 1 ? 's' : ''}`}
+            <button className="btn-primary" onClick={handleImport} disabled={importing || !chapterId || checkingDuplicates}>
+              {importing ? 'Importing…' : `Import ${skipDuplicates ? rows.length - duplicateTexts.size : rows.length} question${rows.length !== 1 ? 's' : ''}`}
             </button>
           </div>
         </>

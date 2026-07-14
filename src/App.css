@@ -2591,3 +2591,45 @@ body {
 .access-status-expired { color: var(--red); }
 .access-status-locked { color: var(--red); }
 .access-status-neutral { color: var(--ink-soft); }
+
+/* ---------- Chat image attachments ---------- */
+.chat-attach-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #FAF9F5;
+  border: 1px solid var(--card-border);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.chat-bubble-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 10px;
+  display: block;
+  margin-bottom: 6px;
+  object-fit: cover;
+}
+
+/* ---------- CSV duplicate detection ---------- */
+.warn-box {
+  background: #FDFBF3;
+  border: 1px solid var(--gold);
+  color: #8A5A0A;
+  font-size: 12.5px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  margin: 10px 0;
+}
+.csv-row-duplicate { background: #FDF6E3; }
+.csv-duplicate-tag {
+  color: #8A5A0A;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-left: 6px;
+}
