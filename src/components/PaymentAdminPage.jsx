@@ -191,13 +191,36 @@ function PrescriptionLockSettings() {
 
 function PackageForm({ initial, onSaved, onCancel }) {
   const [name, setName] = useState(initial?.name || '');
+  const [description, setDescription] = useState(initial?.description || '');
   const [price, setPrice] = useState(initial?.price ?? 1000);
   const [discount, setDiscount] = useState(initial?.discount_percent ?? 0);
   const [durationDays, setDurationDays] = useState(initial?.duration_days ?? 30);
-  const [resourceType, setResourceType] = useState(initial?.resource_type || 'category');
+  const [packageType, setPackageType] = useState(initial?.package_type || 'category');
   const [paymentNumber, setPaymentNumber] = useState(initial?.payment_number || '');
+  const [isActive, setIsActive] = useState(initial?.is_active ?? true);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    supabase.from('categories').select('id, name').order('display_order').then(({ data }) => setCategories(data || []));
+  }, []);
+
+  useEffect(() => {
+    if (!initial) return;
+    supabase.from('package_categories').select('category_id').eq('package_id', initial.id).then(({ data }) => {
+      setSelectedCategoryIds(new Set((data || []).map((r) => r.category_id)));
+    });
+  }, [initial]);
+
+  const toggleCategory = (id) => {
+    setSelectedCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const finalPrice = price * (1 - discount / 100);
 
@@ -205,13 +228,40 @@ function PackageForm({ initial, onSaved, onCancel }) {
     e.preventDefault();
     setError('');
     if (!name.trim()) { setError('Enter a package name.'); return; }
+    if (packageType !== 'prescription' && selectedCategoryIds.size === 0) {
+      setError('Select at least one exam category this package unlocks.');
+      return;
+    }
     setSaving(true);
-    const payload = { name: name.trim(), price, discount_percent: discount, duration_days: durationDays, resource_type: resourceType, payment_number: paymentNumber || null };
-    const { error: saveError } = initial
-      ? await supabase.from('packages').update(payload).eq('id', initial.id)
-      : await supabase.from('packages').insert(payload);
+    const payload = {
+      name: name.trim(),
+      description: description.trim() || null,
+      price, discount_percent: discount, duration_days: durationDays,
+      package_type: packageType,
+      resource_type: packageType === 'prescription' ? 'prescription' : 'category', // kept in sync for backward compat
+      payment_number: paymentNumber || null,
+      is_active: isActive,
+    };
+
+    let packageId = initial?.id;
+    const { data: saved, error: saveError } = initial
+      ? await supabase.from('packages').update(payload).eq('id', initial.id).select().single()
+      : await supabase.from('packages').insert(payload).select().single();
+
+    if (saveError) { setSaving(false); setError(saveError.message); return; }
+    packageId = saved.id;
+
+    // Sync the category links: delete any that were unchecked, insert
+    // any newly checked ones. Simplest correct approach: replace the
+    // whole set for this package.
+    await supabase.from('package_categories').delete().eq('package_id', packageId);
+    if (packageType !== 'prescription' && selectedCategoryIds.size > 0) {
+      const rows = Array.from(selectedCategoryIds).map((category_id) => ({ package_id: packageId, category_id }));
+      const { error: linkError } = await supabase.from('package_categories').insert(rows);
+      if (linkError) { setSaving(false); setError(`Package saved, but linking categories failed: ${linkError.message}`); return; }
+    }
+
     setSaving(false);
-    if (saveError) { setError(saveError.message); return; }
     onSaved();
   };
 
@@ -219,13 +269,18 @@ function PackageForm({ initial, onSaved, onCancel }) {
     <form className="exam-form-fields" onSubmit={save} style={{ marginTop: 12 }}>
       <label>
         <span>Package name</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 3-Month Access" />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Special BCS (BDS) — 3 Months" />
+      </label>
+      <label>
+        <span>Description</span>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Shown to students on the package page" />
       </label>
       <div className="option-grid">
         <label>
-          <span>Applies to</span>
-          <select value={resourceType} onChange={(e) => setResourceType(e.target.value)}>
+          <span>Package type</span>
+          <select value={packageType} onChange={(e) => setPackageType(e.target.value)}>
             <option value="category">Exam Category</option>
+            <option value="bundle">Bundle (multiple categories)</option>
             <option value="prescription">Prescription</option>
           </select>
         </label>
@@ -253,6 +308,28 @@ function PackageForm({ initial, onSaved, onCancel }) {
         <span>bKash / Nagad number to display</span>
         <input value={paymentNumber} onChange={(e) => setPaymentNumber(e.target.value)} placeholder="01XXXXXXXXX" />
       </label>
+      <label className="checkbox-row">
+        <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+        <span>Active (visible to students)</span>
+      </label>
+
+      {packageType !== 'prescription' && (
+        <div>
+          <div className="compact-field-heading" style={{ marginTop: 4 }}>
+            Categories this package unlocks ({selectedCategoryIds.size} selected)
+          </div>
+          <div className="package-category-checklist">
+            {categories.length === 0 && <div className="muted small">No categories exist yet — create one first.</div>}
+            {categories.map((c) => (
+              <label key={c.id} className="checkbox-row">
+                <input type="checkbox" checked={selectedCategoryIds.has(c.id)} onChange={() => toggleCategory(c.id)} />
+                <span>{c.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="exam-time-summary">Students see: ৳{finalPrice.toFixed(0)} {discount > 0 && `(${discount}% off ৳${price})`} for {durationDays} days</div>
       {error && <div className="error-box">{error}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -265,12 +342,27 @@ function PackageForm({ initial, onSaved, onCancel }) {
 
 function PackageSettings() {
   const [packages, setPackages] = useState(null);
+  const [categoryNamesByPackage, setCategoryNamesByPackage] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('packages').select('*').order('resource_type').order('duration_days');
+    const { data } = await supabase.from('packages').select('*').order('package_type').order('duration_days');
     setPackages(data || []);
+
+    const ids = (data || []).map((p) => p.id);
+    if (ids.length > 0) {
+      const { data: links } = await supabase
+        .from('package_categories')
+        .select('package_id, categories(name)')
+        .in('package_id', ids);
+      const grouped = {};
+      (links || []).forEach((l) => {
+        if (!grouped[l.package_id]) grouped[l.package_id] = [];
+        if (l.categories?.name) grouped[l.package_id].push(l.categories.name);
+      });
+      setCategoryNamesByPackage(grouped);
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -305,10 +397,15 @@ function PackageSettings() {
                 <div className="claim-row-main">
                   <div className="claim-row-name">{p.name} {!p.is_active && <span className="muted small">(inactive)</span>}</div>
                   <div className="muted small">
-                    {p.resource_type === 'prescription' ? 'Prescription' : 'Exam Category'} · {p.duration_days} days ·
+                    {p.package_type === 'prescription' ? 'Prescription' : p.package_type === 'bundle' ? 'Bundle' : 'Exam Category'} · {p.duration_days} days ·
                     {' '}৳{(p.price * (1 - p.discount_percent / 100)).toFixed(0)}
                     {p.discount_percent > 0 && ` (${p.discount_percent}% off ৳${p.price})`}
                   </div>
+                  {p.package_type !== 'prescription' && (
+                    <div className="muted small" style={{ marginTop: 2 }}>
+                      Unlocks: {categoryNamesByPackage[p.id]?.length ? categoryNamesByPackage[p.id].join(', ') : '⚠️ No categories linked yet'}
+                    </div>
+                  )}
                 </div>
                 <div className="claim-row-actions">
                   <button className="btn-secondary" onClick={() => setEditingId(p.id)}>Edit</button>

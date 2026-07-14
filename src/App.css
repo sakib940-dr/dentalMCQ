@@ -2645,3 +2645,23 @@ textarea:focus-visible,
   outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
+
+/* ---------- Package category checklist and unlock display ---------- */
+.package-category-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--card-border);
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+.package-unlock-list {
+  background: #FAF9F5;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}

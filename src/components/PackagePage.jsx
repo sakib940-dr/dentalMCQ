@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtDateTime } from '../lib/formatters';
 
-
 function durationLabel(days) {
   if (days === 30) return '1 Month';
   if (days === 90) return '3 Months';
@@ -18,7 +17,9 @@ function daysLeft(expiresAt) {
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
-// ---------- My active subscriptions panel ----------
+// ---------- My active subscriptions panel — one row per category,
+// each with its own independent expiry, exactly matching the new
+// architecture where every linked category gets its own grant. ----------
 function MySubscriptionsPanel({ grants, categories }) {
   if (grants.length === 0) return null;
   return (
@@ -46,11 +47,11 @@ function MySubscriptionsPanel({ grants, categories }) {
 export default function PackagePage() {
   const { user } = useAuth();
   const [packages, setPackages] = useState(null);
+  const [categoryNamesByPackage, setCategoryNamesByPackage] = useState({});
   const [categories, setCategories] = useState([]);
   const [myGrants, setMyGrants] = useState([]);
   const [myClaims, setMyClaims] = useState([]);
   const [selectedPkgId, setSelectedPkgId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState('');
   const [claimSuccess, setClaimSuccess] = useState('');
@@ -68,21 +69,39 @@ export default function PackagePage() {
 
   const load = async () => {
     const [{ data: pkgData }, { data: catData }, { data: grantData }, { data: claimData }] = await Promise.all([
-      supabase.from('packages').select('*').eq('is_active', true).order('resource_type').order('duration_days'),
+      supabase.from('packages').select('*').eq('is_active', true).order('package_type').order('duration_days'),
       supabase.from('categories').select('*').eq('is_active', true).order('display_order'),
       supabase.from('category_access_grants').select('*').eq('examinee_id', user.id),
-      supabase.from('payment_claims').select('*, categories(name)').eq('examinee_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('payment_claims').select('*, packages(name)').eq('examinee_id', user.id).order('created_at', { ascending: false }),
     ]);
     setPackages(pkgData || []);
     setCategories(catData || []);
     setMyGrants(grantData || []);
     setMyClaims(claimData || []);
     if (!selectedPkgId && pkgData?.length > 0) setSelectedPkgId(pkgData[0].id);
+
+    // Bulk-load which categories each package unlocks, for display —
+    // this is what tells the student EXACTLY what they're buying, no
+    // guessing or manual selection needed anymore.
+    const ids = (pkgData || []).map((p) => p.id);
+    if (ids.length > 0) {
+      const { data: links } = await supabase
+        .from('package_categories')
+        .select('package_id, categories(name)')
+        .in('package_id', ids);
+      const grouped = {};
+      (links || []).forEach((l) => {
+        if (!grouped[l.package_id]) grouped[l.package_id] = [];
+        if (l.categories?.name) grouped[l.package_id].push(l.categories.name);
+      });
+      setCategoryNamesByPackage(grouped);
+    }
   };
 
   useEffect(() => { load(); }, [user.id]);
 
   const selectedPkg = packages?.find((p) => p.id === selectedPkgId) || null;
+  const selectedPkgCategoryNames = selectedPkg ? (categoryNamesByPackage[selectedPkg.id] || []) : [];
 
   const combinedDiscount = selectedPkg
     ? Math.min(100, selectedPkg.discount_percent + (appliedPromo?.discount_percent || 0))
@@ -94,10 +113,10 @@ export default function PackagePage() {
     setClaiming(true);
     setClaimError('');
     setClaimSuccess('');
-    const targetCategoryId = selectedPkg.resource_type === 'prescription' ? null : categoryId;
+    // The package itself now carries its linked categories server-side
+    // — no category selection needed from the student anymore.
     const { error } = await supabase.rpc('claim_free_package_access', {
-      target_category_id: targetCategoryId,
-      target_resource_type: selectedPkg.resource_type,
+      target_package_id: selectedPkg.id,
     });
     setClaiming(false);
     if (error) { setClaimError(error.message); return; }
@@ -117,9 +136,6 @@ export default function PackagePage() {
       setAppliedPromo(null);
       return;
     }
-    // Store the code + discount for display; the actual redemption
-    // record is only written once the payment claim itself is submitted
-    // (see submitTxn / claimFree), not just on a validation check.
     setAppliedPromo({ id: result.promo_code_id, code: promoInput.trim().toUpperCase(), discount_percent: result.discount_percent });
   };
 
@@ -134,10 +150,12 @@ export default function PackagePage() {
     setTxnError('');
     setTxnSuccess('');
     if (!selectedPkg) return;
-    if (selectedPkg.resource_type === 'category' && !categoryId) { setTxnError('Select a category.'); return; }
     if (!txnId.trim()) { setTxnError('Enter your transaction ID.'); return; }
 
     setSubmittingTxn(true);
+    // category_id is intentionally left null here — the package's own
+    // linked categories (package_categories) are what determine what
+    // gets unlocked once approved, not a student-picked value.
     const { data: inserted, error } = await supabase.from('payment_claims').insert({
       examinee_id: user.id,
       package_id: selectedPkg.id,
@@ -147,15 +165,15 @@ export default function PackagePage() {
       final_amount: finalPrice,
       discount_percent: combinedDiscount,
       promo_code_id: appliedPromo?.id || null,
-      category_id: selectedPkg.resource_type === 'category' ? categoryId : null,
-      resource_type: selectedPkg.resource_type,
+      category_id: null,
+      resource_type: selectedPkg.package_type === 'prescription' ? 'prescription' : 'category',
       status: 'pending',
     }).select('id').single();
 
     if (error) {
       setSubmittingTxn(false);
       if (error.code === '23505') {
-        setTxnError('You already have a pending submission for this — please wait for it to be reviewed before submitting another.');
+        setTxnError('You already have a pending submission for this package — please wait for it to be reviewed before submitting another.');
       } else {
         setTxnError(error.message);
       }
@@ -181,21 +199,24 @@ export default function PackagePage() {
 
       <div className="panel">
         <h2>Packages</h2>
-        <p className="muted small">Choose a plan to unlock exam categories or prescription tools.</p>
+        <p className="muted small">Each package unlocks the specific categories listed on it — nothing else.</p>
 
         {packages.length === 0 && <div className="muted small" style={{ marginTop: 10 }}>No packages available right now.</div>}
 
         <div className="package-card-list">
           {packages.map((p) => {
             const isSelected = p.id === selectedPkgId;
+            const catNames = categoryNamesByPackage[p.id] || [];
             return (
               <button
                 key={p.id}
                 className={isSelected ? 'package-card package-card-selected' : 'package-card'}
-                onClick={() => { setSelectedPkgId(p.id); setCategoryId(''); removePromo(); }}
+                onClick={() => { setSelectedPkgId(p.id); removePromo(); }}
               >
                 <div className="package-card-name">{p.name}</div>
-                <div className="package-card-duration">{durationLabel(p.duration_days)} · {p.resource_type === 'prescription' ? 'Prescription' : 'Exam Category'}</div>
+                <div className="package-card-duration">
+                  {durationLabel(p.duration_days)} · {p.package_type === 'prescription' ? 'Prescription' : catNames.length > 0 ? catNames.join(', ') : 'No categories linked'}
+                </div>
                 <div className="package-card-price">
                   {p.discount_percent > 0 && <span className="package-price-original">৳{p.price}</span>}
                   {' '}৳{(p.price * (1 - p.discount_percent / 100)).toFixed(0)}
@@ -209,8 +230,22 @@ export default function PackagePage() {
       {selectedPkg && (
         <div className="panel">
           <h2>{selectedPkg.name}</h2>
+          {selectedPkg.description && <p className="muted small">{selectedPkg.description}</p>}
 
-          <div className="payment-breakdown">
+          {selectedPkg.package_type !== 'prescription' && (
+            <div className="package-unlock-list">
+              <span className="compact-field-label">This unlocks:</span>
+              {selectedPkgCategoryNames.length > 0 ? (
+                <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
+                  {selectedPkgCategoryNames.map((name) => <li key={name} className="muted small">{name}</li>)}
+                </ul>
+              ) : (
+                <div className="error-box" style={{ marginTop: 6 }}>This package has no categories linked yet — contact an admin before purchasing.</div>
+              )}
+            </div>
+          )}
+
+          <div className="payment-breakdown" style={{ marginTop: 12 }}>
             <div className="payment-breakdown-row">
               <span>Original Amount</span>
               <span>৳{selectedPkg.price}</span>
@@ -242,16 +277,6 @@ export default function PackagePage() {
           </div>
           {promoError && <div className="error-box" style={{ marginTop: 8 }}>{promoError}</div>}
 
-          {selectedPkg.resource_type === 'category' && (
-            <label className="field-block" style={{ marginTop: 12 }}>
-              <span>Category to unlock</span>
-              <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                <option value="">Select…</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </label>
-          )}
-
           {selectedPkg.discount_percent >= 100 && (
             <div className="claim-free-box">
               {claimError && <div className="error-box">{claimError}</div>}
@@ -259,7 +284,7 @@ export default function PackagePage() {
               <button
                 className="btn-primary"
                 style={{ width: '100%', marginTop: 10 }}
-                disabled={claiming || (selectedPkg.resource_type === 'category' && !categoryId)}
+                disabled={claiming || (selectedPkg.package_type !== 'prescription' && selectedPkgCategoryNames.length === 0)}
                 onClick={claimFree}
               >
                 {claiming ? 'Activating…' : `Claim ${selectedPkg.discount_percent}% Discount — Free`}
@@ -305,7 +330,7 @@ export default function PackagePage() {
             {myClaims.map((c) => (
               <div key={c.id} className="recent-row">
                 <div>
-                  <span className="recent-name">{c.resource_type === 'prescription' ? 'Prescription' : (c.categories?.name || 'Category')}</span>
+                  <span className="recent-name">{c.packages?.name || 'Package'}</span>
                   <span className="muted small"> · {c.method} · {fmtDateTime(c.created_at)}</span>
                 </div>
                 <span className={`status-pill status-${c.status === 'approved' ? 'live' : c.status === 'rejected' ? 'archived' : 'upcoming'}`}>
