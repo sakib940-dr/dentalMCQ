@@ -2570,3 +2570,24 @@ body {
 .notif-row-title { font-size: 12.5px; font-weight: 700; color: var(--ink); }
 .notif-row-text { font-size: 11.5px; color: var(--ink-soft); line-height: 1.35; }
 .notif-row-time { font-size: 10px; color: var(--ink-soft); margin-top: 1px; }
+
+/* ---------- Access control status explanations ---------- */
+.access-lock-row-detailed {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.access-lock-row-detailed > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.access-status-tag {
+  font-size: 11px;
+  font-weight: 600;
+  width: fit-content;
+}
+.access-status-active { color: var(--green); }
+.access-status-expired { color: var(--red); }
+.access-status-locked { color: var(--red); }
+.access-status-neutral { color: var(--ink-soft); }

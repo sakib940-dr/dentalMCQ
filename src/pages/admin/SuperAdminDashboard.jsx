@@ -12,6 +12,7 @@ import SuperAdminOverview from '../../components/SuperAdminOverview';
 import ExamSchedulePage from '../../components/ExamSchedulePage';
 import PaymentAdminPage from '../../components/PaymentAdminPage';
 import AccessControlPage from '../../components/AccessControlPage';
+import StuckAttemptsPage from '../../components/StuckAttemptsPage';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -55,7 +56,7 @@ export default function SuperAdminDashboard() {
         <Route path="questions" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamBuilderPage />} />
         <Route path="users" element={<UserManagementPage />} />
-        <Route path="access" element={<AccessControlPage />} />
+        <Route path="access" element={<><AccessControlPage /><StuckAttemptsPage /></>} />
         <Route path="payments" element={<PaymentAdminPage />} />
         <Route path="notices" element={<NoticeBoardAdminPage />} />
         <Route path="chat" element={<StaffChatInbox />} />
