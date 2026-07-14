@@ -134,7 +134,7 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
 }
 
 export default function PrescriptionPage() {
-  const { profile, user } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasAccess, setHasAccess] = useState(true);
@@ -199,21 +199,38 @@ export default function PrescriptionPage() {
   const [success, setSuccess] = useState('');
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [pdfFileName, setPdfFileName] = useState('');
-  const [footerText, setFooterText] = useState('Follow the prescribed medication regularly.');
+
+  const DEFAULT_FOOTER = 'Only BDS/MBBS holders are legal doctors. Do not risk your life by taking treatment from fake or unqualified doctors.';
+  const [footerText, setFooterText] = useState(profile?.prescription_footer_text || DEFAULT_FOOTER);
   const [footerEditing, setFooterEditing] = useState(false);
   const [footerSaving, setFooterSaving] = useState(false);
+  const [watermarkOpacity, setWatermarkOpacity] = useState(profile?.prescription_watermark_opacity ?? 0.07);
+  const [opacitySaving, setOpacitySaving] = useState(false);
 
-  const loadFooterText = async () => {
-    const { data } = await supabase.from('app_text_settings').select('value').eq('key', 'prescription_footer_text').maybeSingle();
-    if (data?.value) setFooterText(data.value);
-  };
-  useEffect(() => { loadFooterText(); }, []);
+  // Keep local state in sync if the profile reloads with a different
+  // saved value (e.g. after refreshProfile() elsewhere) — per-user, not
+  // a global app setting, so this now lives on the profile itself.
+  useEffect(() => {
+    if (profile?.prescription_footer_text) setFooterText(profile.prescription_footer_text);
+    if (profile?.prescription_watermark_opacity != null) setWatermarkOpacity(profile.prescription_watermark_opacity);
+  }, [profile?.prescription_footer_text, profile?.prescription_watermark_opacity]);
 
   const saveFooterText = async () => {
     setFooterSaving(true);
-    await supabase.from('app_text_settings').upsert({ key: 'prescription_footer_text', value: footerText, updated_at: new Date().toISOString() });
+    const { error: saveErr } = await supabase.from('profiles').update({ prescription_footer_text: footerText }).eq('id', profile.id);
     setFooterSaving(false);
+    if (saveErr) { setError(`Could not save footer: ${saveErr.message}`); return; }
     setFooterEditing(false);
+    refreshProfile();
+  };
+
+  const saveWatermarkOpacity = async (value) => {
+    setOpacitySaving(true);
+    setWatermarkOpacity(value);
+    const { error: saveErr } = await supabase.from('profiles').update({ prescription_watermark_opacity: value }).eq('id', profile.id);
+    setOpacitySaving(false);
+    if (saveErr) console.error('Failed to save watermark opacity:', saveErr.message);
+    refreshProfile();
   };
 
   const loadRecent = async () => {
@@ -304,7 +321,7 @@ export default function PrescriptionPage() {
           const wmX = (pageWidth - wmSize) / 2;
           const wmY = (pageHeight - wmSize) / 2;
           doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.07 }));
+          doc.setGState(new doc.GState({ opacity: watermarkOpacity }));
           doc.addImage(logoDataUrl, 'PNG', wmX, wmY, wmSize, wmSize, undefined, 'FAST');
           doc.restoreGraphicsState();
         } catch {
@@ -651,14 +668,16 @@ export default function PrescriptionPage() {
       </div>
 
       <div className="panel">
-        <h2>Footer Text</h2>
-        <p className="muted small">Shown at the bottom of every prescription PDF.</p>
+        <h2>Prescription Settings</h2>
+        <p className="muted small">Footer text and watermark appearance — saved to your account, used on every prescription you generate.</p>
+
+        <div className="compact-field-heading" style={{ marginTop: 4 }}>Footer Text</div>
         {footerEditing ? (
           <div className="exam-form-fields" style={{ marginTop: 10 }}>
             <input value={footerText} onChange={(e) => setFooterText(e.target.value)} />
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn-primary" onClick={saveFooterText} disabled={footerSaving}>{footerSaving ? 'Saving…' : 'Save'}</button>
-              <button className="btn-secondary" onClick={() => setFooterEditing(false)}>Cancel</button>
+              <button className="btn-secondary" onClick={() => { setFooterEditing(false); setFooterText(profile?.prescription_footer_text || DEFAULT_FOOTER); }}>Cancel</button>
             </div>
           </div>
         ) : (
@@ -667,6 +686,22 @@ export default function PrescriptionPage() {
             <button className="btn-secondary" onClick={() => setFooterEditing(true)}>Edit</button>
           </div>
         )}
+
+        <div className="compact-field-heading">Watermark Opacity</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+          <input
+            type="range"
+            min="0"
+            max="0.3"
+            step="0.01"
+            value={watermarkOpacity}
+            onChange={(e) => saveWatermarkOpacity(parseFloat(e.target.value))}
+            style={{ flex: 1 }}
+            disabled={opacitySaving}
+          />
+          <span className="muted small" style={{ minWidth: 42 }}>{Math.round(watermarkOpacity * 100)}%</span>
+        </div>
+        <p className="muted small" style={{ marginTop: 4 }}>Only applies if you've uploaded a logo in My Profile.</p>
       </div>
 
       {pdfBlobUrl && (
