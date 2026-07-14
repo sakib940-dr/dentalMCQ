@@ -4,10 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
 import PracticePage from './PracticePage';
+import { fmtDateTime } from '../lib/formatters';
 
-function fmtDateTime(iso) {
-  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
 
 // ============================================================
 // Home: category grid

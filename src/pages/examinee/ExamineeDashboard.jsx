@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import CategoryExamsPage from '../../components/CategoryExamsPage';
@@ -5,9 +6,14 @@ import StudentChatPage from '../../components/StudentChatPage';
 import StudentNoticeBoard from '../../components/StudentNoticeBoard';
 import MyProfilePage from '../../components/MyProfilePage';
 import PackagePage from '../../components/PackagePage';
-import PrescriptionPage from '../../components/PrescriptionPage';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 import { useAuth } from '../../contexts/AuthContext';
+
+// Lazy-loaded: PrescriptionPage pulls in jsPDF plus a ~600KB embedded
+// Bengali font, both only needed by the (relatively rare) act of
+// generating a prescription — no reason to ship that to every student
+// just to browse exams.
+const PrescriptionPage = lazy(() => import('../../components/PrescriptionPage'));
 
 const navItems = [
   { to: '/dashboard', label: 'Home', end: true },
@@ -32,7 +38,14 @@ export default function ExamineeDashboard() {
       <Routes>
         <Route index element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
         <Route path="package" element={<PackagePage />} />
-        <Route path="prescription" element={<PrescriptionPage />} />
+        <Route
+          path="prescription"
+          element={
+            <Suspense fallback={<div className="panel"><p className="muted">Loading…</p></div>}>
+              <PrescriptionPage />
+            </Suspense>
+          }
+        />
         <Route path="notices" element={<StudentNoticeBoard />} />
         <Route path="chat" element={<StudentChatPage />} />
         <Route path="profile" element={<MyProfilePage />} />

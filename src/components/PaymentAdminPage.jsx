@@ -1,9 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { fmtDateTime } from '../lib/formatters';
 
-function fmtDateTime(iso) {
-  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
 
 function TrialSettings() {
   const [days, setDays] = useState(15);

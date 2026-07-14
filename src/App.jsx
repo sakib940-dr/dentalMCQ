@@ -1,53 +1,69 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomeRedirect from './pages/HomeRedirect';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
-import SuperAdminDashboard from './pages/admin/SuperAdminDashboard';
-import ModeratorDashboard from './pages/admin/ModeratorDashboard';
-import ExamineeDashboard from './pages/examinee/ExamineeDashboard';
 import './App.css';
+
+// Each role's dashboard is its own lazy chunk — a Student never
+// downloads Super Admin/Moderator code (and vice versa), which is the
+// single biggest bundle-size win available given how role-siloed the
+// app's UI already is.
+const SuperAdminDashboard = lazy(() => import('./pages/admin/SuperAdminDashboard'));
+const ModeratorDashboard = lazy(() => import('./pages/admin/ModeratorDashboard'));
+const ExamineeDashboard = lazy(() => import('./pages/examinee/ExamineeDashboard'));
+
+function RouteLoading() {
+  return (
+    <div className="full-page-center">
+      <div className="spinner" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
-          <Route path="/" element={<HomeRedirect />} />
+            <Route path="/" element={<HomeRedirect />} />
 
-          <Route
-            path="/admin/*"
-            element={
-              <ProtectedRoute allowedRoles={['super_admin']}>
-                <SuperAdminDashboard />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/admin/*"
+              element={
+                <ProtectedRoute allowedRoles={['super_admin']}>
+                  <SuperAdminDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/moderator/*"
-            element={
-              <ProtectedRoute allowedRoles={['moderator', 'admin']}>
-                <ModeratorDashboard />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/moderator/*"
+              element={
+                <ProtectedRoute allowedRoles={['moderator', 'admin']}>
+                  <ModeratorDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route
-            path="/dashboard/*"
-            element={
-              <ProtectedRoute allowedRoles={['examinee']}>
-                <ExamineeDashboard />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/dashboard/*"
+              element={
+                <ProtectedRoute allowedRoles={['examinee']}>
+                  <ExamineeDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-          <Route path="*" element={<HomeRedirect />} />
-        </Routes>
+            <Route path="*" element={<HomeRedirect />} />
+          </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -1,10 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDateTime as fmtTime } from '../lib/formatters';
 
-function fmtTime(iso) {
-  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
 
 const MAX_ATTACHMENT_BYTES = 500 * 1024; // 500KB
 

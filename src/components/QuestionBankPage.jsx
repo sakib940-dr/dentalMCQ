@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense, lazy } from 'react';
 import Papa from 'papaparse';
 import { supabase } from '../lib/supabaseClient';
-import CsvQuestionImporter from './CsvQuestionImporter';
+
+const CsvQuestionImporter = lazy(() => import('./CsvQuestionImporter'));
 
 function HierarchyPicker({ value, onChange }) {
   const [categories, setCategories] = useState([]);
@@ -270,7 +271,11 @@ export default function QuestionBankPage() {
       <div className="mode-body">
         {mode === 'list' && <QuestionList chapterId={hierarchy.chapterId} refreshKey={refreshKey} />}
         {mode === 'manual' && <ManualQuestionForm chapterId={hierarchy.chapterId} onAdded={() => { bump(); setMode('list'); }} />}
-        {mode === 'csv' && <CsvQuestionImporter chapterId={hierarchy.chapterId} onImported={() => { bump(); setMode('list'); }} />}
+        {mode === 'csv' && (
+          <Suspense fallback={<div className="muted small">Loading importer…</div>}>
+            <CsvQuestionImporter chapterId={hierarchy.chapterId} onImported={() => { bump(); setMode('list'); }} />
+          </Suspense>
+        )}
       </div>
     </div>
   );

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { fmtDateTime } from '../lib/formatters';
 
-function fmtDateTime(iso) {
-  return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
 
 function durationLabel(days) {
   if (days === 30) return '1 Month';

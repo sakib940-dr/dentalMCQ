@@ -65,16 +65,46 @@ export default function ModeratorOverview() {
       });
       setRecentAttempts(attemptsResult.data || []);
 
+      // Same bulk-query rewrite as SuperAdminOverview — avoids up to 90
+      // sequential round-trips for up to 30 subjects.
+      const subjectsToCheck = (subjectsResult.data || []).slice(0, 30);
+      const subjectIds = subjectsToCheck.map((s) => s.id);
+
+      const { data: allSubcats } = subjectIds.length
+        ? await supabase.from('subcategories').select('id, subject_id').in('subject_id', subjectIds)
+        : { data: [] };
+      const subcatIds = (allSubcats || []).map((sc) => sc.id);
+      const subcatToSubject = new Map((allSubcats || []).map((sc) => [sc.id, sc.subject_id]));
+
+      const { data: allChapters } = subcatIds.length
+        ? await supabase.from('chapters').select('id, subcategory_id').in('subcategory_id', subcatIds)
+        : { data: [] };
+      const chapterToSubject = new Map(
+        (allChapters || []).map((ch) => [ch.id, subcatToSubject.get(ch.subcategory_id)])
+      );
+      const allChapterIds = (allChapters || []).map((ch) => ch.id);
+
+      const { data: allQuestions } = allChapterIds.length
+        ? await supabase.from('questions').select('chapter_id').in('chapter_id', allChapterIds).eq('is_active', true)
+        : { data: [] };
+
+      const questionCountBySubject = new Map();
+      (allQuestions || []).forEach((q) => {
+        const subjId = chapterToSubject.get(q.chapter_id);
+        if (subjId) questionCountBySubject.set(subjId, (questionCountBySubject.get(subjId) || 0) + 1);
+      });
+
       const subjectAttention = [];
-      for (const s of (subjectsResult.data || []).slice(0, 30)) {
-        const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', s.id);
-        const subcatIds = (subcats || []).map((x) => x.id);
-        if (subcatIds.length === 0) { subjectAttention.push({ name: s.name, reason: 'No chapters set up yet' }); continue; }
-        const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
-        const chapIds = (chaps || []).map((c) => c.id);
-        if (chapIds.length === 0) continue;
-        const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
-        if ((count || 0) < 5) subjectAttention.push({ name: s.name, reason: `Only ${count || 0} question${count === 1 ? '' : 's'}` });
+      for (const s of subjectsToCheck) {
+        const hasAnySubcat = (allSubcats || []).some((sc) => sc.subject_id === s.id);
+        if (!hasAnySubcat) {
+          subjectAttention.push({ name: s.name, reason: 'No chapters set up yet' });
+          continue;
+        }
+        const count = questionCountBySubject.get(s.id) || 0;
+        if (count < 5) {
+          subjectAttention.push({ name: s.name, reason: `Only ${count} question${count === 1 ? '' : 's'}` });
+        }
       }
       if (cancelled) return;
       setAttention(subjectAttention.slice(0, 5));
