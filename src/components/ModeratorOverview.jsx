@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 function StatCard({ label, value, sub }) {
   return (
@@ -14,6 +15,8 @@ function StatCard({ label, value, sub }) {
 
 export default function ModeratorOverview() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [stats, setStats] = useState(null);
   const [recentAttempts, setRecentAttempts] = useState([]);
   const [attention, setAttention] = useState([]);
@@ -103,7 +106,7 @@ export default function ModeratorOverview() {
         <h2>Quick actions</h2>
         <div className="quick-actions-row">
           <button className="btn-primary" onClick={() => navigate('/moderator/exams')}>+ New Exam</button>
-          <button className="btn-secondary" onClick={() => navigate('/moderator/categories')}>+ New Category</button>
+          {isAdmin && <button className="btn-secondary" onClick={() => navigate('/moderator/categories')}>+ New Category</button>}
           <button className="btn-secondary" onClick={() => navigate('/moderator/questions')}>+ Add Questions</button>
           <button className="btn-secondary" onClick={() => navigate('/moderator/notices')}>+ Post Notice</button>
         </div>

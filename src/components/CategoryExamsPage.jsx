@@ -350,6 +350,14 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         supabase.from('app_number_settings').select('value').eq('key', 'free_trial_days').maybeSingle(),
       ]);
       const trialDays = settingRow?.value ?? 15;
+
+      if (trialDays <= 0) {
+        // Admin has set the trial to 0 days — there is no free window at
+        // all, regardless of whether the trial has "started" yet.
+        if (!cancelled) { setHasAccess(false); setTrialDaysLeft(0); setAccessChecked(true); }
+        return;
+      }
+
       if (!profileRow?.trial_started_at) {
         // Trial hasn't started yet — they still have the full window
         // available; it starts the moment they open Live/Practice.

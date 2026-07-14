@@ -6,7 +6,7 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024; // 2MB
+const MAX_ATTACHMENT_BYTES = 500 * 1024; // 500KB
 
 export default function StudentChatPage() {
   const { user } = useAuth();
@@ -91,7 +91,7 @@ export default function StudentChatPage() {
       return;
     }
     if (file.size > MAX_ATTACHMENT_BYTES) {
-      setAttachError('Image is too large — max 2MB.');
+      setAttachError('Image is too large — max 500KB.');
       return;
     }
 
@@ -128,7 +128,9 @@ export default function StudentChatPage() {
         {messages.map((m) => (
           <div key={m.id} className={m.sender_role === 'examinee' ? 'chat-bubble chat-bubble-mine' : 'chat-bubble chat-bubble-theirs'}>
             {m.sender_role !== 'examinee' && (
-              <div className="chat-bubble-sender">{m.sender_role === 'super_admin' ? 'Admin' : 'Moderator'}</div>
+              <div className="chat-bubble-sender">
+                {m.sender_role === 'super_admin' ? 'Admin' : m.sender_role === 'admin' ? 'Admin' : 'Moderator'}
+              </div>
             )}
             {m.attachment_url && (
               <a href={m.attachment_url} target="_blank" rel="noopener noreferrer">
