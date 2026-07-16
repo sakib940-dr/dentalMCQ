@@ -3,9 +3,10 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import BrandWordmark from '../../components/BrandWordmark';
+import { useResendCooldown, parseRateLimitSeconds } from '../../lib/useResendCooldown';
 
 export default function RegisterPage() {
-  const { signUp } = useAuth();
+  const { signUp, resendConfirmationEmail } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const referralCode = searchParams.get('ref');
@@ -19,6 +20,9 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [resendError, setResendError] = useState('');
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const cooldown = useResendCooldown(60);
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -71,9 +75,24 @@ export default function RegisterPage() {
     // never fires and behavior is unchanged from before.
     if (!data?.session) {
       setAwaitingConfirmation(true);
+      cooldown.start(60);
       return;
     }
     navigate('/', { replace: true });
+  };
+
+  const handleResend = async () => {
+    setResendError('');
+    setResendSuccess(false);
+    const { error } = await resendConfirmationEmail(form.email);
+    if (error) {
+      const waitSecs = parseRateLimitSeconds(error.message);
+      if (waitSecs) cooldown.start(waitSecs);
+      setResendError(error.message);
+      return;
+    }
+    setResendSuccess(true);
+    cooldown.start(60);
   };
 
   return (
@@ -90,6 +109,20 @@ export default function RegisterPage() {
               Almost done — we sent a confirmation link to <b>{form.email}</b>. Verify your email to
               activate your account, then come back and log in.
             </p>
+            <p className="muted small" style={{ marginTop: 8 }}>
+              Don't see it? Check both your <b>Inbox</b> and <b>Spam/Junk</b> folder — confirmation
+              emails sometimes land there.
+            </p>
+            {resendError && <div className="error-box" style={{ marginTop: 10 }}>{resendError}</div>}
+            {resendSuccess && <div className="ok-box" style={{ marginTop: 10 }}>Confirmation email resent.</div>}
+            <button
+              className="btn-secondary"
+              style={{ marginTop: 10 }}
+              onClick={handleResend}
+              disabled={cooldown.active}
+            >
+              {cooldown.active ? `Resend available in ${cooldown.remaining}s` : 'Resend confirmation email'}
+            </button>
           </div>
         ) : (
         <form onSubmit={handleSubmit} className="auth-form">

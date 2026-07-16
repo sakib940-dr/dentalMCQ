@@ -20,7 +20,7 @@ export default function LoginPage() {
     if (error) {
       const msg = (error.message || '').toLowerCase();
       if (msg.includes('email not confirmed')) {
-        setError('Please verify your email first — check your inbox for the confirmation link.');
+        setError('Please verify your email first — check both your Inbox and Spam/Junk folder for the confirmation link.');
       } else if (msg.includes('invalid login credentials')) {
         setError('Incorrect email or password.');
       } else if (msg.includes('fetch') || msg.includes('network')) {

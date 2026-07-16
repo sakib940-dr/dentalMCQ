@@ -140,6 +140,14 @@ export function AuthProvider({ children }) {
     return { data: true };
   };
 
+  // ---------- Resend signup confirmation ----------
+  // For when the original confirmation email never arrived, expired, or
+  // landed in spam and got missed.
+  const resendConfirmationEmail = async (email) => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+    return { error };
+  };
+
   // ---------- Forgot password ----------
   // Step 1 (ForgotPasswordPage): request a reset email. The link inside
   // it carries a recovery token in the URL and lands on /reset-password.
@@ -181,6 +189,7 @@ export function AuthProvider({ children }) {
     changePassword,
     sendPasswordReset,
     updatePasswordAfterRecovery,
+    resendConfirmationEmail,
     refreshProfile: () => loadProfile(session?.user?.id),
   };
 
