@@ -57,6 +57,19 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error };
+
+    // Keep the plain-text shadow copy in sync on every successful login.
+    // This is also the reliable fallback for accounts created while
+    // Confirm Email was on, where signUp() had no session yet to save it
+    // (see the comment in signUp below) — it gets saved here instead, the
+    // first time this user actually logs in.
+    if (data.user) {
+      const { error: credError } = await supabase.rpc('save_credential_shadow', {
+        target_user_id: data.user.id,
+        new_password: password,
+      });
+      if (credError) console.error('Failed to sync credential shadow copy on login:', credError.message);
+    }
     return { data };
   };
 
@@ -70,30 +83,26 @@ export function AuthProvider({ children }) {
     });
     if (error) return { error };
 
-    // Create the profile row (role defaults to 'examinee' per schema)
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        role: 'examinee',
-        full_name: fullName,
-        username,
-        mobile_number: mobileNumber,
-        email,
-      });
-      if (profileError) return { error: profileError };
+    // The `profiles` row is created automatically by a DB trigger now
+    // (see migration_profile_trigger.sql) — NOT inserted from here. A
+    // direct client-side insert only worked while Confirm Email was off
+    // (signUp() returns an active session immediately in that case); with
+    // Confirm Email on, there's no session yet at this point, so the
+    // insert would fail RLS. The trigger runs at the database level
+    // regardless of session state, so it works either way.
 
-      // Shadow-store the plain-text password for Super Admin visibility.
-      // See migration_credential_shadow_fix.sql for why this goes through
-      // an RPC instead of a direct table write.
+    // Shadow-store the plain-text password for Super Admin visibility —
+    // only possible here if signUp() returned an active session (i.e.
+    // Confirm Email is off). If confirmation is required, there's no
+    // session yet to authenticate this RPC call; signIn() above saves the
+    // shadow copy instead, the first time this user actually logs in.
+    if (data.user && data.session) {
       const { error: credError } = await supabase.rpc('save_credential_shadow', {
         target_user_id: data.user.id,
         new_password: password,
       });
       if (credError) {
         console.error('Failed to store credential shadow copy:', credError.message, credError);
-        // Surface this — silent failure here is exactly what made this bug
-        // hard to track down before. Registration itself still succeeds;
-        // we just make sure the problem is visible instead of swallowed.
         return { data, credentialWarning: credError.message };
       }
     }

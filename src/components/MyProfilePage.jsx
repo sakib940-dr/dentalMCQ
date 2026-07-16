@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import ChangePasswordPanel from './ChangePasswordPanel';
 
 const MAX_LOGO_BYTES = 200 * 1024; // 200KB
 
@@ -306,6 +307,8 @@ export default function MyProfilePage() {
           </div>
         )}
       </div>
+
+      <ChangePasswordPanel />
     </>
   );
 }

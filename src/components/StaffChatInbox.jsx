@@ -8,6 +8,7 @@ const MAX_ATTACHMENT_BYTES = 500 * 1024; // 500KB
 
 function ThreadList({ onOpen }) {
   const [threads, setThreads] = useState(null);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     const { data: threadRows } = await supabase.from('chat_threads').select('*, profiles!chat_threads_student_id_fkey(full_name, username)').order('last_message_at', { ascending: false });
@@ -30,6 +31,16 @@ function ThreadList({ onOpen }) {
       return { ...t, lastMessage: lastMsgs?.[0] || null, unread: unread || 0 };
     }));
 
+    // Sort by the actual last message time we just fetched, not the
+    // thread's own last_message_at column — that column depends on being
+    // kept in sync server-side on every new message, and this way the
+    // ordering is correct regardless of whether that's happening.
+    enriched.sort((a, b) => {
+      const aTime = new Date(a.lastMessage?.created_at || a.created_at).getTime();
+      const bTime = new Date(b.lastMessage?.created_at || b.created_at).getTime();
+      return bTime - aTime;
+    });
+
     // Threads with no visible messages yet (e.g. moderator viewing a thread
     // where the only message was from super_admin) still show, just empty.
     setThreads(enriched);
@@ -39,12 +50,22 @@ function ThreadList({ onOpen }) {
 
   if (threads === null) return <div className="panel"><p className="muted">Loading…</p></div>;
 
+  const term = search.trim().toLowerCase();
+  const visible = term ? threads.filter((t) => (t.profiles?.full_name || '').toLowerCase().includes(term)) : threads;
+
   return (
     <div className="panel">
       <h2>Inbox</h2>
-      {threads.length === 0 && <div className="muted">No student messages yet.</div>}
+      <input
+        className="search-input"
+        placeholder="Search by student name…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ marginBottom: 12 }}
+      />
+      {visible.length === 0 && <div className="muted">{term ? 'No students match this search.' : 'No student messages yet.'}</div>}
       <div className="chat-thread-list">
-        {threads.map((t) => (
+        {visible.map((t) => (
           <button key={t.id} className="chat-thread-row" onClick={() => onOpen(t)}>
             <div className="chat-thread-row-left">
               <div className="chat-thread-row-name">

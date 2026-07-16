@@ -1209,6 +1209,41 @@ body {
   cursor: pointer;
 }
 
+.modal-box-lg {
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.modal-detail-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--card-border);
+}
+.modal-detail-section h4 {
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+.user-list-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--card-border);
+  padding: 12px 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.user-list-row:last-child { border-bottom: none; }
+.user-list-row:active { background: #FAF9F5; }
+.user-list-row-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+.user-list-row-sub { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
 /* ---------- Answer sheet (post-submit) ---------- */
 .answer-sheet-page {
   max-width: 600px;

@@ -29,7 +29,11 @@ function UserPrescriptionDetail({ user, onBack }) {
           <div key={p.id} className="recent-row">
             <div>
               <span className="recent-name">#{p.serial_number} · {p.patient_name}</span>
-              {p.patient_age && <span className="muted small"> · Age {p.patient_age}</span>}
+              <div className="muted small">
+                {p.patient_age && <>Age {p.patient_age} · </>}
+                {p.patient_mobile || '—'}
+                {p.patient_address && <> · {p.patient_address}</>}
+              </div>
             </div>
             <span className="muted small">{fmtDateTime(p.created_at)}</span>
           </div>

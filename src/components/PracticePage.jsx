@@ -16,6 +16,22 @@ function shuffle(arr) {
   return a;
 }
 
+// Draws `count` random active questions from the given chapter ids.
+// Samples from a random window instead of fetching every matching
+// question: a plain .select() is silently capped at Supabase's default
+// 1000-row limit on large chapters/subjects, and even under that cap it
+// would always shuffle the same "first N" slice every time.
+async function drawRandomQuestions(chapterIds, count) {
+  if (!chapterIds.length || count <= 0) return [];
+  const { count: total } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapterIds).eq('is_active', true);
+  const totalAvail = total || 0;
+  if (totalAvail === 0) return [];
+  const windowSize = Math.min(totalAvail, Math.max(count * 5, 100));
+  const offset = Math.floor(Math.random() * (totalAvail - windowSize + 1));
+  const { data } = await supabase.from('questions').select('*').in('chapter_id', chapterIds).eq('is_active', true).range(offset, offset + windowSize - 1);
+  return shuffle(data || []).slice(0, count);
+}
+
 // ============================================================
 // Practice setup: Single / Mixed / By chapter
 // ============================================================
@@ -131,28 +147,23 @@ function MixedMode({ categoryId, onPick }) {
   useEffect(() => {
     async function loadCounts() {
       if (subjects.length === 0) { setAvailableBySubject({}); return; }
-      const subjectIds = subjects.map((s) => s.id);
 
-      const { data: allSubcats } = await supabase.from('subcategories').select('id, subject_id').in('subject_id', subjectIds);
-      const subcatIds = (allSubcats || []).map((sc) => sc.id);
-      const subcatToSubject = new Map((allSubcats || []).map((sc) => [sc.id, sc.subject_id]));
-
-      const { data: allChapters } = subcatIds.length
-        ? await supabase.from('chapters').select('id, subcategory_id').in('subcategory_id', subcatIds)
-        : { data: [] };
-      const chapterToSubject = new Map((allChapters || []).map((ch) => [ch.id, subcatToSubject.get(ch.subcategory_id)]));
-      const allChapterIds = (allChapters || []).map((ch) => ch.id);
-
-      const { data: allQuestions } = allChapterIds.length
-        ? await supabase.from('questions').select('chapter_id').in('chapter_id', allChapterIds).eq('is_active', true)
-        : { data: [] };
-
+      // One exact count per subject, not a combined row fetch bucketed
+      // client-side: a plain .select() response is silently capped at
+      // Supabase's default 1000-row limit, which under-counted subjects
+      // whenever a category's questions (combined across all its
+      // subjects in one query) crossed that threshold.
       const results = {};
-      subjects.forEach((s) => { results[s.id] = 0; });
-      (allQuestions || []).forEach((q) => {
-        const subjId = chapterToSubject.get(q.chapter_id);
-        if (subjId != null) results[subjId] = (results[subjId] || 0) + 1;
-      });
+      await Promise.all(subjects.map(async (s) => {
+        const { data: subcats } = await supabase.from('subcategories').select('id').eq('subject_id', s.id);
+        const subcatIds = (subcats || []).map((sc) => sc.id);
+        if (subcatIds.length === 0) { results[s.id] = 0; return; }
+        const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
+        const chapIds = (chaps || []).map((c) => c.id);
+        if (chapIds.length === 0) { results[s.id] = 0; return; }
+        const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
+        results[s.id] = count || 0;
+      }));
       setAvailableBySubject(results);
     }
     if (subjects.length > 0) loadCounts();
@@ -433,16 +444,14 @@ export function PracticeSession({ session, onExit }) {
           const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
           const chapIds = (chaps || []).map((c) => c.id);
           if (chapIds.length === 0) continue;
-          const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true);
-          picked.push(...shuffle(data || []).slice(0, p.count));
+          picked.push(...await drawRandomQuestions(chapIds, p.count));
         }
         if (cancelled) return;
         setQuestions(shuffle(picked));
       } else if (session.mode === 'bychapter') {
         const picked = [];
         for (const p of session.chapterPicks) {
-          const { data } = await supabase.from('questions').select('*').eq('chapter_id', p.chapterId).eq('is_active', true);
-          picked.push(...shuffle(data || []).slice(0, p.count));
+          picked.push(...await drawRandomQuestions([p.chapterId], p.count));
         }
         if (cancelled) return;
         setQuestions(shuffle(picked));
@@ -470,19 +479,9 @@ export function PracticeSession({ session, onExit }) {
         const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
         const chapIds = (chaps || []).map((c) => c.id);
         if (chapIds.length === 0) { setQuestions([]); return; }
-
-        // Sample from a random window instead of pulling the whole
-        // category: a plain .select() is silently capped at Supabase's
-        // default 1000-row limit on large categories, and even under that
-        // cap it would always shuffle the same "first N" slice every time.
-        const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
-        const total = count || 0;
-        if (total === 0) { setQuestions([]); return; }
-        const windowSize = Math.min(total, Math.max(session.count * 5, 100));
-        const offset = Math.floor(Math.random() * (total - windowSize + 1));
-        const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true).range(offset, offset + windowSize - 1);
+        const picked = await drawRandomQuestions(chapIds, session.count);
         if (cancelled) return;
-        setQuestions(shuffle(data || []).slice(0, session.count));
+        setQuestions(picked);
       } else if (session.mode === 'bookmarked') {
         const { data: bookmarkRows } = await supabase
           .from('bookmarked_questions')
@@ -569,13 +568,18 @@ export function PracticeSession({ session, onExit }) {
 
     // 3) Build one upsert batch covering both "now wrong" and "now
     // mastered-toward" updates, instead of per-question update/insert calls.
+    // Unanswered questions are deliberately excluded entirely — skipping a
+    // question isn't the same signal as answering it incorrectly, and
+    // shouldn't inflate the wrong-questions/revision count, nor should it
+    // count as progress toward "mastered" either.
     const upsertRows = [];
     for (const q of questions) {
       const chosen = answers[q.id] || null;
+      if (!chosen) continue;
       const isCorrect = chosen === q.correct_option;
       const existing = existingByQuestion.get(q.id);
 
-      if (!chosen || !isCorrect) {
+      if (!isCorrect) {
         upsertRows.push({
           examinee_id: user.id,
           question_id: q.id,

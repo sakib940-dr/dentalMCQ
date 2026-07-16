@@ -1,10 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-
-function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+import { fmtDate } from '../lib/formatters';
 
 const ROLE_LABELS = { super_admin: 'Super Admin', admin: 'Admin', moderator: 'Moderator', examinee: 'Student' };
 
@@ -12,18 +9,224 @@ function RoleBadge({ role }) {
   return <span className={`role-badge role-badge-${role}`}>{ROLE_LABELS[role] || role}</span>;
 }
 
+// Profile fields the user fills in themselves (medical/professional info +
+// the separate "Chamber Details" contact block shown on prescriptions) —
+// distinct from the Chamber Management module's own data (patients/
+// appointments/prescriptions), which is fetched separately below.
+const PROFILE_FIELDS = [
+  ['medical_college', 'Medical college'],
+  ['session_year', 'Session'],
+  ['hometown', 'Hometown'],
+  ['bmdc_number', 'BMDC number'],
+  ['degrees', 'Degrees'],
+  ['designation', 'Designation'],
+];
+const CHAMBER_CONTACT_FIELDS = [
+  ['chamber_name', 'Chamber name'],
+  ['chamber_address', 'Chamber address'],
+  ['chamber_mobile', 'Chamber mobile'],
+  ['visit_time', 'Visit time'],
+  ['day_off', 'Day off'],
+];
+
+function ResetPasswordForm({ user, onDone }) {
+  const [open, setOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (newPassword.length < 6) { setError('Password must be at least 6 characters.'); return; }
+
+    setSaving(true);
+    const { data, error: invokeError } = await supabase.functions.invoke('admin-reset-password', {
+      body: { target_user_id: user.id, new_password: newPassword },
+    });
+    setSaving(false);
+
+    if (invokeError) { setError(`Could not reach the reset function: ${invokeError.message}`); return; }
+    if (!data?.success) { setError(data?.error || 'Failed to reset password.'); return; }
+
+    setSuccess(data.warning || 'Password reset successfully.');
+    setNewPassword('');
+    onDone();
+  };
+
+  if (!open) {
+    return <button className="btn-secondary sm" onClick={() => setOpen(true)}>Reset Password</button>;
+  }
+
+  return (
+    <form onSubmit={submit} style={{ marginTop: 10 }}>
+      <div className="compact-field-row">
+        <span className="compact-field-label">New:</span>
+        <input
+          className="compact-field-input"
+          type="text"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="New password (min 6 chars)"
+        />
+      </div>
+      {error && <div className="error-box" style={{ marginTop: 8 }}>{error}</div>}
+      {success && <div className="ok-box" style={{ marginTop: 8 }}>{success}</div>}
+      <div className="exam-setup-actions" style={{ marginTop: 8 }}>
+        <button type="button" className="btn-secondary sm" onClick={() => { setOpen(false); setError(''); }}>Cancel</button>
+        <button type="submit" className="btn-primary sm" disabled={saving}>{saving ? 'Resetting…' : 'Confirm reset'}</button>
+      </div>
+    </form>
+  );
+}
+
+function UserDetailModal({ user, credentials, revealedPw, onTogglePw, onClose, onChangeRole, onTogglePractice, onToggleLiveExam, onDelete, onChanged }) {
+  const [chamberStats, setChamberStats] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [{ count: patients }, { count: prescriptions }, { count: appointments }] = await Promise.all([
+        supabase.from('patients').select('id', { count: 'exact', head: true }).eq('owner_id', user.id),
+        supabase.from('prescriptions').select('id', { count: 'exact', head: true }).eq('created_by', user.id),
+        supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('owner_id', user.id),
+      ]);
+      if (!cancelled) setChamberStats({ patients: patients || 0, prescriptions: prescriptions || 0, appointments: appointments || 0 });
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [user.id]);
+
+  const pw = credentials[user.id];
+  const shown = !!revealedPw[user.id];
+  const filledProfileFields = PROFILE_FIELDS.filter(([key]) => user[key]);
+  const filledChamberFields = CHAMBER_CONTACT_FIELDS.filter(([key]) => user[key]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box modal-box-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="user-row-top">
+          <div className="modal-title" style={{ marginBottom: 0 }}>{user.full_name}</div>
+          <RoleBadge role={user.role} />
+        </div>
+
+        <div className="user-row-grid" style={{ marginTop: 12 }}>
+          <div><span className="user-field-label">User ID</span><span className="user-field-value mono">{user.id}</span></div>
+          <div><span className="user-field-label">Username</span><span className="user-field-value">{user.username}</span></div>
+          <div><span className="user-field-label">Email</span><span className="user-field-value">{user.email || '—'}</span></div>
+          <div><span className="user-field-label">Phone</span><span className="user-field-value">{user.mobile_number || '—'}</span></div>
+          <div><span className="user-field-label">Joined</span><span className="user-field-value">{fmtDate(user.created_at)}</span></div>
+          <div>
+            <span className="user-field-label">Password</span>
+            <span className="user-field-value mono">
+              {pw ? (shown ? pw : '••••••••') : '—'}
+              {pw && (
+                <button className="pw-toggle" onClick={() => onTogglePw(user.id)}>
+                  {shown ? 'hide' : 'show'}
+                </button>
+              )}
+            </span>
+          </div>
+          <div>
+            <span className="user-field-label">Practice mode</span>
+            <label className="mini-toggle">
+              <input type="checkbox" checked={user.practice_enabled} onChange={() => onTogglePractice(user)} />
+              <span>{user.practice_enabled ? 'Enabled' : 'Disabled'}</span>
+            </label>
+          </div>
+          <div>
+            <span className="user-field-label">Live Exam</span>
+            <label className="mini-toggle">
+              <input type="checkbox" checked={user.live_exam_enabled} onChange={() => onToggleLiveExam(user)} />
+              <span>{user.live_exam_enabled ? 'Enabled' : 'Disabled'}</span>
+            </label>
+          </div>
+        </div>
+
+        {filledProfileFields.length > 0 && (
+          <div className="modal-detail-section">
+            <h4>Profile information</h4>
+            <div className="user-row-grid">
+              {filledProfileFields.map(([key, label]) => (
+                <div key={key}><span className="user-field-label">{label}</span><span className="user-field-value">{user[key]}</span></div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {filledChamberFields.length > 0 && (
+          <div className="modal-detail-section">
+            <h4>Chamber contact details</h4>
+            <div className="user-row-grid">
+              {filledChamberFields.map(([key, label]) => (
+                <div key={key}><span className="user-field-label">{label}</span><span className="user-field-value">{user[key]}</span></div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="modal-detail-section">
+          <h4>Chamber Management</h4>
+          {chamberStats === null ? (
+            <p className="muted small">Loading…</p>
+          ) : (
+            <div className="stat-grid">
+              <div className="stat-card"><div className="stat-card-value">{chamberStats.patients}</div><div className="stat-card-label">Patients</div></div>
+              <div className="stat-card"><div className="stat-card-value">{chamberStats.prescriptions}</div><div className="stat-card-label">Prescriptions</div></div>
+              <div className="stat-card"><div className="stat-card-value">{chamberStats.appointments}</div><div className="stat-card-label">Appointments</div></div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-detail-section">
+          {user.role === 'super_admin' ? (
+            <span className="muted small">Super Admin is fixed — cannot be changed, reset, or deleted.</span>
+          ) : (
+            <>
+              <h4>Actions</h4>
+              <div className="user-row-actions" style={{ marginTop: 0 }}>
+                <span className="user-field-label" style={{ marginRight: 6 }}>Change role:</span>
+                {['examinee', 'moderator', 'admin'].map((r) => (
+                  <button
+                    key={r}
+                    className={user.role === r ? 'role-btn role-btn-active' : 'role-btn'}
+                    onClick={() => onChangeRole(user, r)}
+                  >
+                    {ROLE_LABELS[r]}
+                  </button>
+                ))}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <ResetPasswordForm user={user} onDone={onChanged} />
+              </div>
+              <button className="btn-danger sm" style={{ marginTop: 10 }} onClick={() => onDelete(user)}>Delete account</button>
+            </>
+          )}
+        </div>
+
+        <button className="btn-secondary" style={{ marginTop: 16, width: '100%' }} onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 export default function UserManagementPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
-  const [credentials, setCredentials] = useState({}); // user_id -> plain_password
+  const [credentials, setCredentials] = useState({});
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [revealedPw, setRevealedPw] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [detailUser, setDetailUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    // Newest registrations first — same convention as every other admin list.
     const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     const { data: creds } = await supabase.from('user_credentials').select('*');
     setUsers(profiles || []);
@@ -34,6 +237,13 @@ export default function UserManagementPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Keep the open detail modal's data fresh after a change (role, toggle, reset).
+  useEffect(() => {
+    if (!detailUser) return;
+    const fresh = users.find((u) => u.id === detailUser.id);
+    if (fresh) setDetailUser(fresh);
+  }, [users]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const logAudit = async (action, targetUserId, details) => {
     await supabase.from('audit_log').insert({ actor_id: currentUser.id, action, target_user_id: targetUserId, details });
@@ -58,8 +268,6 @@ export default function UserManagementPage() {
     load();
   };
 
-  const [deleting, setDeleting] = useState(false);
-
   const removeUser = async (user) => {
     setDeleting(true);
     const { data, error } = await supabase.functions.invoke('delete-user', {
@@ -72,6 +280,7 @@ export default function UserManagementPage() {
 
     await logAudit('account_delete', user.id, { full_name: user.full_name, role: user.role });
     setConfirmDelete(null);
+    setDetailUser(null);
     load();
   };
 
@@ -89,8 +298,7 @@ export default function UserManagementPage() {
       <h2>User Management</h2>
       <p className="muted small">
         {moderatorCount} moderator{moderatorCount !== 1 ? 's' : ''} currently assigned — no limit.
-        Change any user's role below to promote a student to Moderator or demote a Moderator back
-        to Student.
+        Tap a name to view full details, change role, reset password, or delete.
       </p>
 
       <div className="user-mgmt-toolbar">
@@ -110,76 +318,34 @@ export default function UserManagementPage() {
       </div>
 
       {loading && <div className="muted">Loading users…</div>}
-
       {!loading && filtered.length === 0 && <div className="muted">No users match this search.</div>}
 
       <div className="user-table-wrap">
-        {filtered.map((u) => {
-          const pw = credentials[u.id];
-          const shown = !!revealedPw[u.id];
-          return (
-            <div key={u.id} className="user-row-card">
-              <div className="user-row-top">
-                <div className="user-row-name">{u.full_name}</div>
-                <RoleBadge role={u.role} />
-              </div>
-
-              <div className="user-row-grid">
-                <div><span className="user-field-label">User ID</span><span className="user-field-value mono">{u.id}</span></div>
-                <div><span className="user-field-label">Username</span><span className="user-field-value">{u.username}</span></div>
-                <div><span className="user-field-label">Email</span><span className="user-field-value">{u.email || '—'}</span></div>
-                <div><span className="user-field-label">Phone</span><span className="user-field-value">{u.mobile_number || '—'}</span></div>
-                <div><span className="user-field-label">Joined</span><span className="user-field-value">{fmtDate(u.created_at)}</span></div>
-                <div>
-                  <span className="user-field-label">Password</span>
-                  <span className="user-field-value mono">
-                    {pw ? (shown ? pw : '••••••••') : '—'}
-                    {pw && (
-                      <button className="pw-toggle" onClick={() => setRevealedPw((r) => ({ ...r, [u.id]: !r[u.id] }))}>
-                        {shown ? 'hide' : 'show'}
-                      </button>
-                    )}
-                  </span>
-                </div>
-                <div>
-                  <span className="user-field-label">Practice mode</span>
-                  <label className="mini-toggle">
-                    <input type="checkbox" checked={u.practice_enabled} onChange={() => togglePractice(u)} />
-                    <span>{u.practice_enabled ? 'Enabled' : 'Disabled'}</span>
-                  </label>
-                </div>
-                <div>
-                  <span className="user-field-label">Live Exam</span>
-                  <label className="mini-toggle">
-                    <input type="checkbox" checked={u.live_exam_enabled} onChange={() => toggleLiveExam(u)} />
-                    <span>{u.live_exam_enabled ? 'Enabled' : 'Disabled'}</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="user-row-actions">
-                {u.role === 'super_admin' ? (
-                  <span className="muted small">Super Admin is fixed — cannot be changed or deleted.</span>
-                ) : (
-                  <>
-                    <span className="user-field-label" style={{ marginRight: 6 }}>Change role:</span>
-                    {['examinee', 'moderator', 'admin'].map((r) => (
-                      <button
-                        key={r}
-                        className={u.role === r ? 'role-btn role-btn-active' : 'role-btn'}
-                        onClick={() => changeRole(u, r)}
-                      >
-                        {ROLE_LABELS[r]}
-                      </button>
-                    ))}
-                    <button className="btn-danger sm" onClick={() => setConfirmDelete(u)}>Delete</button>
-                  </>
-                )}
-              </div>
+        {filtered.map((u) => (
+          <button key={u.id} className="user-list-row" onClick={() => setDetailUser(u)}>
+            <div>
+              <div className="user-list-row-name">{u.full_name}</div>
+              <div className="user-list-row-sub">{u.username} · Joined {fmtDate(u.created_at)}</div>
             </div>
-          );
-        })}
+            <RoleBadge role={u.role} />
+          </button>
+        ))}
       </div>
+
+      {detailUser && (
+        <UserDetailModal
+          user={detailUser}
+          credentials={credentials}
+          revealedPw={revealedPw}
+          onTogglePw={(id) => setRevealedPw((r) => ({ ...r, [id]: !r[id] }))}
+          onClose={() => setDetailUser(null)}
+          onChangeRole={changeRole}
+          onTogglePractice={togglePractice}
+          onToggleLiveExam={toggleLiveExam}
+          onDelete={setConfirmDelete}
+          onChanged={load}
+        />
+      )}
 
       {confirmDelete && (
         <div className="modal-overlay">

@@ -106,6 +106,43 @@ function StatCard({ label, value, sub, onClick }) {
 }
 
 // ============================================================
+// Upcoming features — visible, honestly non-functional. Same "Soon"
+// language as the Chamber tile used before that module was built.
+// ============================================================
+function UpcomingFeaturesPanel() {
+  const features = [
+    { icon: '🛒', label: 'Dental Materials Marketplace' },
+    { icon: '🔬', label: 'Dental Laboratory Directory & Booking' },
+    { icon: '🔧', label: 'Equipment Repair & Technician Booking' },
+    { icon: '📱', label: 'Bulk SMS to Patients' },
+    { icon: '📞', label: 'Direct Call from Patient Profile' },
+    { icon: '💬', label: 'WhatsApp Messaging' },
+    { icon: '📢', label: 'Digital Marketing for Dental Chambers' },
+    { icon: '⏰', label: 'Patient Follow-up Reminder' },
+    { icon: '🔄', label: 'Patient Recall Campaign' },
+    { icon: '📊', label: 'Financial Reports' },
+    { icon: '📦', label: 'Inventory Management' },
+    { icon: '👥', label: 'Staff Management' },
+  ];
+
+  return (
+    <div className="panel">
+      <h2>Upcoming Features</h2>
+      <p className="muted small">On the roadmap — not available yet.</p>
+      <div className="quick-action-grid" style={{ marginTop: 14 }}>
+        {features.map((f) => (
+          <div key={f.label} className="quick-action-tile quick-action-tile-soon">
+            <span className="quick-action-tile-icon">{f.icon}</span>
+            <span className="quick-action-tile-label">{f.label}</span>
+            <span className="quick-action-tile-badge">Soon</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Root
 // ============================================================
 export default function StudentDashboardHome() {
@@ -126,9 +163,11 @@ export default function StudentDashboardHome() {
         officialAttemptedResult,
         officialCorrectResult,
         officialWrongResult,
+        officialUnansweredResult,
         practiceAttemptedResult,
         practiceCorrectResult,
         practiceWrongResult,
+        practiceUnansweredResult,
         examAttemptsResult,
         practiceSessionsResult,
         wrongCountResult,
@@ -139,9 +178,11 @@ export default function StudentDashboardHome() {
         supabase.from('attempt_answers').select('id, exam_attempts!inner(examinee_id)', { count: 'exact', head: true }).eq('exam_attempts.examinee_id', user.id).not('selected_option', 'is', null),
         supabase.from('attempt_answers').select('id, exam_attempts!inner(examinee_id)', { count: 'exact', head: true }).eq('exam_attempts.examinee_id', user.id).eq('is_correct', true),
         supabase.from('attempt_answers').select('id, exam_attempts!inner(examinee_id)', { count: 'exact', head: true }).eq('exam_attempts.examinee_id', user.id).eq('is_correct', false),
+        supabase.from('attempt_answers').select('id, exam_attempts!inner(examinee_id)', { count: 'exact', head: true }).eq('exam_attempts.examinee_id', user.id).is('selected_option', null),
         supabase.from('practice_answers').select('id, practice_sessions!inner(examinee_id)', { count: 'exact', head: true }).eq('practice_sessions.examinee_id', user.id).not('selected_option', 'is', null),
         supabase.from('practice_answers').select('id, practice_sessions!inner(examinee_id)', { count: 'exact', head: true }).eq('practice_sessions.examinee_id', user.id).eq('is_correct', true),
         supabase.from('practice_answers').select('id, practice_sessions!inner(examinee_id)', { count: 'exact', head: true }).eq('practice_sessions.examinee_id', user.id).eq('is_correct', false),
+        supabase.from('practice_answers').select('id, practice_sessions!inner(examinee_id)', { count: 'exact', head: true }).eq('practice_sessions.examinee_id', user.id).is('selected_option', null),
         supabase.from('exam_attempts').select('id, percentage, submitted_at, exams(title, end_time)').eq('examinee_id', user.id).eq('attempt_type', 'official').eq('status', 'submitted').order('submitted_at', { ascending: false }),
         supabase.from('practice_sessions').select('id, finished_at, correct_count, total_questions').eq('examinee_id', user.id).order('finished_at', { ascending: false }).limit(5),
         supabase.from('wrong_questions').select('id', { count: 'exact', head: true }).eq('examinee_id', user.id).eq('mastered', false),
@@ -188,10 +229,11 @@ export default function StudentDashboardHome() {
       });
       const avgScore = attempts.length > 0 ? Math.round((sumPct / attempts.length) * 10) / 10 : 0;
 
-      // ---------- Combined (official + practice) attempted/correct/wrong ----------
+      // ---------- Combined (official + practice) attempted/correct/wrong/unanswered ----------
       const attempted = (officialAttemptedResult.count || 0) + (practiceAttemptedResult.count || 0);
       const correct = (officialCorrectResult.count || 0) + (practiceCorrectResult.count || 0);
       const wrong = (officialWrongResult.count || 0) + (practiceWrongResult.count || 0);
+      const unanswered = (officialUnansweredResult.count || 0) + (practiceUnansweredResult.count || 0);
       const accuracyPct = attempted > 0 ? Math.round((correct / attempted) * 1000) / 10 : 0;
 
       setStats({
@@ -199,6 +241,7 @@ export default function StudentDashboardHome() {
         attempted,
         correct,
         wrong,
+        unanswered,
         accuracyPct,
         totalExamsAttempted: attempts.length,
         liveCount,
@@ -252,6 +295,7 @@ export default function StudentDashboardHome() {
           <div className="stat-grid">
             <StatCard label="Questions Available" value={stats.totalQuestionsAvailable} />
             <StatCard label="Questions Attempted" value={stats.attempted} sub={`${stats.correct} correct · ${stats.wrong} wrong`} />
+            <StatCard label="Unanswered" value={stats.unanswered} sub="left blank across exams & practice" />
             <StatCard label="Accuracy" value={`${stats.accuracyPct}%`} />
             <StatCard label="Exams Attempted" value={stats.totalExamsAttempted} sub={`${stats.liveCount} live · ${stats.archivedCount} archived`} />
             <StatCard label="Average Score" value={`${stats.avgScore}%`} />
@@ -277,6 +321,8 @@ export default function StudentDashboardHome() {
           ))}
         </div>
       </div>
+
+      <UpcomingFeaturesPanel />
     </>
   );
 }
