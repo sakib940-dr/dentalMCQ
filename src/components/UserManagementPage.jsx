@@ -67,20 +67,8 @@ export default function UserManagementPage() {
     });
     setDeleting(false);
 
-    if (error) {
-      let message = error.message || 'Failed to delete user.';
-      // FunctionsHttpError carries the actual response on error.context —
-      // surface our function's real error message instead of a generic one.
-      try {
-        const body = await error.context?.json?.();
-        if (body?.error) message = body.error;
-      } catch {
-        // fall back to the generic message above
-      }
-      alert(message);
-      return;
-    }
-    if (data?.error) { alert(data.error); return; }
+    if (error) { alert(`Could not reach the delete function: ${error.message}`); return; }
+    if (!data?.success) { alert(data?.error || 'Failed to delete user.'); return; }
 
     await logAudit('account_delete', user.id, { full_name: user.full_name, role: user.role });
     setConfirmDelete(null);

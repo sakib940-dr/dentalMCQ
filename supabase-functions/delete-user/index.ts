@@ -16,6 +16,16 @@
 // enforced elsewhere (DB triggers `check_single_super_admin` /
 // `protect_super_admin`) — this is a second layer, not a replacement.
 //
+// NOTE ON STATUS CODES: every response here is HTTP 200, even for
+// "expected" failures (wrong role, FK constraint, etc.) — only the JSON
+// body's `success`/`error` fields signal the real outcome. This is
+// deliberate: supabase-js's functions.invoke() wraps any non-2xx response
+// in a generic FunctionsHttpError, and re-reading that error's body on the
+// client can silently fail ("body stream already read"), which is exactly
+// what produced the unhelpful "Edge Function returned a non-2xx status
+// code" message. Always-200 sidesteps that entirely — the client just
+// reads `data.error` directly, no ambiguity.
+//
 // DEPLOY: paste this file's contents into Supabase Dashboard → Edge
 // Functions → Create a new function named "delete-user" → Deploy.
 // No extra secrets to configure — SUPABASE_URL, SUPABASE_ANON_KEY, and
@@ -29,11 +39,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function json(body: unknown, status = 200) {
+function ok(body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
-    status,
+    status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+function fail(error: string) {
+  return ok({ success: false, error });
 }
 
 Deno.serve(async (req) => {
@@ -43,7 +56,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'Missing authorization header.' }, 401);
+    if (!authHeader) return fail('Missing authorization header.');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -56,7 +69,7 @@ Deno.serve(async (req) => {
     });
 
     const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
-    if (callerError || !callerUser) return json({ error: 'Not authenticated.' }, 401);
+    if (callerError || !callerUser) return fail('Not authenticated.');
 
     const { data: callerProfile } = await callerClient
       .from('profiles')
@@ -65,12 +78,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (callerProfile?.role !== 'super_admin') {
-      return json({ error: 'Only the Super Admin can delete users.' }, 403);
+      return fail('Only the Super Admin can delete users.');
     }
 
     const { target_user_id } = await req.json();
-    if (!target_user_id) return json({ error: 'target_user_id is required.' }, 400);
-    if (target_user_id === callerUser.id) return json({ error: 'You cannot delete your own account from here.' }, 400);
+    if (!target_user_id) return fail('target_user_id is required.');
+    if (target_user_id === callerUser.id) return fail('You cannot delete your own account from here.');
 
     // The ONLY client in this function that holds the service role key.
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
@@ -82,28 +95,31 @@ Deno.serve(async (req) => {
       .single();
 
     if (targetProfile?.role === 'super_admin') {
-      return json({ error: 'The Super Admin account cannot be deleted.' }, 400);
+      return fail('The Super Admin account cannot be deleted.');
     }
 
     // 1) Delete the profile row — the same step the app already did.
-    // If any other table has a non-cascading FK to profiles.id, this is
-    // where that would surface as an error, same as it always would have.
+    // If any other table has a non-cascading FK to profiles.id, THIS is
+    // where it will fail, with the real Postgres error message returned
+    // below (e.g. "violates foreign key constraint ... still referenced
+    // from table \"exam_attempts\"") — that tells us exactly which table
+    // needs its foreign key behavior decided (cascade vs. set null).
     const { error: profileDeleteError } = await adminClient
       .from('profiles')
       .delete()
       .eq('id', target_user_id);
     if (profileDeleteError) {
-      return json({ error: `Failed to delete profile: ${profileDeleteError.message}` }, 500);
+      return fail(`Failed to delete profile: ${profileDeleteError.message}`);
     }
 
     // 2) Delete the actual Auth login account — the step that was missing.
     const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(target_user_id);
     if (authDeleteError) {
-      return json({ error: `Profile was deleted, but removing the login account failed: ${authDeleteError.message}` }, 500);
+      return fail(`Profile was deleted, but removing the login account failed: ${authDeleteError.message}`);
     }
 
-    return json({ success: true });
+    return ok({ success: true });
   } catch (err) {
-    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return fail(err instanceof Error ? err.message : String(err));
   }
 });
