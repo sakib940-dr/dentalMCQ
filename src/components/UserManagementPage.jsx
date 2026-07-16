@@ -58,9 +58,30 @@ export default function UserManagementPage() {
     load();
   };
 
+  const [deleting, setDeleting] = useState(false);
+
   const removeUser = async (user) => {
-    const { error } = await supabase.from('profiles').delete().eq('id', user.id);
-    if (error) { alert(error.message); return; }
+    setDeleting(true);
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { target_user_id: user.id },
+    });
+    setDeleting(false);
+
+    if (error) {
+      let message = error.message || 'Failed to delete user.';
+      // FunctionsHttpError carries the actual response on error.context —
+      // surface our function's real error message instead of a generic one.
+      try {
+        const body = await error.context?.json?.();
+        if (body?.error) message = body.error;
+      } catch {
+        // fall back to the generic message above
+      }
+      alert(message);
+      return;
+    }
+    if (data?.error) { alert(data.error); return; }
+
     await logAudit('account_delete', user.id, { full_name: user.full_name, role: user.role });
     setConfirmDelete(null);
     load();
@@ -178,8 +199,10 @@ export default function UserManagementPage() {
             <div className="modal-title">Delete {confirmDelete.full_name}?</div>
             <div className="modal-body">This removes their account and login access permanently. Their exam results stay on record.</div>
             <div className="modal-actions">
-              <button className="modal-cancel-btn" onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="modal-confirm-btn" style={{ background: 'var(--red)' }} onClick={() => removeUser(confirmDelete)}>Delete</button>
+              <button className="modal-cancel-btn" onClick={() => setConfirmDelete(null)} disabled={deleting}>Cancel</button>
+              <button className="modal-confirm-btn" style={{ background: 'var(--red)' }} onClick={() => removeUser(confirmDelete)} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
