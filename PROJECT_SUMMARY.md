@@ -30,7 +30,6 @@ A production MCQ live-exam web app for dental students (BDS/FCPS/BCS prep), buil
 - `exam_schedule_entries` — hand-written routine/timetable per category (date + syllabus text), NOT linked to actual exams
 - `user_credentials` — **plain-text password shadow table**, Super Admin only (see Security Notes below — explicit user request, not best practice)
 - `app_settings` — global feature toggles: `practice_enabled_global`, `live_exam_enabled_global`
-
 ## Key business rules (important — don't regress these)
 1. **Exam status is computed live from time**, not stored: `now() < start_time` → upcoming; `start_time <= now() <= end_time` → live; else archived. There is NO cron/scheduler — a `compute_exam_duration` trigger and `auto_archive_exams()` function exist in schema history but are **unused/removed**; do not rely on them.
 2. **Timer rule**: default duration = `round(question_count * 0.6)` minutes (10 Q → 6 min, 100 Q → 60 min). Admin sets this directly on the exam (editable, not locked to the formula). Students can adjust only if `allow_student_time_adjust` is true (Live) or always (Practice).
@@ -43,7 +42,15 @@ A production MCQ live-exam web app for dental students (BDS/FCPS/BCS prep), buil
 9. **No moderator limit** — the old 5-moderator cap trigger was removed.
 10. **Moderators can see student + their own chat messages, but never Super Admin's messages** — enforced via `sender_role` filtering in RLS, not app-layer filtering.
 
-## Feature map (what's built, by role)
+## Auth: Forgot Password (new)
+- `LoginPage.jsx` → "Forgot password?" → `ForgotPasswordPage.jsx` (`/forgot-password`) → `sendPasswordReset(email)` (new `AuthContext` function, calls `supabase.auth.resetPasswordForEmail`) → always shows the same "check your email" message regardless of whether the address exists, so the flow can't be used to enumerate registered emails.
+- Emailed link lands on `ResetPasswordPage.jsx` (`/reset-password`) — Supabase's client SDK auto-establishes a temporary session from the link's token before the page even renders; the page just checks `session` from `AuthContext` (shows "invalid or expired link" if absent) and calls the new `updatePasswordAfterRecovery(newPassword)` function, which also re-syncs the plain-text `user_credentials` shadow row, same as `changePassword` already does.
+- **Depends entirely on custom SMTP being configured** (see below) — without it, `resetPasswordForEmail` still returns success from the API, but the email itself silently never arrives (Supabase's built-in sender only delivers to the project's own team members, 2/hour). This is not a code problem to fix; it's a Supabase Dashboard configuration step.
+
+## Email delivery (Supabase Dashboard config, not code)
+Supabase's built-in email sender is capped at ~2 emails/hour project-wide and only delivers to the project's own team member addresses — unusable for real students receiving password resets or (if enabled later) signup confirmations. Custom SMTP must be configured at **Authentication → Emails → SMTP Settings** in the Supabase Dashboard. Recommended: **Resend** (3,000 emails/month free) — `smtp.resend.com`, port 465, username `resend`, password = Resend API key. Requires a verified sending domain in Resend (DNS records) to send to real user inboxes, not just your own test address.
+
+
 
 ### Examinee dashboard (`src/pages/examinee/ExamineeDashboard.jsx`)
 - **Home** (`/dashboard`) = `StudentDashboardHome.jsx` — the student's landing page. Quick Actions grid (Question Bank Practice, Start Mock Exam, Wrong Answer Revision, Bookmarked Questions ❤️, Prescription Tool, Dental Chamber), a compact Subscription strip (soonest-expiring grant + Renew/Manage → `/dashboard/package`), an Exam Overview stat grid (Questions Available/Attempted/Accuracy/Exams/Avg/Best/Wrong-for-revision/Bookmarked — correct/wrong and live/archived shown as sub-labels rather than separate cards, to avoid redundant tiles), and a merged Recent Activity feed (official exams + practice sessions, sorted by date). Stats are computed client-side via parallel Supabase queries (same pattern as `SuperAdminOverview.jsx`), not a DB view/RPC.

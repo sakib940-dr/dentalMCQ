@@ -181,6 +181,13 @@ body {
   font-weight: 600;
 }
 
+.auth-forgot-link {
+  text-align: right;
+  font-size: 12.5px;
+  margin-top: -8px;
+}
+.auth-forgot-link a { color: var(--teal); font-weight: 600; }
+
 /* ---------- Dashboard shell ---------- */
 .dash-shell {
   min-height: 100vh;

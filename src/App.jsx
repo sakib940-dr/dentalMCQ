@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import HomeRedirect from './pages/HomeRedirect';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import './App.css';
 
 // Each role's dashboard is its own lazy chunk — a Student never
@@ -31,6 +33,8 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             <Route path="/" element={<HomeRedirect />} />
 

@@ -131,6 +131,35 @@ export function AuthProvider({ children }) {
     return { data: true };
   };
 
+  // ---------- Forgot password ----------
+  // Step 1 (ForgotPasswordPage): request a reset email. The link inside
+  // it carries a recovery token in the URL and lands on /reset-password.
+  const sendPasswordReset = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return { error };
+  };
+
+  // Step 2 (ResetPasswordPage): the recovery link already established a
+  // temporary session via the URL token — this just sets the new password
+  // on that session, same underlying call as changePassword's second half,
+  // but without needing the (unknown, that's the whole point) old password.
+  const updatePasswordAfterRecovery = async (newPassword) => {
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error };
+
+    const userId = data?.user?.id;
+    if (userId) {
+      const { error: credError } = await supabase.rpc('save_credential_shadow', {
+        target_user_id: userId,
+        new_password: newPassword,
+      });
+      if (credError) console.error('Failed to sync credential shadow copy:', credError.message);
+    }
+    return { data: true };
+  };
+
   const value = {
     session,
     user: session?.user ?? null,
@@ -141,6 +170,8 @@ export function AuthProvider({ children }) {
     signUp,
     signOut,
     changePassword,
+    sendPasswordReset,
+    updatePasswordAfterRecovery,
     refreshProfile: () => loadProfile(session?.user?.id),
   };
 
