@@ -21,7 +21,15 @@ export default function ResetPasswordPage() {
     setLoading(true);
     const { error } = await updatePasswordAfterRecovery(password);
     setLoading(false);
-    if (error) { setError(error.message); return; }
+    if (error) {
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('session') || msg.includes('expired') || msg.includes('token')) {
+        setError('This link has expired while you were on this page. Please request a new one.');
+      } else {
+        setError(error.message || 'Could not update your password. Please try again.');
+      }
+      return;
+    }
     setDone(true);
   };
 
@@ -69,7 +77,12 @@ export default function ResetPasswordPage() {
                 required
               />
             </label>
-            {error && <div className="error-box">{error}</div>}
+            {error && (
+              <div className="error-box">
+                {error}
+                {error.includes('expired') && <> <Link to="/forgot-password">Request a new one</Link>.</>}
+              </div>
+            )}
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? 'Saving…' : 'Save new password'}
             </button>

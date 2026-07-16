@@ -18,7 +18,16 @@ export default function LoginPage() {
     const { error } = await signIn(email.trim(), password);
     setLoading(false);
     if (error) {
-      setError('Incorrect email or password.');
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('email not confirmed')) {
+        setError('Please verify your email first — check your inbox for the confirmation link.');
+      } else if (msg.includes('invalid login credentials')) {
+        setError('Incorrect email or password.');
+      } else if (msg.includes('fetch') || msg.includes('network')) {
+        setError('Could not reach the server. Check your internet connection and try again.');
+      } else {
+        setError(error.message || 'Login failed. Please try again.');
+      }
       return;
     }
     navigate('/', { replace: true });

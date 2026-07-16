@@ -18,6 +18,7 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -40,7 +41,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const { error, credentialWarning } = await signUp({
+    const { data, error, credentialWarning } = await signUp({
       email: form.email.trim(),
       password: form.password,
       fullName: form.fullName.trim(),
@@ -61,6 +62,17 @@ export default function RegisterPage() {
       // registration itself.
       await supabase.rpc('set_referred_by', { referral_code_input: referralCode }).catch(() => {});
     }
+
+    // If email confirmation is required (Supabase Auth setting), signUp
+    // succeeds but returns no active session yet — navigating to the
+    // dashboard here would just bounce them straight back to /login with
+    // no explanation. Show a "check your email" state instead. While
+    // confirmation is OFF, data.session is always present, so this branch
+    // never fires and behavior is unchanged from before.
+    if (!data?.session) {
+      setAwaitingConfirmation(true);
+      return;
+    }
     navigate('/', { replace: true });
   };
 
@@ -72,6 +84,14 @@ export default function RegisterPage() {
         <p className="auth-sub">Register to sit exams</p>
         {referralCode && <div className="ok-box" style={{ marginBottom: 4 }}>Referral code applied: {referralCode}</div>}
 
+        {awaitingConfirmation ? (
+          <div className="panel" style={{ marginTop: 10 }}>
+            <p className="muted">
+              Almost done — we sent a confirmation link to <b>{form.email}</b>. Verify your email to
+              activate your account, then come back and log in.
+            </p>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="auth-form">
           <label>
             <span>Full name</span>
@@ -105,6 +125,7 @@ export default function RegisterPage() {
             {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
+        )}
 
         <p className="auth-switch">
           Already have an account? <Link to="/login">Log in</Link>
