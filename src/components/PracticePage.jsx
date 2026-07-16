@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
@@ -389,17 +389,19 @@ export function PracticeSession({ session, onExit }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState(null);
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const bookmarkedIdsRef = useRef(bookmarkedIds);
+  useEffect(() => { bookmarkedIdsRef.current = bookmarkedIds; }, [bookmarkedIds]);
 
-  const toggleBookmark = async (questionId) => {
-    const isBookmarked = bookmarkedIds.has(questionId);
+  const toggleBookmark = useCallback((questionId) => {
+    const isBookmarked = bookmarkedIdsRef.current.has(questionId);
     setBookmarkedIds((s) => {
       const next = new Set(s);
       isBookmarked ? next.delete(questionId) : next.add(questionId);
       return next;
     });
-    if (isBookmarked) await removeBookmark(user.id, questionId);
-    else await addBookmark(user.id, questionId);
-  };
+    if (isBookmarked) removeBookmark(user.id, questionId);
+    else addBookmark(user.id, questionId);
+  }, [user.id]);
 
   // Stable key for this practice attempt — survives refresh, but a fresh
   // "Start practice" click always gets a new key (new Date.now()) so it

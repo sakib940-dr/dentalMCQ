@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 
 function fmtTime(totalSeconds) {
   const s = Math.max(0, Math.round(totalSeconds));
@@ -7,6 +7,58 @@ function fmtTime(totalSeconds) {
   const sec = (s % 60).toString().padStart(2, '0');
   return h > 0 ? `${h}:${m}:${sec}` : `${m}:${sec}`;
 }
+
+// Memoized so answering ONE question doesn't re-render every other card in
+// the list. Only re-renders when THIS question's own selected/marked/
+// bookmarked state changes — not on every keystroke/click anywhere in the
+// exam. This only works because the callback props below are stable
+// (wrapped in useCallback with empty deps in ExamRunner, and in the
+// callers that pass onToggleBookmark down) — passing a freshly-created
+// function every render would silently defeat the memoization.
+const RunnerQuestionCard = memo(function RunnerQuestionCard({
+  question, index, selectedLetter, isMarked, isBookmarked, onSelect, onToggleMark, onToggleBookmark,
+}) {
+  return (
+    <div id={`runner-q-${question.id}`} data-qindex={index} className="panel exam-run-qcard">
+      <div className="q-num-row">
+        <span className="q-num-label">Question {index + 1}</span>
+        <div className="q-num-row-actions">
+          {onToggleBookmark && (
+            <button
+              className={isBookmarked ? 'bookmark-inline-btn bookmark-inline-btn-active' : 'bookmark-inline-btn'}
+              onClick={() => onToggleBookmark(question.id)}
+              aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark this question'}
+            >
+              {isBookmarked ? '❤️' : '🤍'}
+            </button>
+          )}
+          <button
+            className={isMarked ? 'mark-inline-btn mark-inline-btn-active' : 'mark-inline-btn'}
+            onClick={() => onToggleMark(question.id)}
+          >
+            ★ {isMarked ? 'Marked' : 'Mark'}
+          </button>
+        </div>
+      </div>
+      <div className="q-text">{question.question_text}</div>
+      <div className="opt-list">
+        {['A', 'B', 'C', 'D'].map((letter) => {
+          const selected = selectedLetter === letter;
+          return (
+            <button
+              key={letter}
+              className={selected ? 'opt-btn opt-selected' : 'opt-btn'}
+              onClick={() => onSelect(question.id, letter)}
+            >
+              <span className="opt-letter">{letter}</span>
+              <span className="opt-text">{question[`option_${letter.toLowerCase()}`]}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 function requestFullscreen(el) {
   const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
@@ -189,13 +241,13 @@ export default function ExamRunner({
     beginRunning();
   };
 
-  const selectAnswer = (questionId, letter) => {
+  const selectAnswer = useCallback((questionId, letter) => {
     setAnswers((a) => ({ ...a, [questionId]: a[questionId] === letter ? undefined : letter }));
-  };
+  }, []);
 
-  const toggleMark = (questionId) => {
+  const toggleMark = useCallback((questionId) => {
     setMarked((m) => ({ ...m, [questionId]: !m[questionId] }));
-  };
+  }, []);
 
   const answeredCount = Object.values(answers).filter(Boolean).length;
 
@@ -344,49 +396,19 @@ export default function ExamRunner({
       </div>
 
       <div className="exam-run-scrolllist" ref={scrollListRef}>
-        {questions.map((q, i) => {
-          const qIsMarked = !!marked[q.id];
-          return (
-            <div key={q.id} id={`runner-q-${q.id}`} data-qindex={i} className="panel exam-run-qcard">
-              <div className="q-num-row">
-                <span className="q-num-label">Question {i + 1}</span>
-                <div className="q-num-row-actions">
-                  {onToggleBookmark && (
-                    <button
-                      className={bookmarkedIds?.has(q.id) ? 'bookmark-inline-btn bookmark-inline-btn-active' : 'bookmark-inline-btn'}
-                      onClick={() => onToggleBookmark(q.id)}
-                      aria-label={bookmarkedIds?.has(q.id) ? 'Remove bookmark' : 'Bookmark this question'}
-                    >
-                      {bookmarkedIds?.has(q.id) ? '❤️' : '🤍'}
-                    </button>
-                  )}
-                  <button
-                    className={qIsMarked ? 'mark-inline-btn mark-inline-btn-active' : 'mark-inline-btn'}
-                    onClick={() => toggleMark(q.id)}
-                  >
-                    ★ {qIsMarked ? 'Marked' : 'Mark'}
-                  </button>
-                </div>
-              </div>
-              <div className="q-text">{q.question_text}</div>
-              <div className="opt-list">
-                {['A', 'B', 'C', 'D'].map((letter) => {
-                  const selected = answers[q.id] === letter;
-                  return (
-                    <button
-                      key={letter}
-                      className={selected ? 'opt-btn opt-selected' : 'opt-btn'}
-                      onClick={() => selectAnswer(q.id, letter)}
-                    >
-                      <span className="opt-letter">{letter}</span>
-                      <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {questions.map((q, i) => (
+          <RunnerQuestionCard
+            key={q.id}
+            question={q}
+            index={i}
+            selectedLetter={answers[q.id]}
+            isMarked={!!marked[q.id]}
+            isBookmarked={!!bookmarkedIds?.has(q.id)}
+            onSelect={selectAnswer}
+            onToggleMark={toggleMark}
+            onToggleBookmark={onToggleBookmark}
+          />
+        ))}
         <div className="exam-run-scroll-end" />
       </div>
 

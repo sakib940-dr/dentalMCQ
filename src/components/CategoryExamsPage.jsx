@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -490,19 +490,23 @@ function LiveExamSession({ exam, onExit }) {
   const [blocked, setBlocked] = useState(null);
   const [effectiveDuration, setEffectiveDuration] = useState(exam.duration_minutes);
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const bookmarkedIdsRef = useRef(bookmarkedIds);
+  useEffect(() => { bookmarkedIdsRef.current = bookmarkedIds; }, [bookmarkedIds]);
 
   const persistKey = `dentalmcq_liveexam_${exam.id}_${user.id}`;
 
-  const toggleBookmark = async (questionId) => {
-    const isBookmarked = bookmarkedIds.has(questionId);
+  // Stable reference (useCallback) so ExamRunner's per-question memoization
+  // actually holds — a freshly-created function every render would defeat it.
+  const toggleBookmark = useCallback((questionId) => {
+    const isBookmarked = bookmarkedIdsRef.current.has(questionId);
     setBookmarkedIds((s) => {
       const next = new Set(s);
       isBookmarked ? next.delete(questionId) : next.add(questionId);
       return next;
     });
-    if (isBookmarked) await removeBookmark(user.id, questionId);
-    else await addBookmark(user.id, questionId);
-  };
+    if (isBookmarked) removeBookmark(user.id, questionId);
+    else addBookmark(user.id, questionId);
+  }, [user.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -572,10 +576,26 @@ function LiveExamSession({ exam, onExit }) {
         .select()
         .single();
       if (createError) {
-        console.error('Failed to create attempt (likely a duplicate):', createError.message);
-        return;
+        // Most likely a duplicate-insert race (double-tap submit, a
+        // retried request, two tabs open) — the OTHER concurrent request
+        // already created the row. Re-fetch it instead of silently
+        // dropping this submission and losing the student's answers.
+        console.warn('Attempt creation conflict, re-fetching existing attempt:', createError.message);
+        const { data: recovered } = await supabase
+          .from('exam_attempts')
+          .select('*')
+          .eq('exam_id', exam.id)
+          .eq('examinee_id', user.id)
+          .eq('attempt_type', 'official')
+          .maybeSingle();
+        if (!recovered) {
+          console.error('Could not create or recover an exam attempt — answers not saved.');
+          return;
+        }
+        attemptId = recovered.id;
+      } else {
+        attemptId = created.id;
       }
-      attemptId = created.id;
     }
 
     // Write all answers in a single batched request instead of one
@@ -597,16 +617,15 @@ function LiveExamSession({ exam, onExit }) {
       console.error('Failed to save answers:', answersError.message);
     }
 
-    await supabase
-      .from('exam_attempts')
-      .update({
-        status: 'submitted',
-        submitted_at: new Date().toISOString(),
-        score: result.score,
-        total_marks: result.total,
-        percentage: result.percentage,
-      })
-      .eq('id', attemptId);
+    // Server-side authoritative finalize: recomputes is_correct/score/
+    // percentage/submitted_at from the actual question bank and the
+    // database's own clock, instead of trusting whatever this request
+    // claims — a tampered network request could otherwise submit any
+    // score it wants. See migration_finalize_exam_attempt.sql.
+    const { error: finalizeError } = await supabase.rpc('finalize_exam_attempt', { p_attempt_id: attemptId });
+    if (finalizeError) {
+      console.error('Failed to finalize attempt:', finalizeError.message);
+    }
   };
 
   if (blocked) {
@@ -655,17 +674,19 @@ function ArchivedRetakeSession({ exam, onExit }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState(null);
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const bookmarkedIdsRef = useRef(bookmarkedIds);
+  useEffect(() => { bookmarkedIdsRef.current = bookmarkedIds; }, [bookmarkedIds]);
 
-  const toggleBookmark = async (questionId) => {
-    const isBookmarked = bookmarkedIds.has(questionId);
+  const toggleBookmark = useCallback((questionId) => {
+    const isBookmarked = bookmarkedIdsRef.current.has(questionId);
     setBookmarkedIds((s) => {
       const next = new Set(s);
       isBookmarked ? next.delete(questionId) : next.add(questionId);
       return next;
     });
-    if (isBookmarked) await removeBookmark(user.id, questionId);
-    else await addBookmark(user.id, questionId);
-  };
+    if (isBookmarked) removeBookmark(user.id, questionId);
+    else addBookmark(user.id, questionId);
+  }, [user.id]);
 
   useEffect(() => {
     let cancelled = false;

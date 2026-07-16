@@ -40,7 +40,12 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (h) => h.trim().toLowerCase(),
+      worker: true, // parse off the main thread — large files won't freeze the UI
+      // Excel-exported CSVs commonly start with a UTF-8 BOM (\uFEFF), which
+      // silently attaches to the first header ("\uFEFFquestion") and isn't
+      // stripped by .trim() — that made a perfectly valid file get rejected
+      // with "Missing required column(s): question". Strip it explicitly.
+      transformHeader: (h) => h.replace(/^\uFEFF/, '').trim().toLowerCase(),
       complete: (parsed) => {
         const foundColumns = parsed.meta.fields || [];
         const missing = REQUIRED_COLUMNS.filter((c) => !foundColumns.includes(c));
@@ -97,13 +102,25 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
     async function checkDuplicates() {
       if (rows.length === 0 || !chapterId) { setDuplicateTexts(new Set()); return; }
       setCheckingDuplicates(true);
-      const { data, error } = await supabase.rpc('find_duplicate_questions', {
-        target_chapter_id: chapterId,
-        question_texts: rows.map((r) => r.question_text),
-      });
+
+      // Chunked so a very large import (thousands of rows) doesn't send
+      // one oversized RPC payload — each chunk is a normal-sized request.
+      const chunkSize = 500;
+      const found = new Set();
+      for (let i = 0; i < rows.length; i += chunkSize) {
+        if (cancelled) return;
+        const chunk = rows.slice(i, i + chunkSize);
+        const { data, error } = await supabase.rpc('find_duplicate_questions', {
+          target_chapter_id: chapterId,
+          question_texts: chunk.map((r) => r.question_text),
+        });
+        if (error) continue;
+        (data || []).filter((d) => d.is_duplicate).forEach((d) => found.add(d.question_text));
+      }
+
       setCheckingDuplicates(false);
-      if (cancelled || error) return;
-      setDuplicateTexts(new Set((data || []).filter((d) => d.is_duplicate).map((d) => d.question_text)));
+      if (cancelled) return;
+      setDuplicateTexts(found);
     }
     checkDuplicates();
     return () => { cancelled = true; };
