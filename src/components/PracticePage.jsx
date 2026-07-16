@@ -470,7 +470,17 @@ export function PracticeSession({ session, onExit }) {
         const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
         const chapIds = (chaps || []).map((c) => c.id);
         if (chapIds.length === 0) { setQuestions([]); return; }
-        const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true);
+
+        // Sample from a random window instead of pulling the whole
+        // category: a plain .select() is silently capped at Supabase's
+        // default 1000-row limit on large categories, and even under that
+        // cap it would always shuffle the same "first N" slice every time.
+        const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true }).in('chapter_id', chapIds).eq('is_active', true);
+        const total = count || 0;
+        if (total === 0) { setQuestions([]); return; }
+        const windowSize = Math.min(total, Math.max(session.count * 5, 100));
+        const offset = Math.floor(Math.random() * (total - windowSize + 1));
+        const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true).range(offset, offset + windowSize - 1);
         if (cancelled) return;
         setQuestions(shuffle(data || []).slice(0, session.count));
       } else if (session.mode === 'bookmarked') {

@@ -77,16 +77,29 @@ export default function QuestionBankPracticePage() {
         ? await supabase.from('chapters').select('id, subcategory_id').in('subcategory_id', subcatIds)
         : { data: [] };
       const chapterToCategory = new Map((chaps || []).map((c) => [c.id, subcatToCategory.get(c.subcategory_id)]));
-      const chapIds = (chaps || []).map((c) => c.id);
+      const chapIdsByCategory = {};
+      (chaps || []).forEach((c) => {
+        const catId = subcatToCategory.get(c.subcategory_id);
+        if (!catId) return;
+        (chapIdsByCategory[catId] ||= []).push(c.id);
+      });
 
+      // One exact count per category, not a row fetch + client-side bucket:
+      // a plain .select() response is silently capped at Supabase's default
+      // 1000-row limit, which under-counted any category with 1000+
+      // questions. { count: 'exact', head: true } returns just the number
+      // via a HEAD request and isn't subject to that row cap.
       const countByCategory = {};
-      if (chapIds.length > 0) {
-        const { data: qCounts } = await supabase.from('questions').select('chapter_id').in('chapter_id', chapIds).eq('is_active', true);
-        (qCounts || []).forEach((q) => {
-          const catId = chapterToCategory.get(q.chapter_id);
-          if (catId) countByCategory[catId] = (countByCategory[catId] || 0) + 1;
-        });
-      }
+      await Promise.all(
+        Object.entries(chapIdsByCategory).map(async ([catId, catChapIds]) => {
+          const { count } = await supabase
+            .from('questions')
+            .select('id', { count: 'exact', head: true })
+            .in('chapter_id', catChapIds)
+            .eq('is_active', true);
+          countByCategory[catId] = count || 0;
+        })
+      );
 
       const { data: wrongRows } = await supabase
         .from('wrong_questions')
