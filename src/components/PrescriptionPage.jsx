@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { NOTO_SANS_BENGALI_BASE64 } from '../assets/notoSansBengaliBase64';
+import { findOrCreatePatient } from '../lib/patients';
 
 function emptyMedicine() {
   return { name: '', dose: '', duration: '' };
@@ -136,6 +137,7 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
 export default function PrescriptionPage() {
   const { profile, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
 
@@ -254,6 +256,33 @@ export default function PrescriptionPage() {
   useEffect(() => {
     return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
   }, [pdfBlobUrl]);
+
+  // Reprint/Open, arriving from Prescription History or a Patient Profile:
+  // load the stored record into this same form (identical to the existing
+  // "Reprint/Edit" flow), and if it came in as a one-tap "Reprint &
+  // Download", regenerate the PDF immediately too.
+  const [autoGenerateAfterLoad, setAutoGenerateAfterLoad] = useState(false);
+  useEffect(() => {
+    const incoming = location.state?.prescription;
+    const prefillPatient = location.state?.prefillPatient;
+    if (incoming) {
+      loadIntoForm(incoming);
+      if (location.state?.autoGenerate) setAutoGenerateAfterLoad(true);
+    } else if (prefillPatient) {
+      setPatientName(prefillPatient.full_name || '');
+      setPatientAge(prefillPatient.age || '');
+      setPatientAddress(prefillPatient.address || '');
+      setPatientMobile(prefillPatient.phone_number || '');
+    }
+    if (incoming || prefillPatient) window.history.replaceState({}, '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!autoGenerateAfterLoad) return;
+    setAutoGenerateAfterLoad(false);
+    generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerateAfterLoad]);
 
   const toggleAdvice = (template) => {
     setSelectedAdvice((s) => {
@@ -523,8 +552,16 @@ export default function PrescriptionPage() {
       return;
     }
 
+    const patientId = await findOrCreatePatient(user.id, {
+      name: patientName,
+      phone: patientMobile,
+      age: patientAge,
+      address: patientAddress,
+    });
+
     const { error: saveError } = await supabase.from('prescriptions').insert({
       created_by: user.id,
+      patient_id: patientId,
       patient_name: patientName.trim() || 'Unnamed patient',
       patient_age: patientAge.trim() || null,
       patient_address: patientAddress.trim() || null,
@@ -704,7 +741,10 @@ export default function PrescriptionPage() {
 
       {recent.length > 0 && (
         <div className="panel">
-          <h2>Recent prescriptions</h2>
+          <div className="panel-head-row">
+            <h2>Recent prescriptions</h2>
+            <button className="btn-secondary sm" onClick={() => navigate('/dashboard/chamber/prescriptions')}>Full history & search →</button>
+          </div>
           <div className="recent-list">
             {recent.map((p) => (
               <div key={p.id} className="recent-row">

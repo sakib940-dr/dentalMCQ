@@ -280,9 +280,20 @@ export default function ExamRunner({
               <div key={q.id} className={cardClass}>
                 <div className="q-num-row">
                   <span className="q-num-label">Question {i + 1}</span>
-                  {!chosen && <span className="sheet-tag sheet-tag-unanswered">Unanswered</span>}
-                  {chosen && isCorrect && <span className="sheet-tag sheet-tag-correct">Correct</span>}
-                  {chosen && !isCorrect && <span className="sheet-tag sheet-tag-wrong">Wrong</span>}
+                  <div className="q-num-row-actions">
+                    {!chosen && <span className="sheet-tag sheet-tag-unanswered">Unanswered</span>}
+                    {chosen && isCorrect && <span className="sheet-tag sheet-tag-correct">Correct</span>}
+                    {chosen && !isCorrect && <span className="sheet-tag sheet-tag-wrong">Wrong</span>}
+                    {onToggleBookmark && (
+                      <button
+                        className={bookmarkedIds?.has(q.id) ? 'bookmark-inline-btn bookmark-inline-btn-active' : 'bookmark-inline-btn'}
+                        onClick={() => onToggleBookmark(q.id)}
+                        aria-label={bookmarkedIds?.has(q.id) ? 'Remove bookmark' : 'Bookmark this question'}
+                      >
+                        {bookmarkedIds?.has(q.id) ? '❤️' : '🤍'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="q-text">{q.question_text}</div>
                 <div className="opt-list">
@@ -344,9 +355,9 @@ export default function ExamRunner({
                     <button
                       className={bookmarkedIds?.has(q.id) ? 'bookmark-inline-btn bookmark-inline-btn-active' : 'bookmark-inline-btn'}
                       onClick={() => onToggleBookmark(q.id)}
-                      aria-label="Bookmark for later"
+                      aria-label={bookmarkedIds?.has(q.id) ? 'Remove bookmark' : 'Bookmark this question'}
                     >
-                      🔖 {bookmarkedIds?.has(q.id) ? 'Saved' : 'Save'}
+                      {bookmarkedIds?.has(q.id) ? '❤️' : '🤍'}
                     </button>
                   )}
                   <button

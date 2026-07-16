@@ -298,8 +298,8 @@ function ByChapterMode({ categoryId, onPick }) {
   );
 }
 
-function PracticeSetup({ categoryId, onPick }) {
-  const [mode, setMode] = useState('single'); // single | mixed | bychapter
+export function PracticeSetup({ categoryId, onPick }) {
+  const [mode, setMode] = useState('single'); // single | mixed | bychapter | random
 
   return (
     <div className="panel">
@@ -307,14 +307,38 @@ function PracticeSetup({ categoryId, onPick }) {
       <p className="muted small">Practice sessions never affect your official results or merit list.</p>
 
       <div className="mode-tabs">
-        <button className={mode === 'single' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('single')}>Single</button>
+        <button className={mode === 'single' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('single')}>Subject</button>
         <button className={mode === 'mixed' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('mixed')}>Mixed</button>
         <button className={mode === 'bychapter' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('bychapter')}>By chapter</button>
+        <button className={mode === 'random' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setMode('random')}>Random</button>
       </div>
 
       {mode === 'single' && <SingleMode categoryId={categoryId} onPick={onPick} />}
       {mode === 'mixed' && <MixedMode categoryId={categoryId} onPick={onPick} />}
       {mode === 'bychapter' && <ByChapterMode categoryId={categoryId} onPick={onPick} />}
+      {mode === 'random' && <RandomMode categoryId={categoryId} onPick={onPick} />}
+    </div>
+  );
+}
+
+function RandomMode({ categoryId, onPick }) {
+  const [count, setCount] = useState(30);
+  return (
+    <div className="random-selector">
+      <p className="muted small">Pulls random questions from across this entire category, regardless of subject or chapter.</p>
+      <label className="exam-setup-timer">
+        <span>Number of questions</span>
+        <input
+          type="number"
+          min={5}
+          max={100}
+          value={count}
+          onChange={(e) => setCount(Math.max(5, Math.min(100, parseInt(e.target.value) || 5)))}
+        />
+      </label>
+      <button className="btn-primary" onClick={() => onPick({ mode: 'randomCategory', categoryId, count })}>
+        Start random practice
+      </button>
     </div>
   );
 }
@@ -436,6 +460,19 @@ export function PracticeSession({ session, onExit }) {
         if (cancelled) return;
         const order = new Map(ids.map((id, i) => [id, i]));
         setQuestions([...(qs || [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
+      } else if (session.mode === 'randomCategory') {
+        const { data: subjects } = await supabase.from('subjects').select('id').eq('category_id', session.categoryId);
+        const subjectIds = (subjects || []).map((s) => s.id);
+        if (subjectIds.length === 0) { setQuestions([]); return; }
+        const { data: subcats } = await supabase.from('subcategories').select('id').in('subject_id', subjectIds);
+        const subcatIds = (subcats || []).map((s) => s.id);
+        if (subcatIds.length === 0) { setQuestions([]); return; }
+        const { data: chaps } = await supabase.from('chapters').select('id').in('subcategory_id', subcatIds);
+        const chapIds = (chaps || []).map((c) => c.id);
+        if (chapIds.length === 0) { setQuestions([]); return; }
+        const { data } = await supabase.from('questions').select('*').in('chapter_id', chapIds).eq('is_active', true);
+        if (cancelled) return;
+        setQuestions(shuffle(data || []).slice(0, session.count));
       } else if (session.mode === 'bookmarked') {
         const { data: bookmarkRows } = await supabase
           .from('bookmarked_questions')

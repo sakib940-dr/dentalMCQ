@@ -8,7 +8,7 @@ function BookmarkCard({ question, onRemove }) {
   return (
     <div className="panel answer-sheet-card">
       <div className="bookmark-card-head">
-        <button className="icon-btn-danger" onClick={onRemove} aria-label="Remove bookmark">🔖 Remove</button>
+        <button className="icon-btn-danger" onClick={onRemove} aria-label="Remove bookmark">❤️ Remove</button>
       </div>
       <div className="q-text">{question.question_text}</div>
       <div className="opt-list">

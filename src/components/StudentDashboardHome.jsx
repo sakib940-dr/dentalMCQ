@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { daysLeft, timeAgo } from '../lib/formatters';
-import { findResumablePracticeSession } from './PracticePage';
 
 // ============================================================
 // Quick actions — the primary "do something" entry points.
@@ -11,16 +10,16 @@ import { findResumablePracticeSession } from './PracticePage';
 // yet, and a tile that silently goes nowhere would be worse than one
 // that's honestly marked "Coming soon".
 // ============================================================
-function QuickActionsGrid({ onContinuePractice }) {
+function QuickActionsGrid() {
   const navigate = useNavigate();
 
   const actions = [
-    { icon: '▶️', label: 'Continue Practice', onClick: onContinuePractice },
+    { icon: '📖', label: 'Question Bank Practice', onClick: () => navigate('/dashboard/question-bank') },
     { icon: '🎯', label: 'Start Mock Exam', onClick: () => navigate('/dashboard/exams') },
     { icon: '🔁', label: 'Wrong Answer Revision', onClick: () => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } }) },
-    { icon: '🔖', label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks') },
+    { icon: '❤️', label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks') },
     { icon: '📋', label: 'Prescription Tool', onClick: () => navigate('/dashboard/prescription') },
-    { icon: '🏥', label: 'Dental Chamber', onClick: null, soon: true },
+    { icon: '🏥', label: 'Dental Chamber', onClick: () => navigate('/dashboard/chamber') },
   ];
 
   return (
@@ -237,20 +236,11 @@ export default function StudentDashboardHome() {
     return () => { cancelled = true; };
   }, [user.id]);
 
-  const handleContinuePractice = () => {
-    const resumable = findResumablePracticeSession();
-    if (resumable) {
-      navigate('/dashboard/practice-session', { state: { session: resumable } });
-    } else {
-      navigate('/dashboard/exams');
-    }
-  };
-
   return (
     <>
       <div className="dash-greeting">Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}</div>
 
-      <QuickActionsGrid onContinuePractice={handleContinuePractice} />
+      <QuickActionsGrid />
 
       <SubscriptionStrip grants={grants} categories={categories} />
 

@@ -4,7 +4,12 @@ import DashboardLayout from '../../components/DashboardLayout';
 import StudentDashboardHome from '../../components/StudentDashboardHome';
 import CategoryExamsPage from '../../components/CategoryExamsPage';
 import BookmarksPage from '../../components/BookmarksPage';
+import QuestionBankPracticePage from '../../components/QuestionBankPracticePage';
 import PracticeSessionRoute from '../../components/PracticeSessionRoute';
+import ChamberHome from '../../components/ChamberHome';
+import PatientsListPage from '../../components/PatientsListPage';
+import PatientProfilePage from '../../components/PatientProfilePage';
+import PrescriptionHistoryPage from '../../components/PrescriptionHistoryPage';
 import StudentChatPage from '../../components/StudentChatPage';
 import StudentNoticeBoard from '../../components/StudentNoticeBoard';
 import MyProfilePage from '../../components/MyProfilePage';
@@ -42,6 +47,7 @@ export default function ExamineeDashboard() {
       <Routes>
         <Route index element={<StudentDashboardHome />} />
         <Route path="exams" element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
+        <Route path="question-bank" element={<QuestionBankPracticePage />} />
         <Route path="bookmarks" element={<BookmarksPage />} />
         <Route path="practice-session" element={<PracticeSessionRoute />} />
         <Route path="package" element={<PackagePage />} />
@@ -53,6 +59,10 @@ export default function ExamineeDashboard() {
             </Suspense>
           }
         />
+        <Route path="chamber" element={<ChamberHome />} />
+        <Route path="chamber/patients" element={<PatientsListPage />} />
+        <Route path="chamber/patients/:id" element={<PatientProfilePage />} />
+        <Route path="chamber/prescriptions" element={<PrescriptionHistoryPage />} />
         <Route path="notices" element={<StudentNoticeBoard />} />
         <Route path="chat" element={<StudentChatPage />} />
         <Route path="profile" element={<MyProfilePage />} />

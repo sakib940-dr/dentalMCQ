@@ -68,6 +68,18 @@ function ExamResultView({ exam, onBack }) {
   const { user } = useAuth();
   const [attempt, setAttempt] = useState(null);
   const [details, setDetails] = useState(null); // [{ question, chosen, correct }]
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+
+  const toggleBookmark = async (questionId) => {
+    const isBookmarked = bookmarkedIds.has(questionId);
+    setBookmarkedIds((s) => {
+      const next = new Set(s);
+      isBookmarked ? next.delete(questionId) : next.add(questionId);
+      return next;
+    });
+    if (isBookmarked) await removeBookmark(user.id, questionId);
+    else await addBookmark(user.id, questionId);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +105,7 @@ function ExamResultView({ exam, onBack }) {
       const answerMap = new Map((answers || []).map((ans) => [ans.question_id, ans]));
 
       setDetails(sortedQs.map((q) => ({ question: q, answer: answerMap.get(q.id) || null })));
+      setBookmarkedIds(await loadBookmarkedIds(user.id, ids));
     }
     load();
     return () => { cancelled = true; };
@@ -140,9 +153,18 @@ function ExamResultView({ exam, onBack }) {
             <div key={q.id} className={cardClass}>
               <div className="q-num-row">
                 <span className="q-num-label">Question {i + 1}</span>
-                {!chosen && <span className="sheet-tag sheet-tag-unanswered">Unanswered</span>}
-                {chosen && isCorrect && <span className="sheet-tag sheet-tag-correct">Correct</span>}
-                {chosen && !isCorrect && <span className="sheet-tag sheet-tag-wrong">Wrong</span>}
+                <div className="q-num-row-actions">
+                  {!chosen && <span className="sheet-tag sheet-tag-unanswered">Unanswered</span>}
+                  {chosen && isCorrect && <span className="sheet-tag sheet-tag-correct">Correct</span>}
+                  {chosen && !isCorrect && <span className="sheet-tag sheet-tag-wrong">Wrong</span>}
+                  <button
+                    className={bookmarkedIds.has(q.id) ? 'bookmark-inline-btn bookmark-inline-btn-active' : 'bookmark-inline-btn'}
+                    onClick={() => toggleBookmark(q.id)}
+                    aria-label={bookmarkedIds.has(q.id) ? 'Remove bookmark' : 'Bookmark this question'}
+                  >
+                    {bookmarkedIds.has(q.id) ? '❤️' : '🤍'}
+                  </button>
+                </div>
               </div>
               <div className="q-text">{q.question_text}</div>
               <div className="opt-list">
