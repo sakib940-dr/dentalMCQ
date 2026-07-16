@@ -34,6 +34,12 @@ function exitFullscreen() {
  *  - onExit() -> called if user exits before starting or cancels
  *  - allowTimeAdjust: boolean - show the pre-start timer customization screen
  *  - persistKey: string|null - localStorage key for auto-save/resume (per attempt)
+ *  - bookmarkedIds: Set|undefined - question ids already bookmarked by this student.
+ *    Optional — if omitted, no bookmark button is shown, so existing callers
+ *    that don't pass it keep working unchanged.
+ *  - onToggleBookmark(questionId): optional callback, called when the
+ *    bookmark button is tapped. ExamRunner stays presentational — it never
+ *    talks to Supabase itself; the caller owns persistence.
  */
 export default function ExamRunner({
   questions,
@@ -44,6 +50,8 @@ export default function ExamRunner({
   onExit,
   allowTimeAdjust = true,
   persistKey,
+  bookmarkedIds,
+  onToggleBookmark,
 }) {
   const [phase, setPhase] = useState('setup'); // setup | fullscreen-gate | running | submitted
   const [customMinutes, setCustomMinutes] = useState(durationMinutes);
@@ -331,12 +339,23 @@ export default function ExamRunner({
             <div key={q.id} id={`runner-q-${q.id}`} data-qindex={i} className="panel exam-run-qcard">
               <div className="q-num-row">
                 <span className="q-num-label">Question {i + 1}</span>
-                <button
-                  className={qIsMarked ? 'mark-inline-btn mark-inline-btn-active' : 'mark-inline-btn'}
-                  onClick={() => toggleMark(q.id)}
-                >
-                  ★ {qIsMarked ? 'Marked' : 'Mark'}
-                </button>
+                <div className="q-num-row-actions">
+                  {onToggleBookmark && (
+                    <button
+                      className={bookmarkedIds?.has(q.id) ? 'bookmark-inline-btn bookmark-inline-btn-active' : 'bookmark-inline-btn'}
+                      onClick={() => onToggleBookmark(q.id)}
+                      aria-label="Bookmark for later"
+                    >
+                      🔖 {bookmarkedIds?.has(q.id) ? 'Saved' : 'Save'}
+                    </button>
+                  )}
+                  <button
+                    className={qIsMarked ? 'mark-inline-btn mark-inline-btn-active' : 'mark-inline-btn'}
+                    onClick={() => toggleMark(q.id)}
+                  >
+                    ★ {qIsMarked ? 'Marked' : 'Mark'}
+                  </button>
+                </div>
               </div>
               <div className="q-text">{q.question_text}</div>
               <div className="opt-list">

@@ -835,6 +835,7 @@ body {
 }
 .btn-danger.sm { padding: 6px 10px; font-size: 12px; }
 .btn-secondary.sm { padding: 6px 10px; font-size: 12px; }
+.btn-primary.sm { padding: 6px 10px; font-size: 12px; }
 
 .chapter-browser { display: flex; flex-direction: column; gap: 4px; }
 .browser-node { margin-left: 0; }
@@ -1060,11 +1061,30 @@ body {
 }
 .mark-inline-btn-active { background: #FCEFD8; color: #8A5A0A; }
 
+.bookmark-inline-btn {
+  background: #F1EEE5;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.bookmark-inline-btn-active { background: #E4F0EC; color: var(--teal-deep); }
+
 .q-num-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+}
+.q-num-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .marked-tag {
   font-size: 11px;
@@ -1954,6 +1974,96 @@ body {
 }
 .recent-row:last-child { border-bottom: none; }
 .recent-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+
+/* ---------- Student Dashboard home ---------- */
+.dash-greeting {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  margin: 4px 2px 14px;
+}
+
+.quick-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.quick-action-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #FAF9F5;
+  border: 1.5px solid var(--card-border);
+  border-radius: 16px;
+  padding: 18px 10px;
+  cursor: pointer;
+  text-align: center;
+}
+.quick-action-tile:active { background: #F1EEE5; }
+.quick-action-tile-icon { font-size: 24px; }
+.quick-action-tile-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.quick-action-tile-soon {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.quick-action-tile-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--gold);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.subscription-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1.5px solid var(--gold);
+  background: #FDFBF3;
+}
+.subscription-strip-empty { border-color: var(--card-border); background: #FAF9F5; }
+.subscription-strip-title {
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.subscription-strip-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+.stat-card-tappable {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+.stat-card-tappable:active { background: #F1EEE5; }
+
+.bookmark-card-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
 
 /* ---------- Install app banner ---------- */
 .install-banner {

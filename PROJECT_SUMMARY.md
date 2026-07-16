@@ -20,6 +20,7 @@ A production MCQ live-exam web app for dental students (BDS/FCPS/BCS prep), buil
 - `exam_attempts` — official/practice attempt records; `attempt_type` enum, `status` enum, `score`/`percentage`/`rank`
 - `attempt_answers` — per-question answers for an attempt
 - `wrong_questions` — tracks incorrect answers for spaced-repetition practice; unique on `(examinee_id, question_id)`
+- `bookmarked_questions` — student-curated "save for later" list, separate from `wrong_questions` (auto-populated from wrong answers) and from ExamRunner's in-session "★ Mark" (per-attempt only, never persisted); unique on `(examinee_id, question_id)`, RLS = own rows only
 - `practice_sessions` / `practice_answers` — separate from official attempts, never touch merit list
 - `chat_threads` / `chat_messages` — one thread per student; `sender_role` on each message lets Moderators see student+moderator messages but NEVER super_admin messages (Super Admin sees everything)
 - `notices` — general announcement board, staff-write/all-read
@@ -42,17 +43,20 @@ A production MCQ live-exam web app for dental students (BDS/FCPS/BCS prep), buil
 ## Feature map (what's built, by role)
 
 ### Examinee dashboard (`src/pages/examinee/ExamineeDashboard.jsx`)
-- **Home** = `CategoryExamsPage.jsx` → category grid → click into a category → 5 tabs: **Exam Schedule, Upcoming, Live, Archive, Practice**
+- **Home** (`/dashboard`) = `StudentDashboardHome.jsx` — the student's landing page. Quick Actions grid (Continue Practice, Start Mock Exam, Wrong Answer Revision, Bookmarked Questions, Prescription Tool, Dental Chamber [disabled/"Soon" — module not built yet]), a compact Subscription strip (soonest-expiring grant + Renew/Manage → `/dashboard/package`), an Exam Overview stat grid (Questions Available/Attempted/Accuracy/Exams/Avg/Best/Wrong-for-revision/Bookmarked — correct/wrong and live/archived shown as sub-labels rather than separate cards, to avoid redundant tiles), and a merged Recent Activity feed (official exams + practice sessions, sorted by date). Stats are computed client-side via parallel Supabase queries (same pattern as `SuperAdminOverview.jsx`), not a DB view/RPC.
+- **Exams** (`/dashboard/exams`) = `CategoryExamsPage.jsx` → category grid → click into a category → 5 tabs: **Exam Schedule, Upcoming, Live, Archive, Practice** (this is what used to be the Home route — moved when the Dashboard was added, no internal changes to this component's own logic)
   - Live: start exam (fixed question set, `ExamRunner` component)
   - Archive: **3 buttons per exam** — View Result (own answer sheet), Merit List (ranked table, only if window closed), Retake as practice
   - Practice (moved INSIDE category, scoped to that category's subjects only): 3 modes — **Single** (pick subject, random across its chapters), **Mixed** (checkbox+number-box per subject, only >0 boxes contribute, NO auto-fill), **By chapter** (pick subject, then number-box per chapter). All three end with a Duration field (60% default, editable).
   - Wrong Questions entry point also lives in Practice tab
+- **Bookmarks** (`/dashboard/bookmarks`) = `BookmarksPage.jsx` — browsable list of saved questions (static answer view, correct option shown, remove button), with a "Practice these" button
+- **Quick practice launcher** (`/dashboard/practice-session`) = `PracticeSessionRoute.jsx` — launches a `PracticeSession` directly by router state (`{mode:'wrong'}`, `{mode:'bookmarked'}`, or a resumed session) without requiring a category pick first. Applies the same `practice_enabled_global`/`profile.practice_enabled` gating as the category-scoped Practice tab, so this shortcut can't bypass that business rule.
 - **Notice Board** — read-only list, pinned notices highlighted
 - **Messages** — chat with admin/moderator team, auto-welcome message on registration (DB trigger)
 
 ### `ExamRunner.jsx` (shared by Practice AND Live Exam — one component, two callers)
 - Setup screen: shows question count, editable timer (if allowed), single "Start" click → auto-fullscreen (no separate "Start Full Screen" step)
-- Running: sticky header (title + answered count + timer), all questions in one smooth-scrolling list (NOT one-at-a-time), each question has inline "★ Mark" button, sticky bottom bar with ONLY a big "Submit exam" button + answered count (no Prev/Next/Mark buttons in the bottom bar — those were removed per user request)
+- Running: sticky header (title + answered count + timer), all questions in one smooth-scrolling list (NOT one-at-a-time), each question has an inline "★ Mark" button (session-local, never persisted) and an inline "🔖 Save" bookmark button (optional props `bookmarkedIds`/`onToggleBookmark` — persists to `bookmarked_questions` via the caller, not ExamRunner itself, which stays presentational/DB-agnostic), sticky bottom bar with ONLY a big "Submit exam" button + answered count (no Prev/Next/Mark buttons in the bottom bar — those were removed per user request)
 - Resume-after-refresh via localStorage: persists `questionIds` (exact set+order), `answers`, `marked`, and an absolute `endAt` timestamp (wall-clock accurate, survives tab close)
 - Back-button interception: pushes a history guard entry, shows a custom confirm modal instead of silently exiting
 - Submit → full color-coded answer sheet (green/red/yellow cards, correct/wrong/unanswered), big score/percentage, negative marking shown if >0
@@ -90,5 +94,13 @@ Same as Super Admin MINUS Users tab and global-settings-toggles (Moderator only 
 5. Vercel auto-detects the push and redeploys
 6. For DB changes, I provide a separate `.sql` migration file the user runs in Supabase's SQL Editor
 
+## Also implemented (not previously listed in this file — found in codebase, documenting now for continuity)
+- **Packages/Subscriptions**: `packages`, `package_categories`, `category_access_grants`, `payment_claims` tables; `PackagePage.jsx` (student-facing claim/promo/txn flow), `PaymentAdminPage.jsx` (staff approval), `PackagesReadOnlyPage.jsx`. Access to a category's exams/practice is gated by `has_active_access()` RPC checking `category_access_grants`, not a flat `is_active` flag. A package can link multiple categories (`package_categories`); claiming/approval creates one grant row per linked category, each with its own `expires_at` — there is no single unified "current package" row, by design (see `SubscriptionStrip` in `StudentDashboardHome.jsx` for how the dashboard summarizes this honestly instead of faking a single-package model).
+- **Prescription module**: `prescriptions`, `advice_templates` tables; per-doctor logo watermark + custom footer text (stored on `profiles.prescription_logo_url` / `prescription_footer_text` / `prescription_watermark_opacity`), auto `serial_number`, tooth-quadrant clinical notation (`ToothQuadrantInput`), jsPDF generation with embedded Bengali font, "Reprint/Edit" from a recent-5 list. `PrescriptionActivityPage.jsx` gives staff a usage summary (`prescription_usage_summary` view) drillable per user.
+- **Access Control / Audit Log**: `AccessControlPage.jsx`, `AuditLogPage.jsx` — not yet cross-referenced in this summary's business rules; read the components directly if working in this area.
+- **PWA install prompt**: `InstallAppButton.jsx`.
+
 ## What's NOT yet built
-- Nothing major outstanding from the original 7-point spec — all core features (auth, categories, question bank, exam builder, practice, live exam, results/merit, notice board, chat, user management) are complete as of this summary.
+- **Dental Chamber Management** (patients, appointments, treatment records, billing, follow-ups) — scoped and reviewed, not yet built. See chat history for the proposed schema (`patients`, `appointments`, `treatments`, `payments`, `follow_ups`, all `owner_id`-isolated per doctor) — high reuse potential with `ToothQuadrantInput`/`ClinicalSection` from `PrescriptionPage.jsx`.
+- **Prescription history polish** — searchable full history (currently capped at last 5) and one-click View/Download/Print without re-entering edit mode. Scoped, not yet built.
+- Everything else from the original 7-point spec is complete (auth, categories, question bank, exam builder, practice, live exam, results/merit, notice board, chat, user management), plus the Student Dashboard, Bookmarked Questions, and the Packages/Prescription systems documented above.

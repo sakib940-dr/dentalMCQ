@@ -19,3 +19,19 @@ export function timeAgo(iso) {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
+
+// ---------- Subscription helpers (previously duplicated between
+// PackagePage and the Student Dashboard) ----------
+export function durationLabel(days) {
+  if (days === 30) return '1 Month';
+  if (days === 90) return '3 Months';
+  if (days === 180) return '6 Months';
+  if (days === 365) return '1 Year';
+  return `${days} Days`;
+}
+
+export function daysLeft(expiresAt) {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  return Math.ceil(ms / (1000 * 60 * 60 * 24));
+}
