@@ -1,5 +1,6 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient';
 import DashboardLayout from '../../components/DashboardLayout';
 import StudentDashboardHome from '../../components/StudentDashboardHome';
 import CategoryExamsPage from '../../components/CategoryExamsPage';
@@ -14,6 +15,10 @@ import StudentChatPage from '../../components/StudentChatPage';
 import StudentNoticeBoard from '../../components/StudentNoticeBoard';
 import MyProfilePage from '../../components/MyProfilePage';
 import PackagePage from '../../components/PackagePage';
+import SmartSearchPage from '../../components/SmartSearchPage';
+import FeedbackPage from '../../components/FeedbackPage';
+import ContactUsPage from '../../components/ContactUsPage';
+import SupportHubPage from '../../components/SupportHubPage';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -22,15 +27,6 @@ import { useAuth } from '../../contexts/AuthContext';
 // generating a prescription — no reason to ship that to every student
 // just to browse exams.
 const PrescriptionPage = lazy(() => import('../../components/PrescriptionPage'));
-
-const navItems = [
-  { to: '/dashboard', label: 'Home', end: true },
-  { to: '/dashboard/exams', label: 'Exams' },
-  { to: '/dashboard/package', label: 'Package' },
-  { to: '/dashboard/notices', label: 'Notice Board' },
-  { to: '/dashboard/chat', label: 'Messages' },
-  { to: '/dashboard/profile', label: 'My Profile' },
-];
 
 function LiveExamGate({ children }) {
   const { profile } = useAuth();
@@ -41,7 +37,44 @@ function LiveExamGate({ children }) {
   return children;
 }
 
+// Unread count sourced from the same `notifications` table the bell icon
+// already reads from — one definition of "unread", not two disagreeing ones.
+function useUnreadMessageCount(userId) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { count: c } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('type', 'chat_message')
+        .eq('is_read', false);
+      if (!cancelled) setCount(c || 0);
+    }
+    load();
+    const channel = supabase
+      .channel(`unread_msgs_${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, load)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [userId]);
+  return count;
+}
+
 export default function ExamineeDashboard() {
+  const { user } = useAuth();
+  const unreadMessages = useUnreadMessageCount(user.id);
+
+  const navItems = [
+    { to: '/dashboard', label: 'Home', end: true },
+    { to: '/dashboard/exams', label: 'Exams' },
+    { to: '/dashboard/package', label: 'Package' },
+    { to: '/dashboard/notices', label: 'Notice Board' },
+    { to: '/dashboard/chat', label: 'Messages', badge: unreadMessages },
+    { to: '/dashboard/profile', label: 'My Profile' },
+  ];
+
   return (
     <DashboardLayout title="Examinee" navItems={navItems}>
       <Routes>
@@ -49,6 +82,7 @@ export default function ExamineeDashboard() {
         <Route path="exams" element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
         <Route path="question-bank" element={<QuestionBankPracticePage />} />
         <Route path="bookmarks" element={<BookmarksPage />} />
+        <Route path="search" element={<SmartSearchPage />} />
         <Route path="practice-session" element={<PracticeSessionRoute />} />
         <Route path="package" element={<PackagePage />} />
         <Route
@@ -63,6 +97,9 @@ export default function ExamineeDashboard() {
         <Route path="chamber/patients" element={<PatientsListPage />} />
         <Route path="chamber/patients/:id" element={<PatientProfilePage />} />
         <Route path="chamber/prescriptions" element={<PrescriptionHistoryPage />} />
+        <Route path="support" element={<SupportHubPage />} />
+        <Route path="feedback" element={<FeedbackPage />} />
+        <Route path="contact" element={<ContactUsPage />} />
         <Route path="notices" element={<StudentNoticeBoard />} />
         <Route path="chat" element={<StudentChatPage />} />
         <Route path="profile" element={<MyProfilePage />} />

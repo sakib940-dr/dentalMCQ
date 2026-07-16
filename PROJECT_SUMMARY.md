@@ -24,6 +24,7 @@ A production MCQ live-exam web app for dental students (BDS/FCPS/BCS prep), buil
 - `patients` — Chamber Management, `owner_id`-scoped per doctor; `unique(owner_id, phone_number)` — see Chamber Management section below for why phone isn't globally unique
 - `appointments` — Chamber Management; `owner_id`, `patient_id`, `scheduled_at`, `status`
 - `prescriptions.patient_id` — nullable FK added onto the existing `prescriptions` table, linking each prescription to a `patients` row (see Chamber Management section)
+- `feedback` — bug/feature/general reports + optional star rating; students see only their own, staff see all
 - `practice_sessions` / `practice_answers` — separate from official attempts, never touch merit list
 - `chat_threads` / `chat_messages` — one thread per student; `sender_role` on each message lets Moderators see student+moderator messages but NEVER super_admin messages (Super Admin sees everything)
 - `notices` — general announcement board, staff-write/all-read
@@ -119,7 +120,17 @@ Same as Super Admin MINUS Users tab and global-settings-toggles (Moderator only 
 ## Root cause: naming collision to be aware of
 There are two unrelated things both called "Chamber" in this app — `profiles.chamber_name`/`chamber_address`/etc. (a small contact-info block shown on prescriptions, edited on `MyProfilePage.jsx`) and the **Chamber Management module** (`patients`/`appointments` tables, `/dashboard/chamber/*` routes). Don't conflate them when working in this area.
 
-## Security notes (explicit user decisions, not my recommendation)
+## Student Dashboard UX round (Smart Search, Help Center, Feedback, Contact, compact layout)
+- **Smart Search** (`/dashboard/search`, `SmartSearchPage.jsx`) — searches `question_text` + all 4 options, scoped to the student's active-subscription categories only (same chapter-id drill-down pattern used elsewhere). Uses **5 separate safe `.ilike()` queries merged client-side**, not a raw `.or()` filter string — a search term with a comma or parenthesis (common in medical terms) would silently break a `.or()` string, same lesson learned earlier with Patient/Prescription search. "Practice these" launches a new `PracticeSession` mode, `idList` (fetches by an explicit array of question ids — added to `PracticePage.jsx`'s loader).
+- **Help Center** (`/help`, `pages/HelpCenterPage.jsx`) — **public route, no `ProtectedRoute` wrapper**, reachable before login. Bengali, `<details>/<summary>` accordion (no JS state needed per item). Linked from both Login and Register pages' footers. Content is written from this app's actual real flows, not generic boilerplate — keep it in sync if those flows change.
+- **Feedback** (`/dashboard/feedback` student-facing `FeedbackPage.jsx`, `/admin/feedback` staff-facing `FeedbackAdminPage.jsx`) — new `feedback` table (`migration_feedback.sql`), types bug/feature/general + optional 1-5 star rating, RLS: student sees only their own, staff (all three roles) see everything and can set status new/reviewed/resolved.
+- **Contact Us** (`/dashboard/contact`, `ContactUsPage.jsx`) — email + optional Facebook link, **editable by Super Admin without a redeploy**: stored in `app_settings` (`contact_email`, `contact_facebook` keys — same table/pattern as the `practice_enabled_global` feature toggles, just reused for strings instead of booleans, since that table's `value` column is JSONB/flexible-typed). Admin-side editor: `ContactInfoPanel.jsx`, added to Super Admin → Settings. Defaults to `dentalmcqbd@gmail.com` with no Facebook link if nothing's been set yet.
+- **Support Hub** (`/dashboard/support`, `SupportHubPage.jsx`) — a single "Help & Support" Quick Action tile fans out to Help Center / Feedback / Contact Us as 3 cards, mirroring the `ChamberHome.jsx` hub pattern — keeps the main Quick Actions grid from growing to 9+ individual tiles.
+- **Unread message badge**: the "Messages" nav tab now shows a small red count badge (`DashboardLayout.jsx` nav items gained an optional `badge` field). Sourced from the same `notifications` table (`type='chat_message'`, `is_read=false`) the existing bell icon (`NotificationBell.jsx`) already reads — deliberately the same source of truth, not a second competing definition of "unread" computed from `chat_messages.read_by_student` directly.
+- **Quick Actions reorganized into two labeled groups** ("Study": Question Bank Practice/Mock Exam/Wrong Revision/Bookmarks/Smart Search; "Chamber & Support": Prescription/Chamber/Help & Support) instead of one flat 6-tile grid — same tiles, same `.quick-action-tile` styling, just grouped, per explicit request to "group related features together."
+- **Upcoming Features is now a collapsed-by-default `<details>` accordion** instead of always-expanded — same content, just not consuming scroll space by default. This was the single biggest "reduce unnecessary scrolling" win available without removing anything.
+
+
 - **Plain-text passwords are stored** in `user_credentials`, visible to Super Admin only, by explicit user request despite being told this is non-standard/risky. This was a deliberate tradeoff the user chose knowingly.
 - If this app is ever used beyond a small trusted deployment, recommend replacing this with a proper password-reset flow.
 

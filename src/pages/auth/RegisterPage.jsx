@@ -163,6 +163,9 @@ export default function RegisterPage() {
         <p className="auth-switch">
           Already have an account? <Link to="/login">Log in</Link>
         </p>
+        <p className="auth-switch">
+          <Link to="/help">সাহায্য দরকার? Help Center দেখুন</Link>
+        </p>
       </div>
     </div>
   );

@@ -9,11 +9,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setUnconfirmed(false);
     setLoading(true);
     const { error } = await signIn(email.trim(), password);
     setLoading(false);
@@ -21,6 +23,7 @@ export default function LoginPage() {
       const msg = (error.message || '').toLowerCase();
       if (msg.includes('email not confirmed')) {
         setError('Please verify your email first — check both your Inbox and Spam/Junk folder for the confirmation link.');
+        setUnconfirmed(true);
       } else if (msg.includes('invalid login credentials')) {
         setError('Incorrect email or password.');
       } else if (msg.includes('fetch') || msg.includes('network')) {
@@ -62,7 +65,14 @@ export default function LoginPage() {
             />
           </label>
           <p className="auth-forgot-link"><Link to="/forgot-password">Forgot password?</Link></p>
-          {error && <div className="error-box">{error}</div>}
+          {error && (
+            <div className="error-box">
+              {error}
+              {unconfirmed && (
+                <> <Link to={`/resend-confirmation?email=${encodeURIComponent(email.trim())}`}>Resend confirmation email</Link></>
+              )}
+            </div>
+          )}
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Logging in…' : 'Log in'}
           </button>
@@ -70,6 +80,9 @@ export default function LoginPage() {
 
         <p className="auth-switch">
           New examinee? <Link to="/register">Register here</Link>
+        </p>
+        <p className="auth-switch">
+          <Link to="/help">সাহায্য দরকার? Help Center দেখুন</Link>
         </p>
       </div>
     </div>

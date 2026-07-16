@@ -39,6 +39,7 @@ export default function DashboardLayout({ title, navItems, children }) {
             className={({ isActive }) => 'dash-tab' + (isActive ? ' dash-tab-active' : '')}
           >
             {item.label}
+            {item.badge > 0 && <span className="dash-tab-badge">{item.badge > 9 ? '9+' : item.badge}</span>}
           </NavLink>
         ))}
       </nav>

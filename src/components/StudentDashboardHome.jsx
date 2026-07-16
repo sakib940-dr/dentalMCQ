@@ -5,40 +5,43 @@ import { useAuth } from '../contexts/AuthContext';
 import { daysLeft, timeAgo } from '../lib/formatters';
 
 // ============================================================
-// Quick actions — the primary "do something" entry points.
-// Chamber Management is listed but disabled: the module doesn't exist
-// yet, and a tile that silently goes nowhere would be worse than one
-// that's honestly marked "Coming soon".
+// Quick actions — the primary "do something" entry points, grouped so
+// related features sit together instead of one long flat grid.
 // ============================================================
 function QuickActionsGrid() {
   const navigate = useNavigate();
 
-  const actions = [
+  const studyActions = [
     { icon: '📖', label: 'Question Bank Practice', onClick: () => navigate('/dashboard/question-bank') },
     { icon: '🎯', label: 'Start Mock Exam', onClick: () => navigate('/dashboard/exams') },
     { icon: '🔁', label: 'Wrong Answer Revision', onClick: () => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } }) },
     { icon: '❤️', label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks') },
+    { icon: '🔍', label: 'Smart Search', onClick: () => navigate('/dashboard/search') },
+  ];
+  const chamberActions = [
     { icon: '📋', label: 'Prescription Tool', onClick: () => navigate('/dashboard/prescription') },
     { icon: '🏥', label: 'Dental Chamber', onClick: () => navigate('/dashboard/chamber') },
+    { icon: '💬', label: 'Help & Support', onClick: () => navigate('/dashboard/support') },
   ];
+
+  const renderTiles = (actions) => (
+    <div className="quick-action-grid">
+      {actions.map((a) => (
+        <button key={a.label} className="quick-action-tile" onClick={a.onClick}>
+          <span className="quick-action-tile-icon">{a.icon}</span>
+          <span className="quick-action-tile-label">{a.label}</span>
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="panel">
       <h2>Quick Actions</h2>
-      <div className="quick-action-grid">
-        {actions.map((a) => (
-          <button
-            key={a.label}
-            className={a.soon ? 'quick-action-tile quick-action-tile-soon' : 'quick-action-tile'}
-            onClick={a.onClick || undefined}
-            disabled={a.soon}
-          >
-            <span className="quick-action-tile-icon">{a.icon}</span>
-            <span className="quick-action-tile-label">{a.label}</span>
-            {a.soon && <span className="quick-action-tile-badge">Soon</span>}
-          </button>
-        ))}
-      </div>
+      <div className="quick-action-group-label">Study</div>
+      {renderTiles(studyActions)}
+      <div className="quick-action-group-label">Chamber &amp; Support</div>
+      {renderTiles(chamberActions)}
     </div>
   );
 }
@@ -126,9 +129,12 @@ function UpcomingFeaturesPanel() {
   ];
 
   return (
-    <div className="panel">
-      <h2>Upcoming Features</h2>
-      <p className="muted small">On the roadmap — not available yet.</p>
+    <details className="panel upcoming-features-panel">
+      <summary className="upcoming-features-summary">
+        <h2 style={{ display: 'inline', margin: 0 }}>Upcoming Features</h2>
+        <span className="muted small"> — tap to see what's coming</span>
+      </summary>
+      <p className="muted small" style={{ marginTop: 10 }}>On the roadmap — not available yet.</p>
       <div className="quick-action-grid" style={{ marginTop: 14 }}>
         {features.map((f) => (
           <div key={f.label} className="quick-action-tile quick-action-tile-soon">
@@ -138,7 +144,7 @@ function UpcomingFeaturesPanel() {
           </div>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 

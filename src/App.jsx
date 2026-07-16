@@ -7,6 +7,8 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import ResendConfirmationPage from './pages/auth/ResendConfirmationPage';
+import HelpCenterPage from './pages/HelpCenterPage';
 import './App.css';
 
 // Each role's dashboard is its own lazy chunk — a Student never
@@ -35,6 +37,8 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/resend-confirmation" element={<ResendConfirmationPage />} />
+            <Route path="/help" element={<HelpCenterPage />} />
 
             <Route path="/" element={<HomeRedirect />} />
 

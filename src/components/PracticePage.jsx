@@ -482,6 +482,12 @@ export function PracticeSession({ session, onExit }) {
         const picked = await drawRandomQuestions(chapIds, session.count);
         if (cancelled) return;
         setQuestions(picked);
+      } else if (session.mode === 'idList') {
+        if (!session.ids || session.ids.length === 0) { setQuestions([]); return; }
+        const { data } = await supabase.from('questions').select('*').in('id', session.ids).eq('is_active', true);
+        if (cancelled) return;
+        const order = new Map(session.ids.map((id, i) => [id, i]));
+        setQuestions([...(data || [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
       } else if (session.mode === 'bookmarked') {
         const { data: bookmarkRows } = await supabase
           .from('bookmarked_questions')

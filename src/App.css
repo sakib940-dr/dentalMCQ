@@ -277,6 +277,18 @@ body {
   border-bottom-color: var(--gold);
 }
 
+.dash-tab-badge {
+  display: inline-block;
+  background: var(--red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 1px 6px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
 .dash-content {
   flex: 1;
   padding: 20px;
@@ -2035,6 +2047,15 @@ body {
   gap: 10px;
   margin-top: 14px;
 }
+.quick-action-group-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-soft);
+  margin: 16px 2px 0;
+}
+.quick-action-group-label:first-of-type { margin-top: 10px; }
 .quick-action-tile {
   position: relative;
   display: flex;
@@ -2143,6 +2164,110 @@ body {
 }
 .patient-row-btn:last-child { border-bottom: none; }
 .patient-row-btn:active { background: #FAF9F5; }
+
+.search-highlight {
+  background: #FCEFD8;
+  color: #8A5A0A;
+  border-radius: 3px;
+  padding: 0 2px;
+  font-weight: 700;
+}
+
+/* ---------- Public pages (reachable without login, e.g. Help Center) ---------- */
+.public-page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 20px;
+}
+.public-page-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.public-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.faq-accordion {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.faq-item {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #FAF9F5;
+}
+.faq-item-title {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--teal-deep);
+  list-style: none;
+}
+.faq-item-title::-webkit-details-marker { display: none; }
+.faq-item-body {
+  margin-top: 10px;
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.faq-item-body p { margin: 0 0 8px; }
+.faq-item-body p:last-child { margin-bottom: 0; }
+
+.star-rating { display: flex; gap: 4px; }
+.star-rating-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--gold);
+  cursor: pointer;
+  padding: 0;
+}
+
+.feedback-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+.feedback-row:last-child { border-bottom: none; }
+.feedback-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.contact-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.contact-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FAF9F5;
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: inherit;
+}
+.contact-card-icon { font-size: 26px; }
+.contact-card-label { display: block; font-size: 11.5px; color: var(--ink-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.contact-card-value { display: block; font-size: 14.5px; font-weight: 600; color: var(--teal-deep); margin-top: 2px; }
+
+.upcoming-features-panel summary { list-style: none; cursor: pointer; }
+.upcoming-features-panel summary::-webkit-details-marker { display: none; }
+.upcoming-features-summary::before { content: '▸ '; color: var(--teal); }
+.upcoming-features-panel[open] .upcoming-features-summary::before { content: '▾ '; }
 
 /* ---------- Weak Topics (subject/chapter performance) ---------- */
 .topic-list {

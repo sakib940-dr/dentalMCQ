@@ -15,6 +15,8 @@ import AccessControlPage from '../../components/AccessControlPage';
 import StuckAttemptsPage from '../../components/StuckAttemptsPage';
 import AuditLogPage from '../../components/AuditLogPage';
 import PrescriptionActivityPage from '../../components/PrescriptionActivityPage';
+import FeedbackAdminPage from '../../components/FeedbackAdminPage';
+import ContactInfoPanel from '../../components/ContactInfoPanel';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -28,6 +30,7 @@ const navItems = [
   { to: '/admin/prescriptions', label: 'Prescriptions' },
   { to: '/admin/notices', label: 'Notice Board' },
   { to: '/admin/chat', label: 'Messages' },
+  { to: '/admin/feedback', label: 'Feedback' },
   { to: '/admin/settings', label: 'Settings' },
 ];
 
@@ -44,6 +47,7 @@ function SettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <FeatureTogglesPanel />
+      <ContactInfoPanel />
       <ChangePasswordPanel />
     </div>
   );
@@ -64,6 +68,7 @@ export default function SuperAdminDashboard() {
         <Route path="prescriptions" element={<PrescriptionActivityPage />} />
         <Route path="notices" element={<NoticeBoardAdminPage />} />
         <Route path="chat" element={<StaffChatInbox />} />
+        <Route path="feedback" element={<FeedbackAdminPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Routes>
     </DashboardLayout>
