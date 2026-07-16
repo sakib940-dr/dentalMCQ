@@ -1,21 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { fmtDateTime } from '../lib/formatters';
-
-function durationLabel(days) {
-  if (days === 30) return '1 Month';
-  if (days === 90) return '3 Months';
-  if (days === 180) return '6 Months';
-  if (days === 365) return '1 Year';
-  return `${days} Days`;
-}
-
-function daysLeft(expiresAt) {
-  if (!expiresAt) return null;
-  const ms = new Date(expiresAt).getTime() - Date.now();
-  return Math.ceil(ms / (1000 * 60 * 60 * 24));
-}
+import { fmtDateTime, daysLeft, durationLabel } from '../lib/formatters';
 
 // ---------- My active subscriptions panel — one row per category,
 // each with its own independent expiry, exactly matching the new

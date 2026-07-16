@@ -1,7 +1,10 @@
 import { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
+import StudentDashboardHome from '../../components/StudentDashboardHome';
 import CategoryExamsPage from '../../components/CategoryExamsPage';
+import BookmarksPage from '../../components/BookmarksPage';
+import PracticeSessionRoute from '../../components/PracticeSessionRoute';
 import StudentChatPage from '../../components/StudentChatPage';
 import StudentNoticeBoard from '../../components/StudentNoticeBoard';
 import MyProfilePage from '../../components/MyProfilePage';
@@ -17,6 +20,7 @@ const PrescriptionPage = lazy(() => import('../../components/PrescriptionPage'))
 
 const navItems = [
   { to: '/dashboard', label: 'Home', end: true },
+  { to: '/dashboard/exams', label: 'Exams' },
   { to: '/dashboard/package', label: 'Package' },
   { to: '/dashboard/notices', label: 'Notice Board' },
   { to: '/dashboard/chat', label: 'Messages' },
@@ -36,7 +40,10 @@ export default function ExamineeDashboard() {
   return (
     <DashboardLayout title="Examinee" navItems={navItems}>
       <Routes>
-        <Route index element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
+        <Route index element={<StudentDashboardHome />} />
+        <Route path="exams" element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
+        <Route path="bookmarks" element={<BookmarksPage />} />
+        <Route path="practice-session" element={<PracticeSessionRoute />} />
         <Route path="package" element={<PackagePage />} />
         <Route
           path="prescription"

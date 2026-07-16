@@ -5,13 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
 import PracticePage from './PracticePage';
 import { fmtDateTime } from '../lib/formatters';
+import { loadBookmarkedIds, addBookmark, removeBookmark } from '../lib/bookmarks';
 
 
 // ============================================================
 // Home: category grid
 // ============================================================
 export function CategoryGrid({ onPick }) {
-  const navigate = useNavigate();
   const [categories, setCategories] = useState(null);
 
   useEffect(() => {
@@ -21,29 +21,18 @@ export function CategoryGrid({ onPick }) {
   if (categories === null) return <div className="panel"><p className="muted">Loading categories…</p></div>;
 
   return (
-    <>
-      <button className="prescription-shortcut-card" onClick={() => navigate('/dashboard/prescription')}>
-        <span className="prescription-shortcut-icon">📝</span>
-        <span className="prescription-shortcut-text">
-          <span className="prescription-shortcut-title">Prescription Generator</span>
-          <span className="prescription-shortcut-sub">Create and download a patient prescription</span>
-        </span>
-        <span className="prescription-shortcut-arrow">›</span>
-      </button>
-
-      <div className="panel">
-        <h2>Exam Categories</h2>
-        <p className="muted small">Pick a category to see its live, upcoming, and archived exams.</p>
-        {categories.length === 0 && <div className="muted">No categories available yet.</div>}
-        <div className="category-pick-grid">
-          {categories.map((c) => (
-            <button key={c.id} className="category-pick-card" onClick={() => onPick(c)}>
-              {c.name}
-            </button>
-          ))}
-        </div>
+    <div className="panel">
+      <h2>Exam Categories</h2>
+      <p className="muted small">Pick a category to see its live, upcoming, and archived exams.</p>
+      {categories.length === 0 && <div className="muted">No categories available yet.</div>}
+      <div className="category-pick-grid">
+        {categories.map((c) => (
+          <button key={c.id} className="category-pick-card" onClick={() => onPick(c)}>
+            {c.name}
+          </button>
+        ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -478,8 +467,20 @@ function LiveExamSession({ exam, onExit }) {
   const [questions, setQuestions] = useState(null);
   const [blocked, setBlocked] = useState(null);
   const [effectiveDuration, setEffectiveDuration] = useState(exam.duration_minutes);
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
 
   const persistKey = `dentalmcq_liveexam_${exam.id}_${user.id}`;
+
+  const toggleBookmark = async (questionId) => {
+    const isBookmarked = bookmarkedIds.has(questionId);
+    setBookmarkedIds((s) => {
+      const next = new Set(s);
+      isBookmarked ? next.delete(questionId) : next.add(questionId);
+      return next;
+    });
+    if (isBookmarked) await removeBookmark(user.id, questionId);
+    else await addBookmark(user.id, questionId);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -526,6 +527,7 @@ function LiveExamSession({ exam, onExit }) {
       if (cancelled) return;
       const order = new Map(ids.map((id, i) => [id, i]));
       setQuestions([...(qs || [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
+      setBookmarkedIds(await loadBookmarkedIds(user.id, ids));
     }
     load();
     return () => { cancelled = true; };
@@ -618,6 +620,8 @@ function LiveExamSession({ exam, onExit }) {
       persistKey={persistKey}
       onSubmit={handleSubmit}
       onExit={onExit}
+      bookmarkedIds={bookmarkedIds}
+      onToggleBookmark={toggleBookmark}
     />
   );
 }
@@ -628,6 +632,18 @@ function LiveExamSession({ exam, onExit }) {
 function ArchivedRetakeSession({ exam, onExit }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState(null);
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+
+  const toggleBookmark = async (questionId) => {
+    const isBookmarked = bookmarkedIds.has(questionId);
+    setBookmarkedIds((s) => {
+      const next = new Set(s);
+      isBookmarked ? next.delete(questionId) : next.add(questionId);
+      return next;
+    });
+    if (isBookmarked) await removeBookmark(user.id, questionId);
+    else await addBookmark(user.id, questionId);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -644,10 +660,11 @@ function ArchivedRetakeSession({ exam, onExit }) {
       if (cancelled) return;
       const order = new Map(ids.map((id, i) => [id, i]));
       setQuestions([...(qs || [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
+      setBookmarkedIds(await loadBookmarkedIds(user.id, ids));
     }
     load();
     return () => { cancelled = true; };
-  }, [exam.id]);
+  }, [exam.id, user.id]);
 
   const handleSubmit = async (answers, result) => {
     // Record as a practice_session (source_exam_id set) — never touches
@@ -704,6 +721,8 @@ function ArchivedRetakeSession({ exam, onExit }) {
       persistKey={null}
       onSubmit={handleSubmit}
       onExit={onExit}
+      bookmarkedIds={bookmarkedIds}
+      onToggleBookmark={toggleBookmark}
     />
   );
 }

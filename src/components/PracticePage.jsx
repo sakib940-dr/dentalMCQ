@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import ExamRunner from './ExamRunner';
 import { useAppSetting, LockedFeature } from './FeatureLock';
+import { loadBookmarkedIds, addBookmark, removeBookmark } from '../lib/bookmarks';
 
 const NEGATIVE_MARKING = 0.5;
 
@@ -318,7 +319,7 @@ function PracticeSetup({ categoryId, onPick }) {
   );
 }
 
-function WrongQuestionsEntry({ onStart }) {
+export function WrongQuestionsEntry({ onStart }) {
   const { user } = useAuth();
   const [count, setCount] = useState(null);
 
@@ -349,9 +350,21 @@ function WrongQuestionsEntry({ onStart }) {
   );
 }
 
-function PracticeSession({ session, onExit }) {
+export function PracticeSession({ session, onExit }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState(null);
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+
+  const toggleBookmark = async (questionId) => {
+    const isBookmarked = bookmarkedIds.has(questionId);
+    setBookmarkedIds((s) => {
+      const next = new Set(s);
+      isBookmarked ? next.delete(questionId) : next.add(questionId);
+      return next;
+    });
+    if (isBookmarked) await removeBookmark(user.id, questionId);
+    else await addBookmark(user.id, questionId);
+  };
 
   // Stable key for this practice attempt — survives refresh, but a fresh
   // "Start practice" click always gets a new key (new Date.now()) so it
@@ -423,11 +436,33 @@ function PracticeSession({ session, onExit }) {
         if (cancelled) return;
         const order = new Map(ids.map((id, i) => [id, i]));
         setQuestions([...(qs || [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
+      } else if (session.mode === 'bookmarked') {
+        const { data: bookmarkRows } = await supabase
+          .from('bookmarked_questions')
+          .select('question_id')
+          .eq('examinee_id', user.id)
+          .order('created_at', { ascending: false });
+        if (cancelled) return;
+        const ids = (bookmarkRows || []).map((b) => b.question_id);
+        if (ids.length === 0) { setQuestions([]); return; }
+        const { data: qs } = await supabase.from('questions').select('*').in('id', ids);
+        if (cancelled) return;
+        const order = new Map(ids.map((id, i) => [id, i]));
+        setQuestions([...(qs || [])].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)));
       }
     }
     load();
     return () => { cancelled = true; };
   }, [session, user.id, persistKey]);
+
+  // Load which of these questions are already bookmarked, once we know
+  // the resolved question set — used for the in-runner bookmark toggle.
+  useEffect(() => {
+    if (!questions || questions.length === 0) return;
+    let cancelled = false;
+    loadBookmarkedIds(user.id, questions.map((q) => q.id)).then((ids) => { if (!cancelled) setBookmarkedIds(ids); });
+    return () => { cancelled = true; };
+  }, [questions, user.id]);
 
   // Once we know the resolved question order, save it so a refresh reuses
   // the exact same set/order instead of re-randomizing.
@@ -548,11 +583,13 @@ function PracticeSession({ session, onExit }) {
       persistKey={persistKey}
       onSubmit={handleSubmit}
       onExit={onExit}
+      bookmarkedIds={bookmarkedIds}
+      onToggleBookmark={toggleBookmark}
     />
   );
 }
 
-function findResumablePracticeSession() {
+export function findResumablePracticeSession() {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
