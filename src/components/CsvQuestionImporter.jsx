@@ -40,7 +40,12 @@ export default function CsvQuestionImporter({ chapterId, onImported }) {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      worker: true, // parse off the main thread — large files won't freeze the UI
+      // NOT using worker:true — Papaparse's worker mode reconstructs its
+      // own source via Function.prototype.toString() inside a Blob-based
+      // Web Worker, which is fragile under Vite's production minification
+      // and can silently fail to parse. Question bank CSVs aren't large
+      // enough for main-thread parsing to be a real problem; correctness
+      // matters more here than the (speculative) UI-freeze prevention.
       // Excel-exported CSVs commonly start with a UTF-8 BOM (\uFEFF), which
       // silently attaches to the first header ("\uFEFFquestion") and isn't
       // stripped by .trim() — that made a perfectly valid file get rejected
