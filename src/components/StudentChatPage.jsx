@@ -43,10 +43,17 @@ export default function StudentChatPage() {
 
       // Mark staff messages as read by the student
       await supabase.from('chat_messages').update({ read_by_student: true }).eq('thread_id', tid).neq('sender_role', 'examinee');
+
+      // Also clear the matching notification rows — the unread badge on
+      // the bottom nav's Messages tab is driven entirely by
+      // notifications.is_read, and without this, it only ever got
+      // cleared by opening the 🔔 bell dropdown, not by actually reading
+      // the messages through the primary Messages tab.
+      await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('type', 'chat_message').eq('is_read', false);
     }
     init();
     return () => { cancelled = true; };
-  }, [ensureThread, loadMessages]);
+  }, [ensureThread, loadMessages, user.id]);
 
   // Live updates via Supabase Realtime
   useEffect(() => {

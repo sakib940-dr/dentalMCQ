@@ -10,10 +10,6 @@ import { daysLeft, fmtDate } from '../lib/formatters';
 //   icon  — emoji shown in both the quick-bar and the drawer
 //   quick — true for the handful shown inline in the compact top strip
 //   group — drawer section heading; items without one land in "More"
-// navItems: [{ to, label, icon, end, badge, quick, group }]
-//   icon  — emoji shown in both the quick-bar and the drawer
-//   quick — true for the handful shown inline in the compact top strip
-//   group — drawer section heading; items without one land in "More"
 //
 // bottomNavItems (optional): [{ to, label, icon, end, badge }] — when
 // passed, renders a fixed bottom tab bar (mobile-app style primary nav)
