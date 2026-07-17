@@ -148,8 +148,33 @@ function UpcomingFeaturesPanel() {
 }
 
 // ============================================================
-// Root
+// Compact glance-able stats — a curated 4-number summary shown right at
+// the top, above Quick Actions. Reuses the same `stats` this component
+// already computes for the detailed "Exam Overview" panel further down
+// — not a second data-fetch, just a different (smaller, higher-up)
+// view of the same numbers.
 // ============================================================
+function QuickStatsRow({ stats }) {
+  if (!stats) return null;
+  const items = [
+    { icon: '📚', label: 'Questions Attempted', value: stats.attempted },
+    { icon: '✅', label: 'Total Right', value: stats.correct },
+    { icon: '❌', label: 'Total Wrong', value: stats.wrong },
+    { icon: '🎯', label: 'Accuracy', value: `${stats.accuracyPct}%` },
+  ];
+  return (
+    <div className="quick-stats-row">
+      {items.map((it) => (
+        <div key={it.label} className="quick-stat-card">
+          <span className="quick-stat-icon">{it.icon}</span>
+          <span className="quick-stat-value">{it.value}</span>
+          <span className="quick-stat-label">{it.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function StudentDashboardHome() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -287,6 +312,8 @@ export default function StudentDashboardHome() {
   return (
     <>
       <div className="dash-greeting">Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}</div>
+
+      <QuickStatsRow stats={stats} />
 
       <QuickActionsGrid />
 

@@ -2382,6 +2382,36 @@ body {
   border-radius: 20px;
 }
 
+.quick-stats-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+.quick-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #fff;
+  border: 1.5px solid var(--card-border);
+  border-radius: 12px;
+  padding: 10px 6px;
+  text-align: center;
+}
+.quick-stat-icon { font-size: 16px; line-height: 1; }
+.quick-stat-value { font-size: 19px; font-weight: 800; color: var(--teal-deep); line-height: 1.2; }
+.quick-stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 .subscription-strip {
   display: flex;
   align-items: center;
