@@ -251,15 +251,83 @@ function QuestionList({ chapterId, refreshKey }) {
   );
 }
 
+async function exportFullQuestionBank(setExporting) {
+  setExporting(true);
+  try {
+    const [{ data: cats }, { data: subs }, { data: subcats }, { data: chaps }] = await Promise.all([
+      supabase.from('categories').select('id, name'),
+      supabase.from('subjects').select('id, name, category_id'),
+      supabase.from('subcategories').select('id, name, subject_id'),
+      supabase.from('chapters').select('id, name, subcategory_id'),
+    ]);
+    const catById = new Map((cats || []).map((c) => [c.id, c.name]));
+    const subById = new Map((subs || []).map((s) => [s.id, s]));
+    const subcatById = new Map((subcats || []).map((sc) => [sc.id, sc]));
+    const chapById = new Map((chaps || []).map((c) => [c.id, c]));
+
+    // Paginate through every question — a plain .select('*') silently
+    // caps at 1000 rows, which would make this a partial "backup" of a
+    // 4000+ question category without anyone noticing.
+    let allQuestions = [];
+    let from = 0;
+    const pageSize = 1000;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { data, error } = await supabase.from('questions').select('*').range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      allQuestions = allQuestions.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+
+    const rows = allQuestions.map((q) => {
+      const chap = chapById.get(q.chapter_id);
+      const subcat = chap ? subcatById.get(chap.subcategory_id) : null;
+      const sub = subcat ? subById.get(subcat.subject_id) : null;
+      return {
+        category: sub ? catById.get(sub.category_id) || '' : '',
+        subject: sub?.name || '',
+        subcategory: subcat?.name || '',
+        chapter: chap?.name || '',
+        question: q.question_text,
+        option_a: q.option_a,
+        option_b: q.option_b,
+        option_c: q.option_c,
+        option_d: q.option_d,
+        correct_answer: q.correct_option,
+        explanation: q.explanation || '',
+        is_active: q.is_active,
+      };
+    });
+
+    const csv = Papa.unparse(rows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `question_bank_backup_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } finally {
+    setExporting(false);
+  }
+}
+
 export default function QuestionBankPage() {
   const [hierarchy, setHierarchy] = useState({ categoryId: null, subjectId: null, subcategoryId: null, chapterId: null });
   const [mode, setMode] = useState('list'); // list | manual | csv
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const bump = () => setRefreshKey((k) => k + 1);
 
   return (
     <div className="panel">
-      <h2>Question Bank</h2>
+      <div className="panel-head-row">
+        <h2>Question Bank</h2>
+        <button className="btn-secondary sm" onClick={() => exportFullQuestionBank(setExporting)} disabled={exporting}>
+          {exporting ? 'Exporting…' : '⬇ Backup entire bank'}
+        </button>
+      </div>
       <HierarchyPicker value={hierarchy} onChange={setHierarchy} />
 
       <div className="mode-tabs">

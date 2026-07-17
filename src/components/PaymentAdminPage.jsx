@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { fmtDateTime } from '../lib/formatters';
+import { useAuth } from '../contexts/AuthContext';
 
 function PromoCodesPanel() {
   const [codes, setCodes] = useState(null);
@@ -351,16 +352,31 @@ function PackageSettings() {
 }
 
 function PaymentClaimsInbox() {
+  const { role } = useAuth();
   const [claims, setClaims] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [packageFilter, setPackageFilter] = useState('all');
+  const [packages, setPackages] = useState([]);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.rpc('get_all_payment_claims');
+    const [{ data, error }, { data: pkgIds }] = await Promise.all([
+      supabase.rpc('get_all_payment_claims'),
+      supabase.rpc('get_payment_claim_package_ids'),
+    ]);
     if (error) console.error('Failed to load payment claims:', error.message);
-    setClaims(data || []);
+    // Merge in package_id from the dedicated lookup rather than trusting
+    // it's already on the row — see migration_payment_claim_package_ids.sql.
+    const pkgIdByClaim = new Map((pkgIds || []).map((r) => [r.id, r.package_id]));
+    setClaims((data || []).map((c) => ({ ...c, package_id: c.package_id ?? pkgIdByClaim.get(c.id) })));
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    supabase.from('packages').select('id, name').then(({ data }) => setPackages(data || []));
+  }, []);
+
+  const packageNameById = new Map(packages.map((p) => [p.id, p.name]));
 
   const review = async (claim, status) => {
     const { error } = await supabase.rpc('review_payment_claim', { claim_id: claim.id, new_status: status });
@@ -370,7 +386,24 @@ function PaymentClaimsInbox() {
     load();
   };
 
-  const visibleClaims = (claims || []).filter((c) => filter === 'all' || c.status === filter);
+  const remove = async (claim) => {
+    if (!confirm(`Delete this payment record for ${claim.student_full_name || 'this student'}? This only removes the record — it does not revoke any access already granted.`)) return;
+    const { error } = await supabase.from('payment_claims').delete().eq('id', claim.id);
+    if (error) { alert(`Could not delete: ${error.message}`); return; }
+    load();
+  };
+
+  // category_name comes from get_all_payment_claims; package_id is
+  // guaranteed via the merge in load() above regardless of what that
+  // RPC itself returns.
+  const categoryOptions = [...new Set((claims || []).map((c) => c.category_name).filter(Boolean))];
+
+  const visibleClaims = (claims || []).filter((c) => {
+    if (filter !== 'all' && c.status !== filter) return false;
+    if (categoryFilter !== 'all' && c.category_name !== categoryFilter) return false;
+    if (packageFilter !== 'all' && c.package_id !== packageFilter) return false;
+    return true;
+  });
 
   return (
     <div className="panel">
@@ -383,8 +416,25 @@ function PaymentClaimsInbox() {
         ))}
       </div>
 
+      <div className="option-grid" style={{ marginTop: 10 }}>
+        <label>
+          <span>Category</span>
+          <select className="role-filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="all">All categories</option>
+            {categoryOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Package</span>
+          <select className="role-filter-select" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
+            <option value="all">All packages</option>
+            {packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+      </div>
+
       {claims === null && <div className="muted small">Loading…</div>}
-      {claims && visibleClaims.length === 0 && <div className="muted small">No {filter !== 'all' ? filter : ''} claims.</div>}
+      {claims && visibleClaims.length === 0 && <div className="muted small">No matching claims.</div>}
 
       <div className="claims-list">
         {visibleClaims.map((c) => (
@@ -395,17 +445,24 @@ function PaymentClaimsInbox() {
               <div className="muted small">
                 {c.method === 'discount_claim' ? 'Free discount claim' : `${c.method} · TXN: ${c.transaction_id}`}
                 {c.amount_paid != null && ` · ৳${c.amount_paid}`}
+                {c.package_id && packageNameById.get(c.package_id) && ` · ${packageNameById.get(c.package_id)}`}
               </div>
               <div className="muted small">{fmtDateTime(c.created_at)}</div>
             </div>
-            {c.status === 'pending' ? (
-              <div className="claim-row-actions">
-                <button className="btn-secondary" onClick={() => review(c, 'approved')}>Approve</button>
-                <button className="btn-danger sm" onClick={() => review(c, 'rejected')}>Reject</button>
-              </div>
-            ) : (
-              <span className={`status-pill status-${c.status === 'approved' ? 'live' : 'archived'}`}>{c.status}</span>
-            )}
+            <div className="claim-row-actions">
+              {c.status === 'pending' && (
+                <>
+                  <button className="btn-secondary" onClick={() => review(c, 'approved')}>Approve</button>
+                  <button className="btn-danger sm" onClick={() => review(c, 'rejected')}>Reject</button>
+                </>
+              )}
+              {c.status !== 'pending' && (
+                <span className={`status-pill status-${c.status === 'approved' ? 'live' : 'archived'}`}>{c.status}</span>
+              )}
+              {role === 'super_admin' && (
+                <button className="btn-danger sm" onClick={() => remove(c)}>Delete</button>
+              )}
+            </div>
           </div>
         ))}
       </div>

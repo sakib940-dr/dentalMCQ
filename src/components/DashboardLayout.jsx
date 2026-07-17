@@ -1,48 +1,101 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ToothMark from './ToothMark';
 import InstallAppButton from './InstallAppButton';
 import NotificationBell from './NotificationBell';
 
+// navItems: [{ to, label, icon, end, badge, quick, group }]
+//   icon  — emoji shown in both the quick-bar and the drawer
+//   quick — true for the handful shown inline in the compact top strip
+//   group — drawer section heading; items without one land in "More"
 export default function DashboardLayout({ title, navItems, children }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
     navigate('/login', { replace: true });
   };
 
+  const quickItems = navItems.filter((i) => i.quick);
+
+  const groups = [];
+  navItems.forEach((item) => {
+    const groupLabel = item.group || 'More';
+    let g = groups.find((x) => x.label === groupLabel);
+    if (!g) { g = { label: groupLabel, items: [] }; groups.push(g); }
+    g.items.push(item);
+  });
+
+  const renderLink = (item, onClick) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      end={item.end}
+      onClick={onClick}
+      className={({ isActive }) => 'dash-tab' + (isActive ? ' dash-tab-active' : '')}
+    >
+      {item.icon && <span className="dash-tab-icon">{item.icon}</span>}
+      {item.label}
+      {item.badge > 0 && <span className="dash-tab-badge">{item.badge > 9 ? '9+' : item.badge}</span>}
+    </NavLink>
+  );
+
   return (
     <div className="dash-shell">
       <header className="dash-topbar">
-        <div className="dash-brand">
-          <ToothMark size={34} />
-          <div className="dash-brand-text">
-            <span className="dash-brand-word">DentalMCQ</span>
-            <span className="dash-brand-sub">{title}</span>
+        <div className="dash-topbar-left">
+          <button
+            className="dash-hamburger-btn"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+          >
+            ☰
+          </button>
+          <div className="dash-brand">
+            <ToothMark size={30} />
+            <div className="dash-brand-text">
+              <span className="dash-brand-word">DentalMCQ</span>
+              <span className="dash-brand-sub">{title}</span>
+            </div>
           </div>
         </div>
         <div className="dash-topbar-user">
           <NotificationBell />
-          <span>{profile?.full_name}</span>
           <button onClick={handleLogout} className="btn-logout">Log out</button>
         </div>
       </header>
 
-      <nav className="dash-tabs">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) => 'dash-tab' + (isActive ? ' dash-tab-active' : '')}
-          >
-            {item.label}
-            {item.badge > 0 && <span className="dash-tab-badge">{item.badge > 9 ? '9+' : item.badge}</span>}
-          </NavLink>
-        ))}
+      <nav className="dash-quickbar">
+        {quickItems.map((item) => renderLink(item))}
       </nav>
+
+      {/* Backdrop + side drawer — the full nav list, grouped, reachable via ☰ */}
+      {drawerOpen && <div className="dash-drawer-backdrop" onClick={() => setDrawerOpen(false)} />}
+      <aside className={drawerOpen ? 'dash-drawer dash-drawer-open' : 'dash-drawer'}>
+        <div className="dash-drawer-head">
+          <div className="dash-brand">
+            <ToothMark size={28} />
+            <div className="dash-brand-text">
+              <span className="dash-brand-word">DentalMCQ</span>
+              <span className="dash-brand-sub">{title}</span>
+            </div>
+          </div>
+          <button className="dash-drawer-close" onClick={() => setDrawerOpen(false)} aria-label="Close menu">✕</button>
+        </div>
+        <div className="dash-drawer-user">{profile?.full_name}</div>
+
+        <div className="dash-drawer-body">
+          {groups.map((g) => (
+            <div key={g.label} className="dash-drawer-group">
+              <div className="dash-drawer-group-label">{g.label}</div>
+              {g.items.map((item) => renderLink(item, () => setDrawerOpen(false)))}
+            </div>
+          ))}
+        </div>
+      </aside>
 
       <InstallAppButton />
 

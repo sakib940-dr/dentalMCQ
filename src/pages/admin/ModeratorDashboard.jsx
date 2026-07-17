@@ -12,13 +12,13 @@ import PackagesReadOnlyPage from '../../components/PackagesReadOnlyPage';
 import { useAuth } from '../../contexts/AuthContext';
 
 const baseNavItems = [
-  { to: '/moderator', label: 'Overview', end: true },
-  { to: '/moderator/schedule', label: 'Exam Schedule' },
-  { to: '/moderator/questions', label: 'Question Bank' },
-  { to: '/moderator/exams', label: 'Exams' },
-  { to: '/moderator/notices', label: 'Notice Board' },
-  { to: '/moderator/chat', label: 'Messages' },
-  { to: '/moderator/settings', label: 'Settings' },
+  { to: '/moderator', label: 'Dashboard', icon: '📊', end: true, quick: true, group: 'Overview' },
+  { to: '/moderator/schedule', label: 'Exam Schedule', icon: '🗓️', group: 'Content' },
+  { to: '/moderator/questions', label: 'Question Bank', icon: '❓', quick: true, group: 'Content' },
+  { to: '/moderator/exams', label: 'Exams', icon: '📝', group: 'Content' },
+  { to: '/moderator/notices', label: 'Notice Board', icon: '📢', group: 'Communication' },
+  { to: '/moderator/chat', label: 'Messages', icon: '💬', quick: true, group: 'Communication' },
+  { to: '/moderator/settings', label: 'Settings', icon: '⚙️', group: 'System' },
 ];
 
 export default function ModeratorDashboard() {
@@ -32,9 +32,9 @@ export default function ModeratorDashboard() {
   const navItems = isAdmin
     ? [
         baseNavItems[0],
-        { to: '/moderator/categories', label: 'Categories' },
+        { to: '/moderator/categories', label: 'Categories', icon: '📚', group: 'Content' },
         ...baseNavItems.slice(1),
-        { to: '/moderator/packages', label: 'Packages' },
+        { to: '/moderator/packages', label: 'Packages', icon: '📦', group: 'Money' },
       ]
     : baseNavItems;
 

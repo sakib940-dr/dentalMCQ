@@ -67,12 +67,12 @@ export default function ExamineeDashboard() {
   const unreadMessages = useUnreadMessageCount(user.id);
 
   const navItems = [
-    { to: '/dashboard', label: 'Home', end: true },
-    { to: '/dashboard/exams', label: 'Exams' },
-    { to: '/dashboard/package', label: 'Package' },
-    { to: '/dashboard/notices', label: 'Notice Board' },
-    { to: '/dashboard/chat', label: 'Messages', badge: unreadMessages },
-    { to: '/dashboard/profile', label: 'My Profile' },
+    { to: '/dashboard', label: 'Home', icon: '🏠', end: true, quick: true, group: 'Study' },
+    { to: '/dashboard/exams', label: 'Exams', icon: '📝', quick: true, group: 'Study' },
+    { to: '/dashboard/package', label: 'Package', icon: '📦', group: 'Account' },
+    { to: '/dashboard/notices', label: 'Notice Board', icon: '📢', group: 'Community' },
+    { to: '/dashboard/chat', label: 'Messages', icon: '💬', quick: true, badge: unreadMessages, group: 'Community' },
+    { to: '/dashboard/profile', label: 'My Profile', icon: '👤', group: 'Account' },
   ];
 
   return (

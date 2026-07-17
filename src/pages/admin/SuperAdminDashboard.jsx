@@ -21,19 +21,19 @@ import HelpCenterAdminPage from '../../components/HelpCenterAdminPage';
 import UpcomingFeaturesAdminPage from '../../components/UpcomingFeaturesAdminPage';
 
 const navItems = [
-  { to: '/admin', label: 'Overview', end: true },
-  { to: '/admin/categories', label: 'Categories' },
-  { to: '/admin/schedule', label: 'Exam Schedule' },
-  { to: '/admin/questions', label: 'Question Bank' },
-  { to: '/admin/exams', label: 'Exams' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/access', label: 'Access Control' },
-  { to: '/admin/payments', label: 'Payments' },
-  { to: '/admin/prescriptions', label: 'Prescriptions' },
-  { to: '/admin/notices', label: 'Notice Board' },
-  { to: '/admin/chat', label: 'Messages' },
-  { to: '/admin/feedback', label: 'Feedback' },
-  { to: '/admin/settings', label: 'Settings' },
+  { to: '/admin', label: 'Dashboard', icon: '📊', end: true, quick: true, group: 'Overview' },
+  { to: '/admin/categories', label: 'Categories', icon: '📚', group: 'Content' },
+  { to: '/admin/schedule', label: 'Exam Schedule', icon: '🗓️', group: 'Content' },
+  { to: '/admin/questions', label: 'Question Bank', icon: '❓', quick: true, group: 'Content' },
+  { to: '/admin/exams', label: 'Exams', icon: '📝', group: 'Content' },
+  { to: '/admin/users', label: 'Users', icon: '👥', quick: true, group: 'People' },
+  { to: '/admin/access', label: 'Access Control', icon: '🔐', group: 'People' },
+  { to: '/admin/payments', label: 'Payments', icon: '💳', quick: true, group: 'Money' },
+  { to: '/admin/prescriptions', label: 'Prescriptions', icon: '📄', group: 'Chamber' },
+  { to: '/admin/notices', label: 'Notice Board', icon: '📢', group: 'Communication' },
+  { to: '/admin/chat', label: 'Messages', icon: '💬', group: 'Communication' },
+  { to: '/admin/feedback', label: 'Feedback', icon: '📮', group: 'Communication' },
+  { to: '/admin/settings', label: 'Settings', icon: '⚙️', group: 'System' },
 ];
 
 function Placeholder({ label }) {

@@ -199,12 +199,31 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 12px 16px;
   background: #fff;
   border-bottom: 1px solid var(--card-border);
   position: sticky;
   top: 0;
   z-index: 5;
+}
+
+.dash-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dash-hamburger-btn {
+  background: none;
+  border: 1px solid var(--card-border);
+  border-radius: 9px;
+  width: 36px;
+  height: 36px;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--teal-deep);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .dash-brand {
@@ -237,7 +256,7 @@ body {
 .dash-topbar-user {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 13px;
   color: var(--ink-soft);
 }
@@ -252,29 +271,48 @@ body {
   cursor: pointer;
 }
 
-.dash-tabs {
+/* Compact quick-access strip — only the 3-4 most-used items, so this
+   never needs to scroll on a real phone screen. Everything else lives
+   in the drawer. */
+.dash-quickbar {
   display: flex;
   gap: 4px;
-  padding: 10px 12px 0;
+  padding: 8px 10px;
   background: #fff;
-  overflow-x: auto;
   border-bottom: 1px solid var(--card-border);
+  justify-content: space-around;
 }
+
+.dash-quickbar .dash-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  border-bottom: none;
+  font-size: 11px;
+  text-align: center;
+}
+.dash-quickbar .dash-tab-icon { font-size: 18px; }
+.dash-quickbar .dash-tab-active { background: #F1ECE0; color: var(--teal-deep); }
 
 .dash-tab {
   flex-shrink: 0;
-  padding: 10px 12px;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-soft);
   text-decoration: none;
-  border-bottom: 3px solid transparent;
   white-space: nowrap;
 }
 
 .dash-tab-active {
   color: var(--teal);
-  border-bottom-color: var(--gold);
+}
+
+.dash-tab-icon {
+  margin-right: 8px;
 }
 
 .dash-tab-badge {
@@ -287,6 +325,84 @@ body {
   padding: 1px 6px;
   margin-left: 5px;
   vertical-align: middle;
+}
+.dash-quickbar .dash-tab-badge { margin-left: 0; }
+
+/* Side drawer — full nav list, grouped, reachable via the hamburger. */
+.dash-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 22, 0.45);
+  z-index: 20;
+  animation: dashDrawerFade 0.2s ease;
+}
+@keyframes dashDrawerFade { from { opacity: 0; } to { opacity: 1; } }
+
+.dash-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(300px, 84vw);
+  background: #fff;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  box-shadow: 2px 0 24px rgba(0, 0, 0, 0.12);
+}
+.dash-drawer-open { transform: translateX(0); }
+
+.dash-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--card-border);
+}
+.dash-drawer-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.dash-drawer-user {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.dash-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 20px;
+}
+.dash-drawer-group { padding: 10px 0; }
+.dash-drawer-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink-soft);
+  opacity: 0.7;
+  padding: 4px 18px;
+}
+.dash-drawer-group .dash-tab {
+  display: flex;
+  align-items: center;
+  padding: 11px 18px;
+  border-left: 3px solid transparent;
+}
+.dash-drawer-group .dash-tab-icon { font-size: 16px; }
+.dash-drawer-group .dash-tab-active {
+  background: #F1ECE0;
+  border-left-color: var(--gold);
+  color: var(--teal-deep);
 }
 
 .dash-content {
