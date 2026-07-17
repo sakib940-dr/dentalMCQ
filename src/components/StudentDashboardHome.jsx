@@ -12,14 +12,14 @@ function QuickActionsGrid() {
   const navigate = useNavigate();
 
   const studyActions = [
-    { icon: '📖', label: 'Question Bank Practice', onClick: () => navigate('/dashboard/question-bank') },
+    { icon: '📖', label: 'Question Bank Practice', onClick: () => navigate('/dashboard/question-bank'), featured: true },
     { icon: '🎯', label: 'Start Mock Exam', onClick: () => navigate('/dashboard/exams') },
     { icon: '🔁', label: 'Wrong Answer Revision', onClick: () => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } }) },
-    { icon: '❤️', label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks') },
-    { icon: '🔍', label: 'Smart Search', onClick: () => navigate('/dashboard/search') },
+    { icon: '❤️', label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks'), featured: true },
+    { icon: '🔍', label: 'Smart Search', onClick: () => navigate('/dashboard/search'), featured: true },
   ];
   const chamberActions = [
-    { icon: '📋', label: 'Prescription Tool', onClick: () => navigate('/dashboard/prescription') },
+    { icon: '📋', label: 'Prescription Tool', onClick: () => navigate('/dashboard/prescription'), featured: true },
     { icon: '🏥', label: 'Dental Chamber', onClick: () => navigate('/dashboard/chamber') },
     { icon: '💬', label: 'Help & Support', onClick: () => navigate('/dashboard/support') },
   ];
@@ -27,7 +27,11 @@ function QuickActionsGrid() {
   const renderTiles = (actions) => (
     <div className="quick-action-grid">
       {actions.map((a) => (
-        <button key={a.label} className="quick-action-tile" onClick={a.onClick}>
+        <button
+          key={a.label}
+          className={a.featured ? 'quick-action-tile quick-action-tile-featured' : 'quick-action-tile'}
+          onClick={a.onClick}
+        >
           <span className="quick-action-tile-icon">{a.icon}</span>
           <span className="quick-action-tile-label">{a.label}</span>
         </button>
