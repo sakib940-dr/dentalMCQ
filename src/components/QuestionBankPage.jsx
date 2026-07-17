@@ -235,7 +235,19 @@ function QuestionList({ chapterId, refreshKey }) {
           <input type="checkbox" checked={selected.has(q.id)} onChange={() => toggleSelect(q.id)} />
           <div className="q-row-body">
             <div className="q-row-text">{q.question_text}</div>
-            <div className="q-row-meta">Correct: {q.correct_option}</div>
+            <div className="opt-list opt-list-compact">
+              {['A', 'B', 'C', 'D'].map((letter) => {
+                const isCorrectOpt = letter === q.correct_option;
+                return (
+                  <div key={letter} className={isCorrectOpt ? 'opt-btn opt-static opt-correct' : 'opt-btn opt-static'}>
+                    <span className="opt-letter">{letter}</span>
+                    <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
+                    {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                  </div>
+                );
+              })}
+            </div>
+            {q.explanation && <div className="q-row-explanation">💡 {q.explanation}</div>}
           </div>
         </div>
       ))}

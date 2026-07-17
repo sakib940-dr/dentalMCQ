@@ -748,6 +748,14 @@ body {
 }
 .q-row-text { font-size: 13.5px; line-height: 1.4; }
 .q-row-meta { font-size: 11.5px; color: var(--ink-soft); margin-top: 3px; }
+.q-row-explanation { font-size: 12px; color: var(--ink-soft); margin-top: 8px; font-style: italic; }
+
+/* Compact variant of .opt-list/.opt-btn for the admin question list,
+   where up to 20 questions (80 options) may be visible on one page —
+   the default exam-taking sizing is too spacious here. */
+.opt-list-compact { gap: 6px; margin-top: 8px; }
+.opt-list-compact .opt-btn { padding: 8px 10px; gap: 10px; font-size: 13px; box-shadow: none; }
+.opt-list-compact .opt-letter { width: 22px; height: 22px; font-size: 11px; }
 .pagination {
   display: flex;
   align-items: center;
