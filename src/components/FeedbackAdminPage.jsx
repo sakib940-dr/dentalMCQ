@@ -24,6 +24,12 @@ export default function FeedbackAdminPage() {
     await supabase.from('feedback').update({ status }).eq('id', id);
   };
 
+  const remove = async (id) => {
+    if (!confirm('Delete this feedback entry?')) return;
+    setItems((its) => its.filter((it) => it.id !== id));
+    await supabase.from('feedback').delete().eq('id', id);
+  };
+
   if (items === null) return <div className="panel"><p className="muted">Loading…</p></div>;
 
   const visible = filter === 'all' ? items : items.filter((it) => it.type === filter);
@@ -63,6 +69,7 @@ export default function FeedbackAdminPage() {
             >
               {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            <button className="btn-danger sm" style={{ marginTop: 6, marginLeft: 6 }} onClick={() => remove(it.id)}>Delete</button>
           </div>
         ))}
       </div>

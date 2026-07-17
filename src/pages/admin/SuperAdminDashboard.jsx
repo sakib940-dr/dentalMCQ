@@ -17,6 +17,8 @@ import AuditLogPage from '../../components/AuditLogPage';
 import PrescriptionActivityPage from '../../components/PrescriptionActivityPage';
 import FeedbackAdminPage from '../../components/FeedbackAdminPage';
 import ContactInfoPanel from '../../components/ContactInfoPanel';
+import HelpCenterAdminPage from '../../components/HelpCenterAdminPage';
+import UpcomingFeaturesAdminPage from '../../components/UpcomingFeaturesAdminPage';
 
 const navItems = [
   { to: '/admin', label: 'Overview', end: true },
@@ -48,6 +50,8 @@ function SettingsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <FeatureTogglesPanel />
       <ContactInfoPanel />
+      <HelpCenterAdminPage />
+      <UpcomingFeaturesAdminPage />
       <ChangePasswordPanel />
     </div>
   );

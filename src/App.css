@@ -2264,6 +2264,25 @@ body {
 .contact-card-label { display: block; font-size: 11.5px; color: var(--ink-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
 .contact-card-value { display: block; font-size: 14.5px; font-weight: 600; color: var(--teal-deep); margin-top: 2px; }
 
+.contact-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.contact-editor-row {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #FAF9F5;
+}
+.contact-editor-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 .upcoming-features-panel summary { list-style: none; cursor: pointer; }
 .upcoming-features-panel summary::-webkit-details-marker { display: none; }
 .upcoming-features-summary::before { content: '▸ '; color: var(--teal); }

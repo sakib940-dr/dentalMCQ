@@ -111,22 +111,17 @@ function StatCard({ label, value, sub, onClick }) {
 // ============================================================
 // Upcoming features — visible, honestly non-functional. Same "Soon"
 // language as the Chamber tile used before that module was built.
+// Content is Super-Admin-managed (upcoming_features table), not
+// hardcoded, so the roadmap can change without a code deploy.
 // ============================================================
 function UpcomingFeaturesPanel() {
-  const features = [
-    { icon: '🛒', label: 'Dental Materials Marketplace' },
-    { icon: '🔬', label: 'Dental Laboratory Directory & Booking' },
-    { icon: '🔧', label: 'Equipment Repair & Technician Booking' },
-    { icon: '📱', label: 'Bulk SMS to Patients' },
-    { icon: '📞', label: 'Direct Call from Patient Profile' },
-    { icon: '💬', label: 'WhatsApp Messaging' },
-    { icon: '📢', label: 'Digital Marketing for Dental Chambers' },
-    { icon: '⏰', label: 'Patient Follow-up Reminder' },
-    { icon: '🔄', label: 'Patient Recall Campaign' },
-    { icon: '📊', label: 'Financial Reports' },
-    { icon: '📦', label: 'Inventory Management' },
-    { icon: '👥', label: 'Staff Management' },
-  ];
+  const [features, setFeatures] = useState(null);
+
+  useEffect(() => {
+    supabase.from('upcoming_features').select('*').order('display_order').then(({ data }) => setFeatures(data || []));
+  }, []);
+
+  if (features !== null && features.length === 0) return null;
 
   return (
     <details className="panel upcoming-features-panel">
@@ -136,8 +131,8 @@ function UpcomingFeaturesPanel() {
       </summary>
       <p className="muted small" style={{ marginTop: 10 }}>On the roadmap — not available yet.</p>
       <div className="quick-action-grid" style={{ marginTop: 14 }}>
-        {features.map((f) => (
-          <div key={f.label} className="quick-action-tile quick-action-tile-soon">
+        {features?.map((f) => (
+          <div key={f.id} className="quick-action-tile quick-action-tile-soon">
             <span className="quick-action-tile-icon">{f.icon}</span>
             <span className="quick-action-tile-label">{f.label}</span>
             <span className="quick-action-tile-badge">Soon</span>
