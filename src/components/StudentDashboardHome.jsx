@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { daysLeft, timeAgo } from '../lib/formatters';
+import { useAppSetting } from './FeatureLock';
 
 // ============================================================
 // Quick actions — the primary "do something" entry points, grouped so
@@ -178,6 +179,7 @@ function QuickStatsRow({ stats }) {
 export default function StudentDashboardHome() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const { value: motivationalLine } = useAppSetting('dashboard_motivational_line', 'Every question you solve today is one step closer to the merit list.');
   const [stats, setStats] = useState(null);
   const [grants, setGrants] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -311,7 +313,11 @@ export default function StudentDashboardHome() {
 
   return (
     <>
-      <div className="dash-greeting">Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}</div>
+      <div className="dash-greeting">
+        <div className="dash-greeting-sub">Welcome back 👋</div>
+        <div className="dash-greeting-name">{profile?.full_name || 'Doctor'}</div>
+        {motivationalLine && <div className="dash-greeting-motivation">{motivationalLine}</div>}
+      </div>
 
       <QuickStatsRow stats={stats} />
 

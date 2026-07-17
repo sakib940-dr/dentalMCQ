@@ -19,6 +19,7 @@ import FeedbackAdminPage from '../../components/FeedbackAdminPage';
 import ContactInfoPanel from '../../components/ContactInfoPanel';
 import HelpCenterAdminPage from '../../components/HelpCenterAdminPage';
 import UpcomingFeaturesAdminPage from '../../components/UpcomingFeaturesAdminPage';
+import MotivationalLinePanel from '../../components/MotivationalLinePanel';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: '📊', end: true, quick: true, group: 'Overview' },
@@ -50,6 +51,7 @@ function SettingsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <FeatureTogglesPanel />
       <ContactInfoPanel />
+      <MotivationalLinePanel />
       <HelpCenterAdminPage />
       <UpcomingFeaturesAdminPage />
       <ChangePasswordPanel />
