@@ -377,6 +377,53 @@ body {
   border-bottom: 1px solid var(--card-border);
 }
 
+.dash-drawer-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--card-border);
+  background: #FAF9F5;
+}
+.dash-drawer-profile-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--teal-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  border: 2px solid var(--gold);
+}
+.dash-drawer-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.dash-drawer-profile-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+.dash-drawer-profile-package { font-size: 12.5px; font-weight: 600; color: var(--teal-deep); margin-top: 2px; }
+.dash-drawer-profile-expiry { font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+
+.dash-drawer-footer {
+  border-top: 1px solid var(--card-border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dash-drawer-version { font-size: 11px; color: var(--ink-soft); opacity: 0.7; }
+.dash-drawer-logout {
+  background: none;
+  border: 1px solid var(--red);
+  color: var(--red);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .dash-drawer-body {
   flex: 1;
   overflow-y: auto;
@@ -923,6 +970,57 @@ body {
 .opt-wrong .opt-letter { background: var(--red); border-color: var(--red); color: #fff; }
 .opt-selected .opt-letter { background: var(--teal); border-color: var(--teal); color: #fff; }
 .opt-text { flex: 1; color: var(--ink); }
+
+/* Exam question-view font size preference (Settings page) — applies to
+   both the running exam and the submitted answer-sheet review. */
+.exam-font-small .q-text, .exam-font-small .opt-text { font-size: 13px; }
+.exam-font-medium .q-text, .exam-font-medium .opt-text { font-size: 15.5px; }
+.exam-font-large .q-text, .exam-font-large .opt-text { font-size: 18.5px; }
+
+.avatar-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+.avatar-upload-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--teal-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--gold);
+}
+.avatar-upload-preview img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-upload-fallback { color: #fff; font-size: 24px; font-weight: 700; }
+
+.font-size-option-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.font-size-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border: 1.5px solid var(--card-border);
+  border-radius: 12px;
+  background: #FAF9F5;
+  cursor: pointer;
+  color: var(--ink);
+}
+.font-size-option-active {
+  border-color: var(--gold);
+  background: #FCF6E8;
+}
+.font-size-option-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
 .opt-tag-correct { font-size: 11px; font-weight: 700; color: var(--green); flex-shrink: 0; }
 .opt-tag-wrong { font-size: 11px; font-weight: 700; color: var(--red); flex-shrink: 0; }
 .expl-box {

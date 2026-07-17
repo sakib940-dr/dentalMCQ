@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ToothMark from './ToothMark';
 import InstallAppButton from './InstallAppButton';
 import NotificationBell from './NotificationBell';
+import { daysLeft, fmtDate } from '../lib/formatters';
 
 // navItems: [{ to, label, icon, end, badge, quick, group }]
 //   icon  — emoji shown in both the quick-bar and the drawer
@@ -19,7 +20,7 @@ import NotificationBell from './NotificationBell';
 // and hides the top quick-bar, since the bottom bar takes over that
 // job. Only the Examinee dashboard passes this; the other three roles
 // are unaffected and keep the top quick-bar exactly as before.
-export default function DashboardLayout({ title, navItems, bottomNavItems, children }) {
+export default function DashboardLayout({ title, navItems, bottomNavItems, drawerProfile, appVersion, children }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -74,7 +75,7 @@ export default function DashboardLayout({ title, navItems, bottomNavItems, child
         </div>
         <div className="dash-topbar-user">
           <NotificationBell />
-          <button onClick={handleLogout} className="btn-logout">Log out</button>
+          {!bottomNavItems && <button onClick={handleLogout} className="btn-logout">Log out</button>}
         </div>
       </header>
 
@@ -98,7 +99,37 @@ export default function DashboardLayout({ title, navItems, bottomNavItems, child
           </div>
           <button className="dash-drawer-close" onClick={() => setDrawerOpen(false)} aria-label="Close menu">✕</button>
         </div>
-        <div className="dash-drawer-user">{profile?.full_name}</div>
+
+        {bottomNavItems ? (
+          <div className="dash-drawer-profile">
+            <div className="dash-drawer-profile-avatar">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" />
+              ) : (
+                <span>{profile?.full_name?.[0]?.toUpperCase() || '👤'}</span>
+              )}
+            </div>
+            <div>
+              <div className="dash-drawer-profile-name">{profile?.full_name}</div>
+              {drawerProfile ? (
+                <>
+                  <div className="dash-drawer-profile-package">{drawerProfile.packageName}</div>
+                  {drawerProfile.expiresAt ? (
+                    <div className="dash-drawer-profile-expiry">
+                      Expires {fmtDate(drawerProfile.expiresAt)} · {daysLeft(drawerProfile.expiresAt)} days left
+                    </div>
+                  ) : (
+                    <div className="dash-drawer-profile-expiry">Lifetime access</div>
+                  )}
+                </>
+              ) : (
+                <div className="dash-drawer-profile-expiry">No active subscription</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="dash-drawer-user">{profile?.full_name}</div>
+        )}
 
         <div className="dash-drawer-body">
           {groups.map((g) => (
@@ -108,6 +139,13 @@ export default function DashboardLayout({ title, navItems, bottomNavItems, child
             </div>
           ))}
         </div>
+
+        {bottomNavItems && (
+          <div className="dash-drawer-footer">
+            {appVersion && <div className="dash-drawer-version">{appVersion}</div>}
+            <button onClick={handleLogout} className="dash-drawer-logout">Log out</button>
+          </div>
+        )}
       </aside>
 
       <InstallAppButton />

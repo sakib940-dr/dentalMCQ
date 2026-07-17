@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { getExamFontSize } from '../lib/examFontSize';
 
 function fmtTime(totalSeconds) {
   const s = Math.max(0, Math.round(totalSeconds));
@@ -111,6 +112,10 @@ export default function ExamRunner({
   const [marked, setMarked] = useState({}); // { questionId: true }
   const [result, setResult] = useState(null);
   const [now, setNow] = useState(Date.now());
+  // Read once — Settings changes apply the next time an exam/practice
+  // session is opened, not live mid-exam (there's no need for that).
+  const [fontSize] = useState(getExamFontSize);
+  const fontSizeClass = `exam-font-${fontSize}`;
 
   const endAtRef = useRef(null); // absolute ms timestamp when exam should auto-submit
   const shellRef = useRef(null);
@@ -294,7 +299,7 @@ export default function ExamRunner({
   if (phase === 'submitted') {
     const pct = result.percentage;
     return (
-      <div className="answer-sheet-page">
+      <div className={`answer-sheet-page ${fontSizeClass}`}>
         <div className="panel answer-sheet-summary">
           <h2>Result</h2>
           <div className="result-stat-row">
@@ -384,7 +389,7 @@ export default function ExamRunner({
   const urgent = secondsLeft <= 30;
 
   return (
-    <div className="exam-run-shell exam-run-immersive" ref={shellRef}>
+    <div className={`exam-run-shell exam-run-immersive ${fontSizeClass}`} ref={shellRef}>
       <div className="exam-run-header">
         <div className="exam-run-header-left">
           <div className="exam-run-header-title">{title}</div>

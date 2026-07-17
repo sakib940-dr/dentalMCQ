@@ -108,7 +108,16 @@ function UserDetailModal({ user, credentials, revealedPw, onTogglePw, onClose, o
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box modal-box-lg" onClick={(e) => e.stopPropagation()}>
         <div className="user-row-top">
-          <div className="modal-title" style={{ marginBottom: 0 }}>{user.full_name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="avatar-upload-preview" style={{ width: 44, height: 44 }}>
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" />
+              ) : (
+                <span className="avatar-upload-fallback" style={{ fontSize: 17 }}>{user.full_name?.[0]?.toUpperCase() || '👤'}</span>
+              )}
+            </div>
+            <div className="modal-title" style={{ marginBottom: 0 }}>{user.full_name}</div>
+          </div>
           <RoleBadge role={user.role} />
         </div>
 

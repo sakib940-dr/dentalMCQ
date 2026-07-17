@@ -1,9 +1,77 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
-import ChangePasswordPanel from './ChangePasswordPanel';
 
 const MAX_LOGO_BYTES = 200 * 1024; // 200KB
+const MAX_AVATAR_BYTES = 300 * 1024; // 300KB
+const AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+function AvatarUploadPanel() {
+  const { profile, user, refreshProfile } = useAuth();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError('');
+
+    if (!AVATAR_TYPES.includes(file.type)) {
+      setError('Please use a PNG, JPG, or WEBP image.');
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setError(`File is too large (${(file.size / 1024).toFixed(0)}KB). Max size is 300KB.`);
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+    const avatarPath = `${user.id}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(avatarPath, file, { upsert: true, contentType: file.type });
+
+    if (uploadError) {
+      setUploading(false);
+      setError(uploadError.message);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
+    const bustedUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: bustedUrl })
+      .eq('id', profile.id);
+
+    setUploading(false);
+    if (profileError) { setError(profileError.message); return; }
+    refreshProfile();
+  };
+
+  return (
+    <div className="avatar-upload-row">
+      <div className="avatar-upload-preview">
+        {profile?.avatar_url ? (
+          <img src={profile.avatar_url} alt="Your avatar" />
+        ) : (
+          <span className="avatar-upload-fallback">{profile?.full_name?.[0]?.toUpperCase() || '👤'}</span>
+        )}
+      </div>
+      <div>
+        <label className="btn-secondary sm" style={{ cursor: 'pointer' }}>
+          {uploading ? 'Uploading…' : profile?.avatar_url ? 'Change photo' : 'Add photo'}
+          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} disabled={uploading} style={{ display: 'none' }} />
+        </label>
+        <div className="muted small" style={{ marginTop: 4 }}>PNG, JPG, or WEBP · max 300KB</div>
+        {error && <div className="error-box" style={{ marginTop: 6 }}>{error}</div>}
+      </div>
+    </div>
+  );
+}
 
 function LogoUploadPanel() {
   const { profile, user, refreshProfile } = useAuth();
@@ -103,11 +171,6 @@ function LogoUploadPanel() {
 
 export default function MyProfilePage() {
   const { profile, refreshProfile } = useAuth();
-  const [referrals, setReferrals] = useState([]);
-
-  useEffect(() => {
-    supabase.from('my_referrals').select('*').order('created_at', { ascending: false }).then(({ data }) => setReferrals(data || []));
-  }, []);
 
   const [form, setForm] = useState({
     fullName: profile?.full_name || '',
@@ -132,7 +195,6 @@ export default function MyProfilePage() {
   const [chamberSaving, setChamberSaving] = useState(false);
   const [chamberSaved, setChamberSaved] = useState(false);
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   const updateChamber = (field) => (e) => setChamberForm((f) => ({ ...f, [field]: e.target.value }));
@@ -181,20 +243,6 @@ export default function MyProfilePage() {
     refreshProfile();
   };
 
-  const referralLink = profile?.referral_code
-    ? `${window.location.origin}/register?ref=${profile.referral_code}`
-    : '';
-
-  const copyReferral = async () => {
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // clipboard API unavailable — silently ignore
-    }
-  };
-
   return (
     <>
       <div className="panel">
@@ -202,6 +250,8 @@ export default function MyProfilePage() {
         <p className="muted small">
           This information auto-fills the prescription generator's doctor details (left side of the pad).
         </p>
+
+        <AvatarUploadPanel />
 
         <form className="exam-form-fields" onSubmit={save} style={{ marginTop: 14 }}>
           <label>
@@ -283,32 +333,6 @@ export default function MyProfilePage() {
       </div>
 
       <LogoUploadPanel />
-
-      <div className="panel">
-        <h2>Referral</h2>
-        <p className="muted small">
-          Share your link — when a friend registers through it and gets their payment approved,
-          you get 15 extra days of access as a reward.
-        </p>
-        <div className="referral-box">
-          <input readOnly value={referralLink} className="referral-input" />
-          <button className="btn-primary" onClick={copyReferral}>{copied ? 'Copied!' : 'Copy link'}</button>
-        </div>
-
-        {referrals.length > 0 && (
-          <div className="recent-list" style={{ marginTop: 14 }}>
-            <div className="compact-field-heading" style={{ marginTop: 0 }}>People you referred ({referrals.length})</div>
-            {referrals.map((r) => (
-              <div key={r.id} className="recent-row">
-                <span className="recent-name">{r.full_name}</span>
-                <span className="muted small">{new Date(r.created_at).toLocaleDateString('en-GB')}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <ChangePasswordPanel />
     </>
   );
 }

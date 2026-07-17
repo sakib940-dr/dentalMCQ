@@ -19,6 +19,8 @@ import SmartSearchPage from '../../components/SmartSearchPage';
 import FeedbackPage from '../../components/FeedbackPage';
 import ContactUsPage from '../../components/ContactUsPage';
 import SupportHubPage from '../../components/SupportHubPage';
+import SettingsPage from '../../components/SettingsPage';
+import ReferralPage from '../../components/ReferralPage';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -62,17 +64,55 @@ function useUnreadMessageCount(userId) {
   return count;
 }
 
+// Same "soonest-expiring active grant" logic as StudentDashboardHome's
+// SubscriptionStrip — the drawer header needs a compact version of the
+// same summary, not a second definition of "what counts as active."
+function useActiveSubscriptionSummary(userId) {
+  const [summary, setSummary] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [{ data: grants }, { data: categories }] = await Promise.all([
+        supabase.from('category_access_grants').select('category_id, resource_type, expires_at').eq('examinee_id', userId),
+        supabase.from('categories').select('id, name'),
+      ]);
+      if (cancelled) return;
+      const now = new Date();
+      const active = (grants || [])
+        .filter((g) => !g.expires_at || new Date(g.expires_at) > now)
+        .sort((a, b) => {
+          if (!a.expires_at) return 1;
+          if (!b.expires_at) return -1;
+          return new Date(a.expires_at) - new Date(b.expires_at);
+        });
+      if (active.length === 0) { setSummary(null); return; }
+      const soonest = active[0];
+      const name = soonest.resource_type === 'prescription'
+        ? 'Prescription'
+        : (categories || []).find((c) => c.id === soonest.category_id)?.name || 'Category';
+      setSummary({ packageName: name, expiresAt: soonest.expires_at });
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [userId]);
+  return summary;
+}
+
 export default function ExamineeDashboard() {
   const { user } = useAuth();
   const unreadMessages = useUnreadMessageCount(user.id);
+  const subscriptionSummary = useActiveSubscriptionSummary(user.id);
 
+  // Drawer now holds only secondary/less-used items — Home, Exams,
+  // Chamber, Messages, and Profile all moved to the bottom nav bar.
   const navItems = [
-    { to: '/dashboard', label: 'Home', icon: '🏠', end: true, quick: true, group: 'Study' },
-    { to: '/dashboard/exams', label: 'Exams', icon: '📝', quick: true, group: 'Study' },
     { to: '/dashboard/package', label: 'Package', icon: '📦', group: 'Account' },
-    { to: '/dashboard/notices', label: 'Notice Board', icon: '📢', group: 'Community' },
-    { to: '/dashboard/chat', label: 'Messages', icon: '💬', quick: true, badge: unreadMessages, group: 'Community' },
-    { to: '/dashboard/profile', label: 'My Profile', icon: '👤', group: 'Account' },
+    { to: '/dashboard/notices', label: 'Notice Board', icon: '📢', group: 'Account' },
+    { to: '/help', label: 'Help', icon: '❓', group: 'Support' },
+    { to: '/dashboard/contact', label: 'Contact', icon: '📞', group: 'Support' },
+    { to: '/dashboard/referral', label: 'Referral', icon: '🎁', group: 'Support' },
+    { to: '/dashboard/settings', label: 'Settings', icon: '⚙️', group: 'Support' },
+    { to: '/dashboard/feedback', label: 'Feedback', icon: '📮', group: 'Support' },
   ];
 
   // Primary navigation for students lives in a bottom tab bar (standard
@@ -89,7 +129,13 @@ export default function ExamineeDashboard() {
   ];
 
   return (
-    <DashboardLayout title="Examinee" navItems={navItems} bottomNavItems={bottomNavItems}>
+    <DashboardLayout
+      title="Examinee"
+      navItems={navItems}
+      bottomNavItems={bottomNavItems}
+      drawerProfile={subscriptionSummary}
+      appVersion="v1.0"
+    >
       <Routes>
         <Route index element={<StudentDashboardHome />} />
         <Route path="exams" element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
@@ -113,6 +159,8 @@ export default function ExamineeDashboard() {
         <Route path="support" element={<SupportHubPage />} />
         <Route path="feedback" element={<FeedbackPage />} />
         <Route path="contact" element={<ContactUsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="referral" element={<ReferralPage />} />
         <Route path="notices" element={<StudentNoticeBoard />} />
         <Route path="chat" element={<StudentChatPage />} />
         <Route path="profile" element={<MyProfilePage />} />
