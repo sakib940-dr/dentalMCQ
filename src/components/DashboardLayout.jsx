@@ -9,7 +9,17 @@ import NotificationBell from './NotificationBell';
 //   icon  — emoji shown in both the quick-bar and the drawer
 //   quick — true for the handful shown inline in the compact top strip
 //   group — drawer section heading; items without one land in "More"
-export default function DashboardLayout({ title, navItems, children }) {
+// navItems: [{ to, label, icon, end, badge, quick, group }]
+//   icon  — emoji shown in both the quick-bar and the drawer
+//   quick — true for the handful shown inline in the compact top strip
+//   group — drawer section heading; items without one land in "More"
+//
+// bottomNavItems (optional): [{ to, label, icon, end, badge }] — when
+// passed, renders a fixed bottom tab bar (mobile-app style primary nav)
+// and hides the top quick-bar, since the bottom bar takes over that
+// job. Only the Examinee dashboard passes this; the other three roles
+// are unaffected and keep the top quick-bar exactly as before.
+export default function DashboardLayout({ title, navItems, bottomNavItems, children }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -44,7 +54,7 @@ export default function DashboardLayout({ title, navItems, children }) {
   );
 
   return (
-    <div className="dash-shell">
+    <div className={bottomNavItems ? 'dash-shell dash-shell-has-bottomnav' : 'dash-shell'}>
       <header className="dash-topbar">
         <div className="dash-topbar-left">
           <button
@@ -68,9 +78,12 @@ export default function DashboardLayout({ title, navItems, children }) {
         </div>
       </header>
 
-      <nav className="dash-quickbar">
-        {quickItems.map((item) => renderLink(item))}
-      </nav>
+      {/* Bottom nav replaces the quick-bar as primary navigation when present. */}
+      {!bottomNavItems && (
+        <nav className="dash-quickbar">
+          {quickItems.map((item) => renderLink(item))}
+        </nav>
+      )}
 
       {/* Backdrop + side drawer — the full nav list, grouped, reachable via ☰ */}
       {drawerOpen && <div className="dash-drawer-backdrop" onClick={() => setDrawerOpen(false)} />}
@@ -100,6 +113,25 @@ export default function DashboardLayout({ title, navItems, children }) {
       <InstallAppButton />
 
       <main className="dash-content">{children}</main>
+
+      {bottomNavItems && (
+        <nav className="dash-bottomnav">
+          {bottomNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => 'dash-bottomnav-tab' + (isActive ? ' dash-bottomnav-tab-active' : '')}
+            >
+              <span className="dash-bottomnav-icon">
+                {item.icon}
+                {item.badge > 0 && <span className="dash-bottomnav-badge">{item.badge > 9 ? '9+' : item.badge}</span>}
+              </span>
+              <span className="dash-bottomnav-label">{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

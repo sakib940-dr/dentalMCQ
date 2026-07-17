@@ -75,8 +75,21 @@ export default function ExamineeDashboard() {
     { to: '/dashboard/profile', label: 'My Profile', icon: '👤', group: 'Account' },
   ];
 
+  // Primary navigation for students lives in a bottom tab bar (standard
+  // mobile-app pattern) instead of the top quick-bar the other three
+  // roles use — passing this prop is what switches DashboardLayout into
+  // that mode. The full navItems list above still populates the ☰
+  // drawer for secondary items.
+  const bottomNavItems = [
+    { to: '/dashboard', label: 'Home', icon: '🏠', end: true },
+    { to: '/dashboard/exams', label: 'Exams', icon: '📝' },
+    { to: '/dashboard/chamber', label: 'Chamber', icon: '🏥' },
+    { to: '/dashboard/chat', label: 'Messages', icon: '💬', badge: unreadMessages },
+    { to: '/dashboard/profile', label: 'Profile', icon: '👤' },
+  ];
+
   return (
-    <DashboardLayout title="Examinee" navItems={navItems}>
+    <DashboardLayout title="Examinee" navItems={navItems} bottomNavItems={bottomNavItems}>
       <Routes>
         <Route index element={<StudentDashboardHome />} />
         <Route path="exams" element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
