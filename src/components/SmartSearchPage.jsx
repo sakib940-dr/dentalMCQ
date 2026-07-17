@@ -42,6 +42,10 @@ export default function SmartSearchPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [searched, setSearched] = useState('');
+  // Derived, not separate state: search() sets searched+results together
+  // at the start of every attempt (first or repeat), so this is true for
+  // exactly the duration of the fetch, with nothing extra to keep in sync.
+  const searching = searched !== '' && results === null;
 
   const search = async (e) => {
     e?.preventDefault();
@@ -107,10 +111,14 @@ export default function SmartSearchPage() {
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
-        <button className="btn-primary sm" type="submit">Search</button>
+        <button className="btn-primary sm" type="submit" disabled={searching}>
+          {searching ? 'Searching…' : 'Search'}
+        </button>
       </form>
 
-      {results !== null && (
+      {searching && <p className="muted small" style={{ marginTop: 10 }}>Searching…</p>}
+
+      {!searching && results !== null && (
         <p className="muted small" style={{ marginTop: 10 }}>
           {results.length} result{results.length !== 1 ? 's' : ''} for "{searched}"
           {results.length > 0 && (
@@ -121,7 +129,7 @@ export default function SmartSearchPage() {
         </p>
       )}
 
-      {results !== null && results.length === 0 && (
+      {!searching && results !== null && results.length === 0 && (
         <p className="muted small">No matches found in your subscribed categories.</p>
       )}
 

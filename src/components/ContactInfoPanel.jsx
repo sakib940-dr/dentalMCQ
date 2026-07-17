@@ -22,12 +22,20 @@ export default function ContactInfoPanel() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [addType, setAddType] = useState('email');
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     supabase.from('app_settings').select('value').eq('key', 'contact_methods').maybeSingle().then(({ data }) => {
       setMethods(Array.isArray(data?.value) ? data.value : DEFAULT_METHODS);
     });
   }, []);
+
+  const validate = (m) => {
+    const v = (m.value || '').trim();
+    if (!v) return 'Value is required.';
+    if (m.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return `"${v}" doesn't look like a valid email.`;
+    return null;
+  };
 
   const persist = async (next) => {
     setMethods(next);
@@ -51,7 +59,11 @@ export default function ContactInfoPanel() {
     setMethods((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   };
 
-  const saveMethod = () => {
+  const saveMethod = (id) => {
+    const m = methods.find((x) => x.id === id);
+    const err = m ? validate(m) : null;
+    if (err) { setSaveError(err); return; }
+    setSaveError('');
     persist(methods);
   };
 
@@ -113,7 +125,7 @@ export default function ContactInfoPanel() {
             <div className="contact-editor-actions">
               <button className="btn-secondary sm" onClick={() => move(m.id, -1)} disabled={i === 0}>↑</button>
               <button className="btn-secondary sm" onClick={() => move(m.id, 1)} disabled={i === methods.length - 1}>↓</button>
-              <button className="btn-secondary sm" onClick={saveMethod}>Save</button>
+              <button className="btn-secondary sm" onClick={() => saveMethod(m.id)}>Save</button>
               <button className="btn-danger sm" onClick={() => removeMethod(m.id)}>Remove</button>
             </div>
           </div>
@@ -134,6 +146,7 @@ export default function ContactInfoPanel() {
         <button className="btn-primary sm" onClick={addMethod}>+ Add method</button>
       </div>
 
+      {saveError && <div className="error-box" style={{ marginTop: 10 }}>{saveError}</div>}
       {saved && !saving && <div className="ok-box" style={{ marginTop: 10 }}>Saved.</div>}
       {saving && <p className="muted small" style={{ marginTop: 10 }}>Saving…</p>}
     </div>
