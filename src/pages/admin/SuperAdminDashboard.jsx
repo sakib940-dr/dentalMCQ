@@ -21,6 +21,7 @@ import HelpCenterAdminPage from '../../components/HelpCenterAdminPage';
 import UpcomingFeaturesAdminPage from '../../components/UpcomingFeaturesAdminPage';
 import MotivationalLinePanel from '../../components/MotivationalLinePanel';
 import MentorsAdminPage from '../../components/MentorsAdminPage';
+import ReferralSettingsPanel from '../../components/ReferralSettingsPanel';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: '📊', end: true, quick: true, group: 'Overview' },
@@ -54,6 +55,7 @@ function SettingsPage() {
       <ContactInfoPanel />
       <MotivationalLinePanel />
       <MentorsAdminPage />
+      <ReferralSettingsPanel />
       <HelpCenterAdminPage />
       <UpcomingFeaturesAdminPage />
       <ChangePasswordPanel />
