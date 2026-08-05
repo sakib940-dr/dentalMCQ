@@ -5,6 +5,7 @@ import ToothMark from './ToothMark';
 import InstallAppButton from './InstallAppButton';
 import NotificationBell from './NotificationBell';
 import { daysLeft, fmtDate } from '../lib/formatters';
+import { usePushNotifications } from '../lib/usePushNotifications';
 
 // navItems: [{ to, label, icon, end, badge, quick, group }]
 //   icon  — emoji shown in both the quick-bar and the drawer
@@ -20,6 +21,8 @@ export default function DashboardLayout({ title, navItems, bottomNavItems, drawe
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  usePushNotifications(); // silently registers SW + asks for push permission once per browser
+
 
   const handleLogout = async () => {
     await signOut();

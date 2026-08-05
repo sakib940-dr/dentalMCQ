@@ -177,6 +177,23 @@ src/
 - `PaymentAdminPage.jsx`-এ **Payment Claims কার্ড এখন সবার উপরে** (আগে Package Settings/Promo Codes-এর নিচে ছিল), pending থাকলে সোনালি বর্ডার + "N pending" ব্যাজ দেখায়
 - DB migration: `migration_payment_notification.sql` (ট্রিগার তৈরি) + `migration_notifications_and_sender_phone.sql` (constraint fix + নতুন কলাম + notification body-তে sender phone যোগ) — **দুটোই রান করতে হবে (দ্বিতীয়টা রান করলেই যথেষ্ট, এটা প্রথমটাসহ সব রিপ্লেস করে)**
 
+### ⚠️ Needs manual setup — Push Notification System (সব রোলের জন্য)
+- `notifications` টেবিলে যেখানেই নতুন রো insert হয় (payment_pending, chat_message, exam_published, expiry_warning, payment_approved, payment_rejected — সব টাইপেই), এখন থেকে সেই ইউজারের ব্রাউজারে/ফোনে একটা **আসল push notification** যাবে, অ্যাপ বন্ধ থাকলেও।
+- নতুন ফাইল: `public/sw.js` (Service Worker), `src/lib/usePushNotifications.js` (permission চাওয়া + subscription সেভ করার হুক)
+- বদলানো ফাইল: `src/components/DashboardLayout.jsx` (হুকটা এখানে কল করা হয়, তাই সব রোলেই কাজ করবে — Super Admin/Admin/Moderator/Examinee)
+- `.env.example`-এ নতুন `VITE_VAPID_PUBLIC_KEY` — Vercel-এ env var হিসেবে বসাতে হবে
+- **এই ফিচারটা শুধু zip+SQL দিয়ে সম্পূর্ণ হয় না — নিচের ৩ ধাপ ম্যানুয়ালি করতে হবে:**
+  1. `supabase_edge_function_send-push.ts`-এর ভেতরের নির্দেশনা অনুযায়ী Supabase Dashboard → Edge Functions-এ `send-push` নামে ফাংশন বানিয়ে কোড পেস্ট করে Deploy করা (Verify JWT আনচেক করে)
+  2. Edge Function-এর Secrets-এ VAPID কী ও একটা নিজের বানানো secret বসানো
+  3. `migration_push_notifications.sql`-এ `<YOUR_PROJECT_REF>` ও secret বসিয়ে রান করা
+- **VAPID key pair (একবারই লাগে, এই সেশনে জেনারেট করা হয়েছে)**:
+  - Public (frontend-এ যাবে): `BJNPjAGUq3SGDf9Wfxm9XWS_GHHzD5vDnpxPLDY8R8rLRzA2E8P60BQl6OfLlA4bcUQwsiCFT6bIeP9wdZF24mo`
+  - Private (শুধু Edge Function secret-এ, কখনো frontend/GitHub-এ না): `BW0jrEH14A0ttEK8G69usMwo1pYpE9MHslvNdQMA9tk`
+- **এখনো বাকি**: উপরের ৩ ধাপ ইউজার নিজে করেননি এখনো, তাই push আসলে কাজ করছে কিনা টেস্ট করা হয়নি।
+
+### 🐛 Fixed — Zip packaging bug (dotfiles missing)
+- এতদিন ডেলিভার করা প্রতিটা zip থেকে `.env.example`, `.gitignore`, `.oxlintrc.json` বাদ পড়ে যাচ্ছিল (একটা `cp` কমান্ডের bug — dotfile কপি হচ্ছিল না)। এই zip থেকে ফিক্স করা হয়েছে, এখন এই ৩টা ফাইলও থাকবে।
+
 ## এখনো যা নেই / ভবিষ্যতে করা যেতে পারে
 - মূল ৭-পয়েন্ট স্পেকের সব ফিচার আগেই সম্পূর্ণ ছিল। এই ভার্সনে যোগ হওয়া বড় মডিউলগুলো (Dental Chamber, Payment/Promo system, Feedback, Help Center, Referral, Bookmarks, Smart Search, Sentry error tracking, Forgot/Reset password) — এগুলোর প্রতিটাই ফাংশনাল অবস্থায় ডিপ্লয়েড।
 - পেমেন্ট সিস্টেম কারেন্টলি ম্যানুয়াল ট্রানজেকশন-আইডি ভেরিফিকেশন-ভিত্তিক (bKash ইত্যাদি) — অটোমেটেড পেমেন্ট গেটওয়ে ইন্টিগ্রেশন নেই।
