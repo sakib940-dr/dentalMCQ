@@ -44,6 +44,7 @@ export default function PackagePage() {
 
   const [method, setMethod] = useState('bkash');
   const [txnId, setTxnId] = useState('');
+  const [senderPhone, setSenderPhone] = useState('');
   const [submittingTxn, setSubmittingTxn] = useState(false);
   const [txnError, setTxnError] = useState('');
   const [txnSuccess, setTxnSuccess] = useState('');
@@ -137,6 +138,7 @@ export default function PackagePage() {
     setTxnSuccess('');
     if (!selectedPkg) return;
     if (!txnId.trim()) { setTxnError('Enter your transaction ID.'); return; }
+    if (!senderPhone.trim()) { setTxnError('যে নাম্বার থেকে টাকা পাঠিয়েছেন সেটা লিখুন।'); return; }
 
     setSubmittingTxn(true);
     // category_id is intentionally left null here — the package's own
@@ -147,6 +149,7 @@ export default function PackagePage() {
       package_id: selectedPkg.id,
       method,
       transaction_id: txnId.trim(),
+      sender_phone_number: senderPhone.trim(),
       amount_paid: finalPrice,
       final_amount: finalPrice,
       discount_percent: combinedDiscount,
@@ -173,6 +176,7 @@ export default function PackagePage() {
     setSubmittingTxn(false);
     setTxnSuccess('Submitted! An admin will review and activate your access shortly.');
     setTxnId('');
+    setSenderPhone('');
     removePromo();
     load();
   };
@@ -299,6 +303,10 @@ export default function PackagePage() {
             <label>
               <span>Transaction ID</span>
               <input value={txnId} onChange={(e) => setTxnId(e.target.value)} placeholder="e.g. 8N7A6B5C4D" />
+            </label>
+            <label>
+              <span>যে নাম্বার থেকে টাকা পাঠিয়েছেন</span>
+              <input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="01XXXXXXXXX" />
             </label>
             {txnError && <div className="error-box">{txnError}</div>}
             {txnSuccess && <div className="ok-box">{txnSuccess}</div>}

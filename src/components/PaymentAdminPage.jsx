@@ -385,15 +385,22 @@ function PaymentClaimsInbox() {
   const [packages, setPackages] = useState([]);
 
   const load = useCallback(async () => {
-    const [{ data, error }, { data: pkgIds }] = await Promise.all([
+    const [{ data, error }, { data: pkgIds }, { data: phoneRows }] = await Promise.all([
       supabase.rpc('get_all_payment_claims'),
       supabase.rpc('get_payment_claim_package_ids'),
+      supabase.from('payment_claims').select('id, sender_phone_number'),
     ]);
     if (error) console.error('Failed to load payment claims:', error.message);
-    // Merge in package_id from the dedicated lookup rather than trusting
-    // it's already on the row — see migration_payment_claim_package_ids.sql.
+    // Merge in package_id and sender_phone_number from dedicated lookups
+    // rather than trusting they're already on the row — see
+    // migration_payment_claim_package_ids.sql and migration_notifications_and_sender_phone.sql.
     const pkgIdByClaim = new Map((pkgIds || []).map((r) => [r.id, r.package_id]));
-    setClaims((data || []).map((c) => ({ ...c, package_id: c.package_id ?? pkgIdByClaim.get(c.id) })));
+    const phoneByClaim = new Map((phoneRows || []).map((r) => [r.id, r.sender_phone_number]));
+    setClaims((data || []).map((c) => ({
+      ...c,
+      package_id: c.package_id ?? pkgIdByClaim.get(c.id),
+      sender_phone_number: c.sender_phone_number ?? phoneByClaim.get(c.id),
+    })));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -429,10 +436,13 @@ function PaymentClaimsInbox() {
     if (packageFilter !== 'all' && c.package_id !== packageFilter) return false;
     return true;
   });
+  const pendingCount = (claims || []).filter((c) => c.status === 'pending').length;
 
   return (
-    <div className="panel">
-      <h2>Payment Claims</h2>
+    <div className="panel" style={pendingCount > 0 ? { border: '2px solid var(--gold)' } : undefined}>
+      <div className="panel-head-row">
+        <h2>Payment Claims{pendingCount > 0 && <span className="status-pill status-live" style={{ marginLeft: 8 }}>{pendingCount} pending</span>}</h2>
+      </div>
       <div className="mode-tabs">
         {['pending', 'approved', 'rejected', 'all'].map((f) => (
           <button key={f} className={filter === f ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setFilter(f)}>
@@ -472,6 +482,9 @@ function PaymentClaimsInbox() {
                 {c.amount_paid != null && ` · ৳${c.amount_paid}`}
                 {c.package_id && packageNameById.get(c.package_id) && ` · ${packageNameById.get(c.package_id)}`}
               </div>
+              {c.sender_phone_number && (
+                <div className="muted small">প্রেরকের নাম্বার: <b>{c.sender_phone_number}</b></div>
+              )}
               <div className="muted small">{fmtDateTime(c.created_at)}</div>
             </div>
             <div className="claim-row-actions">
@@ -498,9 +511,9 @@ function PaymentClaimsInbox() {
 export default function PaymentAdminPage() {
   return (
     <>
+      <PaymentClaimsInbox />
       <PackageSettings />
       <PromoCodesPanel />
-      <PaymentClaimsInbox />
     </>
   );
 }

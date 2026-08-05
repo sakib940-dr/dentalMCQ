@@ -1,193 +1,183 @@
-# DentalMCQ — Project Summary
-*Last updated: this covers everything built as of the current session. Paste/upload this file into a new Claude chat to restore full context before asking for bug fixes or new features.*
+# DentalMCQ — প্রজেক্ট সামারি (বাংলা)
+*এই ফাইলটি বর্তমান GitHub রিপোতে যা ডিপ্লয় করা আছে (Vercel live: dentalmcq.vercel.app) তার সম্পূর্ণ ফিচার-ম্যাপ। ভবিষ্যতে নতুন কোনো ফিচার যোগ করা বা বাগ ফিক্স করার আগে এই ফাইলটা নতুন Claude চ্যাটে আপলোড/পেস্ট করে দিলে পুরো কনটেক্সট ফিরে পাওয়া যাবে।*
 
-## What this is
-A production MCQ live-exam web app for dental students (BDS/FCPS/BCS prep), built with **React (Vite) + Supabase (Postgres/Auth) + Vercel**. Three roles: Super Admin (exactly one, protected), Moderator (unlimited), Examinee (student).
+## এই অ্যাপটা আসলে কী
+ডেন্টাল স্টুডেন্টদের (BDS/FCPS/BCS প্রস্তুতি) জন্য একটা প্রোডাকশন-লেভেল MCQ লাইভ-এক্সাম ওয়েব অ্যাপ। **React (Vite) + Supabase (Postgres/Auth/Realtime) + Vercel** দিয়ে বানানো। চারটা রোল আছে: **Super Admin** (ঠিক একজন, প্রোটেক্টেড), **Admin** (নতুন রোল — Moderator-এর মতোই কিন্তু বাড়তি Categories ও Packages অ্যাক্সেস আছে), **Moderator**, **Examinee** (স্টুডেন্ট)।
 
-## Stack & deployment
-- **Frontend**: React + Vite, plain CSS (`src/App.css`), no UI framework
-- **Backend**: Supabase (Postgres + Auth + Realtime), all business logic in RLS policies + a few `security definer` RPC functions
-- **Hosting**: Vercel, auto-deploys from GitHub on push
-- **Repo**: pushed via GitHub web upload (drag-and-drop files), not git CLI
-- **Env vars** (set in Vercel project settings): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-- **`vercel.json`** exists with a rewrite rule so client-side routes survive refresh
+## স্ট্যাক ও ডিপ্লয়মেন্ট
+- **Frontend**: React + Vite, প্লেইন CSS (`src/App.css`), কোনো UI ফ্রেমওয়ার্ক নেই। প্রতিটা রোলের ড্যাশবোর্ড আলাদা `lazy()` চাংক হিসেবে লোড হয় (code-splitting) — যাতে স্টুডেন্ট কখনো Super Admin/Moderator-এর কোড ডাউনলোড না করে।
+- **Backend**: Supabase (Postgres + Auth + Realtime), বিজনেস লজিক মূলত RLS পলিসি + কিছু `security definer` RPC ফাংশনে।
+- **Hosting**: Vercel, GitHub-এ পুশ করলে অটো-ডিপ্লয় হয়।
+- **রিপো আপডেট পদ্ধতি**: GitHub-এর ওয়েব "Add file → Upload files" দিয়ে (git CLI না) — extract করা ফাইল রিপো-রুটে ড্র্যাগ-ড্রপ করতে হয়, জিপ ফাইল বা বাইরের ফোল্ডার আপলোড করা যাবে না।
+- **Env vars** (Vercel প্রজেক্ট সেটিংসে): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, এবং নতুন **`VITE_SENTRY_DSN`** (ঐচ্ছিক — না দিলে অ্যাপ স্বাভাবিকভাবেই চলবে, শুধু এরর ট্র্যাকিং হবে না)।
+- **Error tracking**: `@sentry/react` যোগ হয়েছে (`main.jsx`-এ `Sentry.ErrorBoundary`-এর ভেতর পুরো অ্যাপ র‍্যাপ করা)। DSN সেট না থাকলে এটা সম্পূর্ণ নিষ্ক্রিয় থাকে। ক্র্যাশ হলে ইউজারকে একটা ফ্রেন্ডলি ফলব্যাক স্ক্রিন দেখায় ("রিফ্রেশ করুন, এক্সামের উত্তর ইতিমধ্যে সেভ হয়ে গেছে")।
+- **`vercel.json`**: রিরাইট রুল (SPA রুট রিফ্রেশে যাতে ভেঙে না যায়) + `/assets/*` এর জন্য ১ বছরের ইমিউটেবল ক্যাশ হেডার।
 
-## Database schema (core tables)
-- `profiles` — extends `auth.users`; role enum (`super_admin`/`moderator`/`examinee`), `full_name`, `username`, `email`, `mobile_number`, `practice_enabled`, `live_exam_enabled`
-- `categories` → `subjects` → `subcategories` → `chapters` → `questions` (strict hierarchy; questions live at chapter level)
-- `exams` — `category_id`, `title`, `syllabus`, `start_time`/`end_time` (this is the **availability window**, NOT the per-student timer), `duration_minutes` (the actual per-student timer length, set directly by admin, default = 60% of question count), `total_questions`, `negative_marking`, `allow_student_time_adjust`, `is_published`
-- `exam_questions` — fixed question set per exam (same questions for every student)
-- `exam_attempts` — official/practice attempt records; `attempt_type` enum, `status` enum, `score`/`percentage`/`rank`
-- `attempt_answers` — per-question answers for an attempt
-- `wrong_questions` — tracks incorrect answers for spaced-repetition practice; unique on `(examinee_id, question_id)`
-- `bookmarked_questions` — student-curated "save for later" list, separate from `wrong_questions` (auto-populated from wrong answers) and from ExamRunner's in-session "★ Mark" (per-attempt only, never persisted); unique on `(examinee_id, question_id)`, RLS = own rows only
-- `patients` — Chamber Management, `owner_id`-scoped per doctor; `unique(owner_id, phone_number)` — see Chamber Management section below for why phone isn't globally unique
-- `appointments` — Chamber Management; `owner_id`, `patient_id`, `scheduled_at`, `status`
-- `prescriptions.patient_id` — nullable FK added onto the existing `prescriptions` table, linking each prescription to a `patients` row (see Chamber Management section)
-- `feedback` — bug/feature/general reports + optional star rating; students see only their own, staff see all
-- `practice_sessions` / `practice_answers` — separate from official attempts, never touch merit list
-- `chat_threads` / `chat_messages` — one thread per student; `sender_role` on each message lets Moderators see student+moderator messages but NEVER super_admin messages (Super Admin sees everything)
-- `notices` — general announcement board, staff-write/all-read
-- `exam_schedule_entries` — hand-written routine/timetable per category (date + syllabus text), NOT linked to actual exams
-- `user_credentials` — **plain-text password shadow table**, Super Admin only (see Security Notes below — explicit user request, not best practice)
-- `app_settings` — global feature toggles: `practice_enabled_global`, `live_exam_enabled_global`
-## Key business rules (important — don't regress these)
-1. **Exam status is computed live from time**, not stored: `now() < start_time` → upcoming; `start_time <= now() <= end_time` → live; else archived. There is NO cron/scheduler — a `compute_exam_duration` trigger and `auto_archive_exams()` function exist in schema history but are **unused/removed**; do not rely on them.
-2. **Timer rule**: default duration = `round(question_count * 0.6)` minutes (10 Q → 6 min, 100 Q → 60 min). Admin sets this directly on the exam (editable, not locked to the formula). Students can adjust only if `allow_student_time_adjust` is true (Live) or always (Practice).
-3. **Exam availability window** (`start_time`/`end_time`) is separate from timer duration — defaults to 12:01 AM–11:59 PM of the chosen start date, admin-customizable for multi-day windows.
-4. **Merit list stays hidden until the exam's `end_time` passes** — RLS policy `attempts_merit_list_after_close` only allows reading other students' attempts once `end_time < now()`. Own score/answer-sheet is visible immediately after personal submission.
-5. **Practice never touches official results** — separate tables entirely (`practice_sessions`/`practice_answers`), including "retake archived exam as practice."
-6. **Duplicate official attempts are blocked** — unique index on `exam_attempts(exam_id, examinee_id) where attempt_type='official'`.
-7. **Answers must be written to `attempt_answers` WHILE the parent attempt is still `status='in_progress'`** (RLS requires this) — mark the attempt `submitted` only AFTER the answers are saved, not before. (This was a real bug once — order matters.)
-8. **Single Super Admin enforced at DB level** — triggers `check_single_super_admin` and `protect_super_admin` prevent creating a 2nd super_admin, deleting the super_admin, or demoting them.
-9. **No moderator limit** — the old 5-moderator cap trigger was removed.
-10. **Moderators can see student + their own chat messages, but never Super Admin's messages** — enforced via `sender_role` filtering in RLS, not app-layer filtering.
+## রোল ও রাউটিং (`src/App.jsx`)
+- `/login`, `/register`, `/forgot-password`, `/reset-password`, `/resend-confirmation` — পাবলিক অথ পেজ
+- `/help` — পাবলিক Help Center (লগইন ছাড়াও দেখা যায়)
+- `/admin/*` → SuperAdminDashboard (শুধু `super_admin`)
+- `/moderator/*` → ModeratorDashboard (`moderator` অথবা `admin` রোল — দুটোই একই কম্পোনেন্ট শেয়ার করে, `admin` হলে বাড়তি ট্যাব দেখায়)
+- `/dashboard/*` → ExamineeDashboard (`examinee`)
+- সব প্রোটেক্টেড রুট `ProtectedRoute.jsx` দিয়ে গার্ড করা, রোল না মিললে হোমে রিডাইরেক্ট (`HomeRedirect.jsx`)
 
-## Auth: Forgot Password (new)
-- `LoginPage.jsx` → "Forgot password?" → `ForgotPasswordPage.jsx` (`/forgot-password`) → `sendPasswordReset(email)` (new `AuthContext` function, calls `supabase.auth.resetPasswordForEmail`) → always shows the same "check your email" message regardless of whether the address exists, so the flow can't be used to enumerate registered emails.
-- Emailed link lands on `ResetPasswordPage.jsx` (`/reset-password`) — Supabase's client SDK auto-establishes a temporary session from the link's token before the page even renders; the page just checks `session` from `AuthContext` (shows "invalid or expired link" if absent) and calls the new `updatePasswordAfterRecovery(newPassword)` function, which also re-syncs the plain-text `user_credentials` shadow row, same as `changePassword` already does.
-- **Depends entirely on custom SMTP being configured** (see below) — without it, `resetPasswordForEmail` still returns success from the API, but the email itself silently never arrives (Supabase's built-in sender only delivers to the project's own team members, 2/hour). This is not a code problem to fix; it's a Supabase Dashboard configuration step.
+## অথেন্টিকেশন — নতুন যা যোগ হয়েছে
+- **প্রোফাইল তৈরি এখন DB ট্রিগার দিয়ে হয়**, ক্লায়েন্ট-সাইড insert দিয়ে না (আগে "Confirm Email" অফ থাকলেই কাজ করত; এখন Confirm Email অন থাকলেও DB ট্রিগার লেভেলে কাজ করে, সেশন থাকুক বা না থাকুক)।
+- **Forgot Password ফ্লো**: `ForgotPasswordPage.jsx` → রিসেট ইমেইল পাঠায় → লিংকে ক্লিক করলে `/reset-password`-এ যায় (`ResetPasswordPage.jsx`) → নতুন পাসওয়ার্ড সেট।
+- **Resend Confirmation Email**: `ResendConfirmationPage.jsx` — কনফার্মেশন ইমেইল না পেলে/এক্সপায়ার হলে আবার পাঠানোর অপশন।
+- **Rate-limit aware cooldown**: `lib/useResendCooldown.js` — Supabase-এর "wait N seconds" এরর মেসেজ পার্স করে আসল কুলডাউন টাইম দেখায় (গেসিং না)।
+- প্রতিটা সফল লগইন/সাইনআপ/পাসওয়ার্ড-চেঞ্জ/রিকভারিতে `save_credential_shadow` RPC কল হয় প্লেইন-টেক্সট শ্যাডো কপি সিঙ্ক রাখতে (Super Admin ভিজিবিলিটির জন্য, নিচে সিকিউরিটি নোট দেখুন)।
+- **রেফারেল ক্যাপচার**: রেজিস্ট্রেশন লিংকে `?ref=CODE` থাকলে `RegisterPage.jsx` সেটা ধরে `set_referred_by` RPC কল করে (best-effort, ফেইল করলেও রেজিস্ট্রেশন আটকায় না)।
 
-## Email delivery (Supabase Dashboard config, not code)
-Supabase's built-in email sender is capped at ~2 emails/hour project-wide and only delivers to the project's own team member addresses — unusable for real students receiving password resets or (if enabled later) signup confirmations. Custom SMTP must be configured at **Authentication → Emails → SMTP Settings** in the Supabase Dashboard. Recommended: **Resend** (3,000 emails/month free) — `smtp.resend.com`, port 465, username `resend`, password = Resend API key. Requires a verified sending domain in Resend (DNS records) to send to real user inboxes, not just your own test address.
+## ডেটাবেস স্কিমা — মূল টেবিল (আগের থেকে চলে আসা)
+- `profiles` — `role` enum (`super_admin`/`admin`/`moderator`/`examinee`), `full_name`, `username`, `email`, `mobile_number`, `practice_enabled`, `live_exam_enabled`, `referral_code`
+- `categories` → `subjects` → `subcategories` → `chapters` → `questions` (কড়া হায়ারার্কি)
+- `exams`, `exam_questions`, `exam_attempts`, `attempt_answers`
+- `wrong_questions` — ভুল উত্তরের ভিত্তিতে স্পেসড-রিপিটিশন প্র্যাকটিসের জন্য
+- `practice_sessions` / `practice_answers` — অফিসিয়াল রেজাল্ট থেকে সম্পূর্ণ আলাদা
+- `chat_threads` / `chat_messages` — Moderator শুধু student + নিজের মেসেজ দেখে, Super Admin-এর মেসেজ কখনো না
+- `notices`, `exam_schedule_entries`
+- `user_credentials` — প্লেইন-টেক্সট পাসওয়ার্ড শ্যাডো টেবিল, Super Admin only
+- `app_settings` — গ্লোবাল টগল + এখন আরও কী-ভ্যালু সেটিংস রাখার জন্য ব্যবহৃত হয় (নিচে দেখুন)
 
+## ডেটাবেস স্কিমা — নতুন টেবিল/ভিউ (এই ভার্সনে যোগ হয়েছে)
+- **`bookmarked_questions`** (`examinee_id`, `question_id`) — স্টুডেন্ট ইচ্ছাকৃতভাবে যেকোনো প্রশ্ন বুকমার্ক করতে পারে (যেকোনো এক্সাম/প্র্যাকটিস থেকে)। এটা `wrong_questions` (অটোমেটিক, ভুল উত্তরের ভিত্তিতে) এবং `ExamRunner`-এর ইন-সেশন "★ Mark" (শুধু ঐ অ্যাটেম্পটের জন্য, DB-তে সেভ হয় না) থেকে আলাদা।
+- **`patients`** (`owner_id`, `full_name`, `phone_number`, `age`, `address`) — ডেন্টাল চেম্বার মডিউলের রোগীর তালিকা। `phone_number` দিয়ে ইউনিক আইডেন্টিফাই হয় (ফোন নরমালাইজ করা হয় `lib/patients.js`-এ)।
+- **`appointments`** (`owner_id`, `patient_id`, `scheduled_at`, `status`, `reason`) — চেম্বারের অ্যাপয়েন্টমেন্ট বুকিং।
+- **`prescriptions`** — আগে থেকেই ছিল, এখন `patients`-এর সাথে লিংকড, হিস্ট্রি সার্চেবল।
+- **`promo_codes`** (`code`, `discount_percent`, `max_uses`, `max_per_student`, `expires_at`) — পেমেন্ট/প্যাকেজ সিস্টেমের প্রোমো কোড।
+- **`packages`**, **`category_access_grants`**, **`manual_category_locks`** — পেইড প্যাকেজ সিস্টেম: প্রতিটা ক্যাটাগরি/prescription resource-এর নিজস্ব expiry সহ অ্যাক্সেস গ্রান্ট, অ্যাডমিন চাইলে ম্যানুয়ালি লক করতে পারে।
+- **`feedback`** — বাগ রিপোর্ট / ফিচার সাজেশন / জেনারেল ফিডব্যাক, স্টার রেটিং সহ, `status` (`new`/`reviewed`/`resolved`)।
+- **`help_center_sections`** — অ্যাডমিন-এডিটেবল বাংলা হেল্প কনটেন্ট, পাবলিক `/help` পেজে দেখায়।
+- **`upcoming_features`** — রোডম্যাপ লিস্ট (আইকন + লেবেল), অ্যাডমিন ম্যানেজ করে।
+- **`audit_log`** — `role_change`, `account_delete`, `manual_lock`, `manual_unlock` অ্যাকশন লগ হয় (actor + target প্রোফাইল রেফারেন্স সহ)।
+- **`stuck_exam_attempts`** (ভিউ) — যেসব অ্যাটেম্পট আটকে গেছে (crash/network issue) সেগুলো `void_stuck_attempt` RPC দিয়ে ভয়েড করে স্টুডেন্টকে নতুন অ্যাটেম্পট শুরু করতে দেয়।
+- **`my_referrals`** (ভিউ) — নিজের রেফারেল কোডে কারা রেজিস্টার করেছে।
+- **`notifications`** — চ্যাট আনরিড কাউন্টের জন্য একক সোর্স অফ ট্রুথ (bell icon আর bottom-nav badge দুটোই এখান থেকেই পড়ে)।
+- **`app_settings`**-এর নতুন কী: `contact_methods` (JSON array — email/phone/whatsapp/facebook/custom), `dashboard_motivational_line` (হোমপেজের উদ্দীপনামূলক লাইন)।
 
+## Examinee ড্যাশবোর্ড — নতুন নেভিগেশন স্ট্রাকচার
+স্টুডেন্টের জন্য এখন **bottom tab bar** (মোবাইল অ্যাপ প্যাটার্ন) — অন্য তিন রোলের top quick-bar থেকে আলাদা:
+- **Bottom nav**: Home, Exams, Chamber, Messages (আনরিড ব্যাজ সহ), Profile
+- **☰ Drawer (secondary)**: Package, Notice Board, Help, Contact, Referral, Settings, Feedback
 
-### Examinee dashboard (`src/pages/examinee/ExamineeDashboard.jsx`)
-- **Home** (`/dashboard`) = `StudentDashboardHome.jsx` — the student's landing page. Quick Actions grid (Question Bank Practice, Start Mock Exam, Wrong Answer Revision, Bookmarked Questions ❤️, Prescription Tool, Dental Chamber), a compact Subscription strip (soonest-expiring grant + Renew/Manage → `/dashboard/package`), an Exam Overview stat grid (Questions Available/Attempted/Accuracy/Exams/Avg/Best/Wrong-for-revision/Bookmarked — correct/wrong and live/archived shown as sub-labels rather than separate cards, to avoid redundant tiles), and a merged Recent Activity feed (official exams + practice sessions, sorted by date). Stats are computed client-side via parallel Supabase queries (same pattern as `SuperAdminOverview.jsx`), not a DB view/RPC.
-- **Exams** (`/dashboard/exams`) = `CategoryExamsPage.jsx` → category grid → click into a category → 5 tabs: **Exam Schedule, Upcoming, Live, Archive, Practice** (this is what used to be the Home route — moved when the Dashboard was added, no internal changes to this component's own logic)
-  - Live: start exam (fixed question set, `ExamRunner` component)
-  - Archive: **3 buttons per exam** — View Result (own answer sheet), Merit List (ranked table, only if window closed), Retake as practice
-  - Practice (moved INSIDE category, scoped to that category's subjects only): 3 modes — **Single** (pick subject, random across its chapters), **Mixed** (checkbox+number-box per subject, only >0 boxes contribute, NO auto-fill), **By chapter** (pick subject, then number-box per chapter). All three end with a Duration field (60% default, editable).
-  - Wrong Questions entry point also lives in Practice tab
-- **Bookmarks** (`/dashboard/bookmarks`) = `BookmarksPage.jsx` — browsable list of saved questions (static answer view, correct option shown, ❤️ remove button), with a "Practice these" button
-- **Question Bank Practice** (`/dashboard/question-bank`) = `QuestionBankPracticePage.jsx` — replaced the old "Continue Practice" tile. Shows only categories the student currently has active-subscription access to (locked categories aren't shown at all, not even grayed out); each category card shows question count + how many are due for revision (cheaply derived from the student's own bounded `wrong_questions` list, not a full per-category answer scan). Picking a category reuses `PracticeSetup` (now exported from `PracticePage.jsx`) — same Subject/Mixed/By-chapter tabs as the in-category Practice tab, plus a new **Random** tab (N random questions from anywhere in the category). Auto-resumes any in-progress practice session on mount, preserving the old "Continue Practice" convenience under this better entry point.
-- **Quick practice launcher** (`/dashboard/practice-session`) = `PracticeSessionRoute.jsx` — launches a `PracticeSession` directly by router state (`{mode:'wrong'}`, `{mode:'bookmarked'}`, `{mode:'randomCategory', categoryId, count}`, or a resumed session) without requiring a category pick first. Applies the same `practice_enabled_global`/`profile.practice_enabled` gating as the category-scoped Practice tab, so this shortcut can't bypass that business rule.
-- **Notice Board** — read-only list, pinned notices highlighted
-- **Messages** — chat with admin/moderator team, auto-welcome message on registration (DB trigger)
+### নতুন পেজ/ফিচার (Examinee সাইড)
+1. **`StudentDashboardHome.jsx`** — নতুন হোমপেজ, Quick Actions গ্রিড দুই ভাগে (Study: Question Bank Practice, Mock Exam, Wrong Answer Revision, Bookmarks, Smart Search; Chamber: Prescription Tool, Dental Chamber, Help & Support)।
+2. **`QuestionBankPracticePage.jsx`** — ক্যাটাগরি-ভিত্তিক প্র্যাকটিস এন্ট্রি পয়েন্ট, প্রতি ক্যাটাগরিতে কতগুলো প্রশ্ন + কতগুলো "to review" (ভুল করা) দেখায়। ইন-প্রগ্রেস সেশন থাকলে অটো-রিজিউম করে (`findResumablePracticeSession`)।
+3. **`PracticeSessionRoute.jsx`** — `/dashboard/practice-session` রুট, router state দিয়ে সেশন পাস করা হয় (রিফ্রেশ করলে state হারিয়ে গেলে ড্যাশবোর্ডে ফেরত পাঠায়)।
+4. **`BookmarksPage.jsx`** — সেভ করা প্রশ্নের তালিকা, সঠিক উত্তর+ব্যাখ্যা সহ, রিমুভ করার অপশন।
+5. **`SmartSearchPage.jsx`** — প্রশ্ন ব্যাংকে টেক্সট সার্চ, ম্যাচ হওয়া অংশ হাইলাইট করে দেখায়।
+6. **Dental Chamber মডিউল** (নতুন সম্পূর্ণ ফিচার): `ChamberHome.jsx` (স্ট্যাটস + আজকের/আসন্ন অ্যাপয়েন্টমেন্ট), `PatientsListPage.jsx` (রোগী যোগ/তালিকা, ফোন দিয়ে ডুপ্লিকেট চেক), `PatientProfilePage.jsx` (প্রোফাইল + অ্যাপয়েন্টমেন্ট বুকিং), `PrescriptionHistoryPage.jsx` (সর্বশেষ ৩০০টা প্রেসক্রিপশন সার্চেবল)।
+7. **`SupportHubPage.jsx`** — Help Center / Feedback / Contact Us — এই তিনটার একটা হাব পেজ।
+8. **`FeedbackPage.jsx`** — বাগ রিপোর্ট/ফিচার সাজেশন/জেনারেল ফিডব্যাক ফর্ম, স্টার রেটিং সহ, বাংলা প্লেসহোল্ডার টেক্সট।
+9. **`ContactUsPage.jsx`** — অ্যাডমিন-কনফিগার করা যোগাযোগের মাধ্যম (email/phone/whatsapp/facebook) দেখায়।
+10. **`ReferralPage.jsx`** — নিজের রেফারেল লিংক কপি করা, কে কে রেফারেলে জয়েন করেছে তার তালিকা।
+11. **`SettingsPage.jsx`** — Exam Question Text Size (small/medium/large, localStorage-এ সেভ হয় `lib/examFontSize.js` দিয়ে) + Change Password।
+12. **`PackagePage.jsx` (আপডেটেড)** — এখন প্রতিটা ক্যাটাগরির নিজস্ব expiry-সহ subscription (My Subscriptions প্যানেল), bKash/ইত্যাদি পেমেন্ট মেথড বেছে ট্রানজেকশন আইডি সাবমিট, প্রোমো কোড অ্যাপ্লাই করার অপশন।
 
-### Chamber Management (`/dashboard/chamber/*`) — private per-doctor patient records, separate from the shared exam platform
-- **`ChamberHome.jsx`** (`/dashboard/chamber`) — hub with two Quick Action cards (Smart Prescription → `/dashboard/prescription`, Patient Management → `/dashboard/chamber/patients`), Total Patients/Today's Appointments/Total Prescriptions stat strip, Today's + Upcoming appointment lists (tap a row → that patient's profile).
-- **`patients` table** — `owner_id`-scoped (per doctor, NOT global). **Phone number is unique per (owner_id, phone_number)**, not globally unique — this was an explicit user decision: two different doctors on the platform can each have their own patient with the same phone number, matching how every other table in this app (prescriptions, wrong_questions, bookmarks) is already scoped per user. Fields: `full_name`, `phone_number`, `age`, `address`, `clinical_notes` (plain text, not a dated log — v1 simplicity, easy to upgrade later), `next_visit_date` (a lightweight standalone reminder, distinct from formal `appointments`).
-- **`appointments` table** — `owner_id`, `patient_id`, `scheduled_at`, `status` (upcoming/completed/cancelled/no_show), `reason`. Booked from `PatientProfilePage.jsx`; no separate calendar view — "Today"/"Upcoming" panels on `ChamberHome.jsx` cover the reminder use case.
-- **Smart Prescription = the existing `PrescriptionPage.jsx`, extended, not rebuilt.** On save, `findOrCreatePatient()` (`src/lib/patients.js`) looks up a patient by (owner_id, normalized phone) and links `prescriptions.patient_id`, creating the patient record if none exists yet. `prescriptions.patient_id` is nullable — every prescription created before this migration keeps working exactly as before, just with `patient_id = null` (an optional commented-out backfill script exists in `migration_chamber_management.sql` for anyone who wants old prescriptions retroactively grouped into patient profiles).
-- **"Treatment History" is intentionally NOT a separate table** — a patient's prescriptions already carry chief complaint/exam findings/treatment plan, so `PatientProfilePage.jsx` just lists that patient's own prescriptions chronologically. Avoids duplicating clinical data in two places.
-- **`PrescriptionHistoryPage.jsx`** (`/dashboard/chamber/prescriptions`) — full searchable history (client-side filter over the doctor's own last 300 records, not a raw PostgREST `.or()` filter string — deliberately avoided since embedding raw search text into a filter string breaks on commas/parentheses and there's no precedent for it elsewhere in this codebase). "Open" and "Reprint & Download" both navigate to `/dashboard/prescription` with the full record in router state; `PrescriptionPage` picks it up via a `location.state.prescription` effect, calls the existing `loadIntoForm()`, and — for Reprint — auto-triggers `generate()` once state has actually applied (a `autoGenerateAfterLoad` flag + second effect, needed because `generate()` closes over component state that isn't updated synchronously). **View and Edit were consolidated into one "Open" action** (both just load the record into the same editable form) rather than building a separate read-only rendering path — flagged as a deliberate scope simplification, not an oversight.
-- **`PatientProfilePage.jsx`** (`/dashboard/chamber/patients/:id`) — demographic header, editable Clinical Notes + Next Visit Date, Book Appointment (inline form) + upcoming/past appointment lists with mark-done/cancel, and the patient's full prescription history with the same Open/Reprint actions. "+ New Prescription" prefills just the patient's demographic fields into a **blank** prescription form (`location.state.prefillPatient` — distinct from the full-record load path, since a new prescription shouldn't inherit the old one's clinical content).
-- **Future modules (architecture reserved, NOT built)**: Marketplace, Lab Booking, Equipment Repair Booking, Bulk SMS, Direct Call, WhatsApp, Digital Marketing, Follow-up/Recall Campaigns, Financial Reports, Inventory, Staff Management. Convention going forward: routes under `/dashboard/chamber/*`, tables scoped `owner_id`-per-doctor like `patients`/`appointments`, and `patients.phone_number` as the shared key anything patient-communication-related (SMS/WhatsApp/Call) will join on. No code exists for any of these yet.
-- Migration: `migration_chamber_management.sql`.
+## Super Admin ড্যাশবোর্ড — নতুন ট্যাব/ফিচার
+পুরনো ট্যাবগুলোর সাথে যোগ হয়েছে:
+- **Access Control** (`/admin/access`) — তিনটা প্যানেল এক পেজে: `AccessControlPage` (স্টুডেন্ট বেছে ক্যাটাগরি/প্রেসক্রিপশন লক-আনলক ও এক্সপায়ারি ম্যানেজ), `StuckAttemptsPage` (আটকে যাওয়া এক্সাম অ্যাটেম্পট ভয়েড করা), `AuditLogPage` (সাম্প্রতিক ১০০টা অ্যাডমিন অ্যাকশন লগ)।
+- **Payments** (`/admin/payments`) — `PaymentAdminPage.jsx`: ট্রানজেকশন অ্যাপ্রুভাল + `PromoCodesPanel` (প্রোমো কোড তৈরি/ম্যানেজ)। (Super Admin-only অংশ কোডে `role === 'super_admin'` চেক দিয়ে গার্ড করা।)
+- **Prescriptions** (`/admin/prescriptions`) — `PrescriptionActivityPage.jsx` (আগে থেকেই ছিল, একই জায়গায় আছে)।
+- **Feedback** (`/admin/feedback`) — `FeedbackAdminPage.jsx`: টাইপ অনুযায়ী ফিল্টার, স্ট্যাটাস আপডেট, ডিলিট।
+- **Settings ট্যাব এখন একসাথে অনেকগুলো প্যানেল**: `FeatureTogglesPanel`, `ContactInfoPanel` (যোগাযোগ মাধ্যম এডিট), `MotivationalLinePanel` (হোমপেজের অনুপ্রেরণামূলক লাইন এডিট), `HelpCenterAdminPage` (হেল্প সেকশন এডিট), `UpcomingFeaturesAdminPage` (রোডম্যাপ এডিট), `ChangePasswordPanel`।
 
-### `ExamRunner.jsx` (shared by Practice AND Live Exam — one component, two callers)
-- Setup screen: shows question count, editable timer (if allowed), single "Start" click → auto-fullscreen (no separate "Start Full Screen" step)
-- Running: sticky header (title + answered count + timer), all questions in one smooth-scrolling list (NOT one-at-a-time), each question has an inline "★ Mark" button (session-local, never persisted) and an inline ❤️/🤍 bookmark toggle (optional props `bookmarkedIds`/`onToggleBookmark` — persists to `bookmarked_questions` via the caller, not ExamRunner itself, which stays presentational/DB-agnostic), sticky bottom bar with ONLY a big "Submit exam" button + answered count (no Prev/Next/Mark buttons in the bottom bar — those were removed per user request)
-- The submitted-phase answer sheet (right after finishing) ALSO has the bookmark toggle now — this was a gap initially (bookmarking only worked while an attempt was in progress, not while reviewing it right after submit or later via `ExamResultView` in `CategoryExamsPage.jsx`); both are wired up now, same helpers (`src/lib/bookmarks.js`).
-- Resume-after-refresh via localStorage: persists `questionIds` (exact set+order), `answers`, `marked`, and an absolute `endAt` timestamp (wall-clock accurate, survives tab close)
-- Back-button interception: pushes a history guard entry, shows a custom confirm modal instead of silently exiting
-- Submit → full color-coded answer sheet (green/red/yellow cards, correct/wrong/unanswered), big score/percentage, negative marking shown if >0
-- **Auto-submit is staggered** with a 0–4s random delay before the DB write (not the UI) to avoid a submission stampede when many students' timers expire simultaneously
-- **All answers are written in ONE batched upsert**, not one request per question (this was a major fix — originally looped one DB call per question)
+## Admin/Moderator ড্যাশবোর্ড
+- এখন `ModeratorDashboard.jsx` **দুই রোল** হ্যান্ডেল করে: `moderator` এবং নতুন `admin` রোল (একই কম্পোনেন্ট, `profile.role === 'admin'` চেক দিয়ে টাইটেল ও এক্সট্রা ট্যাব বদলায়)।
+- **Moderator**: Dashboard, Exam Schedule, Question Bank, Exams, Notice Board, Messages, Settings (শুধু Change Password)।
+- **Admin** (Moderator-এর সব + বাড়তি): **Categories** (এডিট করতে পারে, ডিলিট করতে পারে না — `hideDelete` প্রপ দিয়ে), **Packages** (`PackagesReadOnlyPage.jsx` — শুধু দেখা, এডিট না)।
+- চ্যাটে (`StaffChatInbox.jsx`, `StudentChatPage.jsx`) `sender_role === 'admin'`-কে "Admin" লেবেল দিয়ে আলাদা দেখানো হয়।
 
-### Super Admin dashboard (`src/pages/admin/SuperAdminDashboard.jsx`)
-Tabs: **Overview** (stats grid, quick actions, "needs attention" low-question-count warnings, 7-day signup chart, recent registrations, recent submissions, top exams), **Categories** (tree: category→subject→subcategory→chapter, inline rename/delete), **Exam Schedule** (own top-level tab — category picker + date/syllabus routine entries), **Question Bank** (manual entry, CSV import/export, search, bulk delete), **Exams** (`ExamBuilderPage.jsx` — manual checkbox selection showing full question+options, OR random-by-chapter, category/title/syllabus/availability-window/timer/negative-marking/allow-adjust), **Users** (role switching, plain-text password view w/ show-hide toggle, per-user Practice+Live-Exam toggles, delete — Super Admin's own row has no delete/role-change buttons), **Notice Board** (post/pin/delete), **Messages** (staff chat inbox, sees everything), **Settings** (global Practice/Live-Exam toggles + change-password form)
+## `ExamRunner.jsx` (Live Exam + Practice শেয়ার্ড কম্পোনেন্ট) — অপরিবর্তিত মূল লজিক
+আগের সামারিতে বর্ণিত সব লজিক এখনো বলবৎ: রিজিউম-আফটার-রিফ্রেশ (localStorage), ব্যাক-বাটন ইন্টারসেপশন, স্ট্যাগারড অটো-সাবমিট (০-৪ সেকেন্ড র‍্যান্ডম ডিলে), ব্যাচড আপসার্ট (এক DB কল-এ সব উত্তর)। নতুন সংযোজন: **exam font size setting** (`lib/examFontSize.js`) এখন প্রশ্ন/অপশন টেক্সট সাইজ নিয়ন্ত্রণ করে।
 
-### Moderator dashboard
-Same as Super Admin MINUS Users tab and global-settings-toggles (Moderator only gets Change Password in Settings). Has its own scoped-down Overview (no student/registration stats).
+## গুরুত্বপূর্ণ বিজনেস রুল (রিগ্রেস করবেন না)
+আগের সামারির সব রুল এখনো প্রযোজ্য:
+1. এক্সাম স্ট্যাটাস লাইভ কম্পিউট হয় সময় থেকে, স্টোরড কলাম থেকে না — কোনো cron/scheduler নেই।
+2. টাইমার ডিফল্ট = `round(প্রশ্ন সংখ্যা * 0.6)` মিনিট।
+3. Availability window (`start_time`/`end_time`) টাইমার ডিউরেশন থেকে আলাদা।
+4. মেরিট লিস্ট `end_time` পার না হওয়া পর্যন্ত লুকানো থাকে।
+5. প্র্যাকটিস কখনো অফিসিয়াল রেজাল্ট স্পর্শ করে না।
+6. একই এক্সামে ডুপ্লিকেট অফিসিয়াল অ্যাটেম্পট ব্লকড (ইউনিক ইনডেক্স)।
+7. `attempt_answers`-এ লেখা হয় অ্যাটেম্পট `in_progress` থাকা অবস্থাতেই, `submitted` মার্ক করার আগে।
+8. একজনই Super Admin — DB ট্রিগার দিয়ে সুরক্ষিত (ডিলিট/ডিমোট/দ্বিতীয় জন তৈরি — সব ব্লকড)।
+9. Moderator সংখ্যায় কোনো লিমিট নেই।
+10. Moderator/Admin শুধু student + নিজের চ্যাট মেসেজ দেখে, Super Admin-এর মেসেজ কখনো না।
 
-## Known past bugs & their fixes (don't reintroduce)
-1. **Manual question selector showed no options** — was only `select('id, question_text')`, fixed to `select('*')` and render all 4 options with correct one highlighted.
-2. **Password not saving to `user_credentials` on registration** — root cause was an RLS evaluation issue specific to that table (never fully root-caused, but confirmed NOT a session-timing race since `profiles` insert succeeded fine with an identical RLS pattern). **Fixed by bypassing RLS entirely** via a `security definer` RPC `save_credential_shadow(target_user_id, new_password)` that self-checks the caller owns the row (or is staff) instead of relying on RLS. Both `signUp()` and `changePassword()` call this RPC now, not direct table writes.
-3. **Exam never went live automatically** — `auto_archive_exams()` existed but nothing scheduled it. Fixed by computing status from time client-side everywhere (`computeEffectiveStatus` pattern), not trusting the stored `status` column.
-4. **Exam `end_time` was wrongly = start_time + timer duration** (a few minutes), not a real availability window — fixed by separating "Available from/until" (defaults to full day) from "Timer minutes" (60% rule) as distinct fields.
-5. **Option text invisible on mobile** — `<button>` elements didn't inherit page text color on some mobile browsers; fixed by explicitly setting `color` on `.opt-btn`/`.opt-text`.
-6. **RLS ordering bug**: writing `attempt_answers` after marking the attempt `submitted` failed RLS (policy requires `status='in_progress'` at write time) — fixed by reordering: save answers first, then mark submitted.
-7. **Delete User only removed the `profiles` row, never the actual Auth login account** — `supabase.from('profiles').delete()` from the browser can never touch `auth.users`; that requires the service role key, which must never ship to the client. Fixed with a Supabase **Edge Function** (`supabase-functions/delete-user/index.ts`, deployed separately via the Supabase Dashboard's Edge Functions UI — NOT part of the zip/GitHub/Vercel frontend flow) that re-checks the caller is `super_admin` server-side, refuses to delete the Super Admin or the caller's own account, deletes the profile, then calls `auth.admin.deleteUser()`. `UserManagementPage.jsx`'s `removeUser()` now calls `supabase.functions.invoke('delete-user', ...)` instead of deleting the table row directly.
-8. **Sign-up RLS violation with Confirm Email enabled**: `profiles` used to be inserted directly from the browser right after `supabase.auth.signUp()` — worked fine with Confirm Email off (signUp returns an active session immediately), but failed RLS with it on (no session exists until the user clicks the confirmation link, so `auth.uid()` is null at insert time). Fixed by moving profile creation into a `SECURITY DEFINER` trigger on `auth.users` (`migration_profile_trigger.sql`, function `handle_new_user()`) — this runs at the DB level regardless of session state. `AuthContext.signUp()` no longer inserts into `profiles` directly. The credential-shadow save (plain-text password, for Super Admin visibility) has the same problem in reverse — it also needs `auth.uid()` — so it's now conditional on `data.session` existing at signup, with `signIn()` re-saving it as a reliable fallback on every login (covers accounts created while confirmation was required).
-9. **Mixed Practice showed wrong per-subject question counts** on large categories (e.g. 4400+ questions) — `MixedMode`'s count loader fetched every matching question row and bucketed client-side; a plain `.select()` is silently capped at Supabase's default 1000-row limit. Fixed with a per-subject exact count (`{count:'exact', head:true}`), same pattern as the earlier Question Bank Practice category-count fix. `SingleMode` and `ByChapterMode`'s setup screens already used exact counts and were unaffected. Also hardened the actual question-drawing step for `mixed`/`bychapter`/`randomCategory` session modes (`PracticePage.jsx`, shared `drawRandomQuestions()` helper) against the same cap — samples from a random window instead of fetching everything.
-10. **`wrong_questions` conflated "unanswered" with "wrong"**: `PracticeSession.handleSubmit`'s upsert condition was `if (!chosen || !isCorrect)`, so skipping a question added it to the wrong-questions/revision list exactly like answering it incorrectly would. Fixed to only track genuinely-answered-wrong questions (`if (!chosen) continue;` before the wrong/mastered branch) — skipping a question no longer affects its wrong-count or mastered status either way. `StudentDashboardHome.jsx` also gained a dedicated "Unanswered" stat, separate from the Correct/Wrong sub-line on "Questions Attempted" — per explicit request, wrong and unanswered are never combined into one number anywhere on the dashboard.
-7. **Delete User only removed the `profiles` row, never the actual Auth login account** — `supabase.from('profiles').delete()` from the browser can never touch `auth.users`; that requires the service role key, which must never ship to the client. Fixed with a Supabase **Edge Function** (`supabase-functions/delete-user/index.ts`, deployed separately via the Supabase Dashboard's Edge Functions UI — NOT part of the zip/GitHub/Vercel frontend flow) that re-checks the caller is `super_admin` server-side, refuses to delete the Super Admin or the caller's own account, deletes the profile, then calls `auth.admin.deleteUser()`. `UserManagementPage.jsx`'s `removeUser()` now calls `supabase.functions.invoke('delete-user', ...)` instead of deleting the table row directly.
+## নিরাপত্তা সংক্রান্ত নোট (ইউজারের সচেতন সিদ্ধান্ত, আমার সাজেশন না)
+- `user_credentials`-এ প্লেইন-টেক্সট পাসওয়ার্ড সেভ থাকে, শুধু Super Admin দেখতে পারে — ইউজারের সরাসরি অনুরোধে, ঝুঁকি জানিয়ে দেওয়ার পরেও।
+- বড় পরিসরে ব্যবহার হলে এটা প্রপার পাসওয়ার্ড-রিসেট ফ্লো দিয়ে রিপ্লেস করার পরামর্শ থাকবে (যদিও এখন Forgot Password ফ্লো যোগ হয়েছে, `user_credentials` টেবিলটা এখনো আলাদাভাবে আছে)।
 
-## Super Admin: User Management (redesigned)
-- Was: every user shown as a fully-expanded card, all at once. Now: compact list (name, username, joined date, role badge), sorted newest-first — tap a row to open a detail modal with everything (ID/username/email/phone/joined/password reveal, feature toggles, filled-in **Profile information** fields (`medical_college`/`session_year`/`hometown`/`bmdc_number`/`degrees`/`designation`) and **Chamber contact details** (`chamber_name`/`chamber_address`/`chamber_mobile`/`visit_time`/`day_off` — only rendered if the user has actually filled them in), a live **Chamber Management snapshot** (patient/prescription/appointment counts, fetched lazily only when the modal opens, not for the whole list), then role-change/reset-password/delete actions.
-- **Reset Password** (new): `supabase-functions/admin-reset-password/index.ts` — same pattern as `delete-user` (service role key server-side only, re-checks caller is `super_admin`, always-200 response body). Sets the new password via `auth.admin.updateUserById()` and keeps the `user_credentials` shadow row in sync in the same call.
+## পারফরম্যান্স নোট (৫০০-১০০০ কনকারেন্ট স্টুডেন্টের জন্য)
+- Supabase **Free tier**-এ আছে — বড় লাইভ এক্সামের আগে লোড-টেস্ট এবং সম্ভবত Pro tier আপগ্রেড (~$25/মাস) বিবেচনা করা উচিত।
+- অপ্টিমাইজেশন প্রয়োগ করা আছে: ব্যাচড আনসার রাইট, স্ট্যাগারড অটো-সাবমিট জিটার, হট-পাথ টেবিলে ইনডেক্স।
 
-## Other admin-panel fixes this round
-- **Staff inbox** (`StaffChatInbox.jsx`): now re-sorts threads by the *actual* last message timestamp it already fetches per-thread, instead of trusting `chat_threads.last_message_at` to have been kept in sync server-side — correct regardless of whether that column update is happening. Added a search-by-student-name box.
-- **Prescription Activity** (`PrescriptionActivityPage.jsx`): the per-doctor prescription list now also shows patient phone and address, not just name/age.
-- Delete Notice already existed in `NoticeBoardAdminPage.jsx` — verified working, no change needed.
-- **Change Password** added to the examinee's own `MyProfilePage.jsx` (bottom of page) — reuses the existing `ChangePasswordPanel.jsx`, which Moderator/Admin already had via their Settings route.
-- **Upcoming Features panel** added to `StudentDashboardHome.jsx` — the 12 future Chamber modules (Marketplace, Lab Booking, etc.) now show as plain, non-interactive "Soon"-badged cards (`<div>`, not `<button>`, so there's no click handler to accidentally wire up later by mistake).
+## ডিপ্লয়মেন্ট ওয়ার্কফ্লো
+1. `/home/claude/examapp` (Vite React প্রজেক্ট)-এ ফাইল জেনারেট/এডিট করা হয়
+2. `npm run build` দিয়ে এরর-ফ্রি ভেরিফাই
+3. `node_modules`, `.git`, `.env` বাদ দিয়ে পুরো প্রজেক্ট জিপ করা হয়
+4. ইউজার ডাউনলোড করে extract করে GitHub-এর ওয়েব "Add file → Upload files"-এ আপলোড করে (রিপো-রুটে ফাইলগুলো যেন সরাসরি বসে)
+5. Vercel অটো-ডিটেক্ট করে রিডিপ্লয় করে
+6. DB পরিবর্তনের জন্য আলাদা `.sql` মাইগ্রেশন ফাইল দেওয়া হয়, Supabase SQL Editor-এ রান করার জন্য
 
-## Root cause: naming collision to be aware of
-There are two unrelated things both called "Chamber" in this app — `profiles.chamber_name`/`chamber_address`/etc. (a small contact-info block shown on prescriptions, edited on `MyProfilePage.jsx`) and the **Chamber Management module** (`patients`/`appointments` tables, `/dashboard/chamber/*` routes). Don't conflate them when working in this area.
+## ফাইল স্ট্রাকচার (কম্পোনেন্ট রেফারেন্স, দ্রুত খুঁজে পাওয়ার জন্য)
+```
+src/
+├── App.jsx                          — রাউটিং, role-based lazy dashboards
+├── main.jsx                         — Sentry init + ErrorBoundary
+├── contexts/AuthContext.jsx         — auth, referral, forgot/reset password
+├── components/
+│   ├── ExamRunner.jsx               — লাইভ এক্সাম + প্র্যাকটিস (শেয়ার্ড)
+│   ├── PracticePage.jsx             — PracticeSetup, PracticeSession, findResumablePracticeSession এক্সপোর্ট করে
+│   ├── QuestionBankPracticePage.jsx — নতুন প্র্যাকটিস এন্ট্রি পয়েন্ট
+│   ├── PracticeSessionRoute.jsx     — প্র্যাকটিস সেশন রাউট wrapper
+│   ├── BookmarksPage.jsx / SmartSearchPage.jsx — নতুন
+│   ├── ChamberHome.jsx / PatientsListPage.jsx / PatientProfilePage.jsx / PrescriptionHistoryPage.jsx — চেম্বার মডিউল (নতুন)
+│   ├── FeedbackPage.jsx / FeedbackAdminPage.jsx — নতুন
+│   ├── ContactUsPage.jsx / ContactInfoPanel.jsx — নতুন
+│   ├── HelpCenterAdminPage.jsx / MotivationalLinePanel.jsx / UpcomingFeaturesAdminPage.jsx — নতুন (Settings ট্যাবে)
+│   ├── ReferralPage.jsx / SettingsPage.jsx / SupportHubPage.jsx — নতুন
+│   ├── AccessControlPage.jsx / StuckAttemptsPage.jsx / AuditLogPage.jsx — নতুন (Access Control ট্যাবে)
+│   ├── PaymentAdminPage.jsx         — প্রোমো কোড প্যানেলসহ
+│   └── StudentDashboardHome.jsx     — নতুন হোমপেজ
+├── pages/
+│   ├── HelpCenterPage.jsx           — পাবলিক /help
+│   └── auth/
+│       ├── ForgotPasswordPage.jsx / ResetPasswordPage.jsx / ResendConfirmationPage.jsx — নতুন
+└── lib/
+    ├── bookmarks.js / patients.js / examFontSize.js / useResendCooldown.js — নতুন হেল্পার
+```
 
-## Student Dashboard UX round (Smart Search, Help Center, Feedback, Contact, compact layout)
-- **Smart Search** (`/dashboard/search`, `SmartSearchPage.jsx`) — searches `question_text` + all 4 options, scoped to the student's active-subscription categories only (same chapter-id drill-down pattern used elsewhere). Uses **5 separate safe `.ilike()` queries merged client-side**, not a raw `.or()` filter string — a search term with a comma or parenthesis (common in medical terms) would silently break a `.or()` string, same lesson learned earlier with Patient/Prescription search. "Practice these" launches a new `PracticeSession` mode, `idList` (fetches by an explicit array of question ids — added to `PracticePage.jsx`'s loader).
-- **Help Center** (`/help`, `pages/HelpCenterPage.jsx`) — **public route, no `ProtectedRoute` wrapper**, reachable before login. Bengali, `<details>/<summary>` accordion (no JS state needed per item). Linked from both Login and Register pages' footers. Content is written from this app's actual real flows, not generic boilerplate — keep it in sync if those flows change.
-- **Feedback** (`/dashboard/feedback` student-facing `FeedbackPage.jsx`, `/admin/feedback` staff-facing `FeedbackAdminPage.jsx`) — new `feedback` table (`migration_feedback.sql`), types bug/feature/general + optional 1-5 star rating, RLS: student sees only their own, staff (all three roles) see everything and can set status new/reviewed/resolved.
-- **Contact Us** (`/dashboard/contact`, `ContactUsPage.jsx`) — email + optional Facebook link, **editable by Super Admin without a redeploy**: stored in `app_settings` (`contact_email`, `contact_facebook` keys — same table/pattern as the `practice_enabled_global` feature toggles, just reused for strings instead of booleans, since that table's `value` column is JSONB/flexible-typed). Admin-side editor: `ContactInfoPanel.jsx`, added to Super Admin → Settings. Defaults to `dentalmcqbd@gmail.com` with no Facebook link if nothing's been set yet.
-- **Support Hub** (`/dashboard/support`, `SupportHubPage.jsx`) — a single "Help & Support" Quick Action tile fans out to Help Center / Feedback / Contact Us as 3 cards, mirroring the `ChamberHome.jsx` hub pattern — keeps the main Quick Actions grid from growing to 9+ individual tiles.
-- **Unread message badge**: the "Messages" nav tab now shows a small red count badge (`DashboardLayout.jsx` nav items gained an optional `badge` field). Sourced from the same `notifications` table (`type='chat_message'`, `is_read=false`) the existing bell icon (`NotificationBell.jsx`) already reads — deliberately the same source of truth, not a second competing definition of "unread" computed from `chat_messages.read_by_student` directly.
-- **Quick Actions reorganized into two labeled groups** ("Study": Question Bank Practice/Mock Exam/Wrong Revision/Bookmarks/Smart Search; "Chamber & Support": Prescription/Chamber/Help & Support) instead of one flat 6-tile grid — same tiles, same `.quick-action-tile` styling, just grouped, per explicit request to "group related features together."
-- **Upcoming Features is now a collapsed-by-default `<details>` accordion** instead of always-expanded — same content, just not consuming scroll space by default. This was the single biggest "reduce unnecessary scrolling" win available without removing anything.
+## সাম্প্রতিক আপডেট — চ্যাট সেশন লগ (নতুন চ্যাটে শুরু করার আগে অবশ্যই পড়ুন)
+*এই সেকশনটা সময়ের সাথে যোগ হতে থাকবে। প্রতিটা এন্ট্রি বলে দেয় কী যোগ হয়েছে, কোন ফাইল বদলেছে, আর কোনো migration লাগলে সেটার নাম। নতুন চ্যাটে zip আপলোড করলে এই সেকশনটা প্রথমে পড়ে নিন — যা এখানে "✅ Done" লেখা আছে তা আবার নতুন করে বানানোর দরকার নেই।*
 
+### ✅ Done — Landing Page + Mentors CMS
+- `/` রুটে এখন লগইন করা না থাকলে `LandingPage.jsx` দেখায় (আগে সরাসরি `/login`-এ রিডাইরেক্ট হতো)
+- নতুন ফাইল: `src/pages/LandingPage.jsx`, `src/components/MentorsAdminPage.jsx`
+- বদলানো ফাইল: `src/pages/HomeRedirect.jsx`, `src/pages/admin/SuperAdminDashboard.jsx` (Settings ট্যাবে `MentorsAdminPage` যোগ), `src/App.css` (ল্যান্ডিং/মেন্টর কার্ড স্টাইল)
+- DB: `migration_mentors.sql` — `mentors` টেবিল + `mentor-photos` স্টোরেজ বাকেট (রান করা হয়েছে ✅)
 
-- **Plain-text passwords are stored** in `user_credentials`, visible to Super Admin only, by explicit user request despite being told this is non-standard/risky. This was a deliberate tradeoff the user chose knowingly.
-- If this app is ever used beyond a small trusted deployment, recommend replacing this with a proper password-reset flow.
+### ✅ Done — প্যাকেজ ডিউরেশন ফ্লেক্সিবল
+- `PaymentAdminPage.jsx`-এর প্যাকেজ ফর্মে এখন 7/15/30/90/180/365 দিন প্রিসেট + Custom (যেকোনো সংখ্যা) অপশন আছে
+- কোনো DB মাইগ্রেশন লাগেনি (কলাম আগে থেকেই যেকোনো integer নিতে পারত, সমস্যা ছিল শুধু UI dropdown-এ)
 
-## Production-readiness audit (1000+ concurrent exam-takers)
-This replaces an earlier note in this file claiming indexes were already "verified" on hot-path tables — that couldn't be confirmed this session (no visibility into actual current index state), so rather than let a stale, unverifiable claim stand next to new findings, here's the full current picture.
+### ⚠️ Partially done — Referral Reward System (**বর্তমানে বন্ধ/OFF, টাকা-পয়সা রিলেটেড সাবধানে এগোতে হবে**)
+- `ReferralPage.jsx` এখন CMS সেটিং থেকে ডাইনামিক টেক্সট দেখায়, WhatsApp/Messenger native-share বাটন যোগ হয়েছে
+- Super Admin Settings-এ `ReferralSettingsPanel.jsx` (নতুন) — reward on/off + দিন সংখ্যা এডিট
+- **সমস্যা যা এখনো ঠিক হয়নি**: `app_settings.value` কলাম আসলে `boolean` টাইপ ছিল (আমার ভুল অনুমান ছিল এটা `jsonb`)। `alter column value type jsonb` চালাতে গিয়ে "default for column value cannot be cast automatically to type jsonb" এরর এসেছে (কলামের DEFAULT ভ্যালু আগে ড্রপ করে তারপর ALTER করতে হবে, এখনো করা হয়নি)।
+- **ফলে**: reward system-এর ব্যাকএন্ড (trigger, `referral_rewards` টেবিল) এখনো তৈরি হয়নি DB-তে। Toggle Off অবস্থায় আছে বলে ইউজার-ফেসিং কোনো সমস্যা নেই, কিন্তু ভবিষ্যতে চালু করতে চাইলে আগে এই কলাম টাইপ সমস্যাটা সমাধান করতে হবে: `alter table app_settings alter column value drop default;` তারপর `alter column value type jsonb using to_jsonb(value);` তারপর দরকার হলে নতুন default (`'false'::jsonb`) সেট করা।
+- সংশ্লিষ্ট ফাইল (এখনো রান করা হয়নি): `migration_referral_reward_fixed.sql`
+- **এখনো অজানা**: `ContactInfoPanel.jsx`/`MotivationalLinePanel.jsx`ও একই `app_settings.value` কলামে টেক্সট/লিস্ট সেভ করার চেষ্টা করে — এই কলাম যেহেতু boolean-only ছিল, এই দুটো ফিচারও সম্ভবত সাইলেন্টলি ফেইল করছে (এখনো ভেরিফাই/ফিক্স করা হয়নি)।
 
-**Fixed in code (this migration set + frontend changes):**
-- **Exam scoring was entirely client-trusted** — `score`/`percentage`/`submitted_at` were computed in the browser and written directly to `exam_attempts`. A tampered network request could submit a fabricated score. Fixed with `finalize_exam_attempt()` (`migration_finalize_exam_attempt.sql`, SECURITY DEFINER) — recomputes `is_correct` from the actual `questions.correct_option`, derives score/percentage from that, and uses the database's own `now()` for `submitted_at`. `LiveExamSession.handleSubmit` now calls this RPC instead of writing the score directly. Practice sessions are deliberately NOT touched — they never affect official results, so there's nothing to protect there.
-- **Race condition data loss**: if two concurrent requests both tried to create the same `exam_attempts` row (double-tap submit, retried request, two tabs), the losing request used to just give up — that student's answers were never saved. Fixed: on a creation conflict, re-fetch the now-existing attempt and continue instead of aborting.
-- **Indexes** (`migration_performance_indexes.sql`) — a lean, evidence-based set covering every `.eq()`/`.in()` filter pattern actually found in the codebase (not a blanket "index everything" pass — over-indexing slows down the exact write-heavy moment this is for). `CREATE INDEX IF NOT EXISTS` throughout, safe to run regardless of current state.
-- **CSV import**: fixed a real bug — Excel-exported CSVs commonly start with a UTF-8 BOM character that silently breaks header matching (rejected valid files with "missing column: question"). Also: parsing now runs in a Web Worker (`worker: true`) so large files don't freeze the UI, and the duplicate-check RPC is now chunked (500 rows/call) instead of one unbounded payload.
-- **Re-render performance**: `ExamRunner`'s question list is the single highest-traffic re-render surface in the app — answering ONE question used to re-render every question card in the exam. Extracted `RunnerQuestionCard` as a `React.memo` component; `selectAnswer`/`toggleMark` wrapped in `useCallback`. This only works because the callback props are stable — `toggleBookmark` in all three exam-taking components (`LiveExamSession`, `ArchivedRetakeSession`, `PracticeSession`) was also converted to a stable `useCallback` (via a ref to avoid stale-closure bugs, since it needs to read current `bookmarkedIds` without depending on it).
-- **Error tracking**: Sentry wired into `main.jsx` (inert until `VITE_SENTRY_DSN` is set — safe to deploy before creating an account) plus a top-level React ErrorBoundary, so an uncaught error shows a recovery message (mentioning exam answers are already auto-saved) instead of a blank white screen with zero visibility into what happened.
-- **Caching headers** (`vercel.json`) — Vite already content-hashes every JS/CSS filename, so `/assets/*` now gets `immutable, max-age=31536000`; `index.html` stays `must-revalidate` so deployments actually take effect instead of serving a stale cached shell.
-- **Load test script**: `loadtest/exam-flow.js` (k6) — NOT run against production from here (no access, and doing so unattended would be risky); written for the user to run themselves, mirrors the real login → load questions → batch-submit → finalize flow.
+### ✅ Done — Payment Notification + Sender Phone Number + Payment Claims কার্ড
+- Super Admin-কে এখন bell notification পাঠায় যখন কোনো নতুন পেমেন্ট সাবমিট হয় (`payment_pending` টাইপ)
+- **বাগ ফিক্স**: `notifications_type_check` কনস্ট্রেইন্টে `payment_pending` টাইপ যোগ করা হয়নি বলে প্রথমবার এরর এসেছিল — `migration_notifications_and_sender_phone.sql`-এ ফিক্স করা হয়েছে
+- Examinee পেমেন্ট সাবমিট করার সময় এখন "যে নাম্বার থেকে টাকা পাঠিয়েছেন" আলাদা ইনপুট বক্স আছে (`payment_claims.sender_phone_number` কলাম) — `PackagePage.jsx`-এ ফর্মে যোগ, `PaymentAdminPage.jsx`-এ Approve লিস্টে দেখায়
+- `PaymentAdminPage.jsx`-এ **Payment Claims কার্ড এখন সবার উপরে** (আগে Package Settings/Promo Codes-এর নিচে ছিল), pending থাকলে সোনালি বর্ডার + "N pending" ব্যাজ দেখায়
+- DB migration: `migration_payment_notification.sql` (ট্রিগার তৈরি) + `migration_notifications_and_sender_phone.sql` (constraint fix + নতুন কলাম + notification body-তে sender phone যোগ) — **দুটোই রান করতে হবে (দ্বিতীয়টা রান করলেই যথেষ্ট, এটা প্রথমটাসহ সব রিপ্লেস করে)**
 
-**Needs the user's action (dashboard config, not code):**
-- Supabase Dashboard → Database → **Advisors/Linter** → look for `auth_rls_initplan` warnings. This flags exactly which existing RLS policies call `auth.uid()` unwrapped (re-evaluated per-row instead of once per query — 100x+ difference on large tables per Supabase's own published benchmarks). No visibility into the current policies to rewrite them directly; this tool finds the specific ones that need `(select auth.uid())` wrapping.
-- Supabase connection pooling: this app is 100% `supabase-js`/PostgREST + two Edge Functions, no custom persistent backend — Supabase already pools REST API connections server-side. Pooler *mode* (transaction vs. session) only matters for a direct Postgres connection string, which this app doesn't use anywhere.
-- **Free-tier project auto-pause**: free Supabase projects pause after 7 days with zero database requests. Given the stated usage pattern (episodic exam scheduling, long stretches with no code changes), a quiet spell between exams could pause the project — the next exam would hit an unreachable database. If staying on free tier, set up a scheduled ping (cron/GitHub Actions/UptimeRobot) or move to Pro (never pauses).
-- Sentry account + `VITE_SENTRY_DSN` in Vercel env vars (code is ready, just needs the DSN).
-- Supabase Dashboard → **Reports/Usage** → set a usage alert so there's a notification before hitting a hard limit.
-- Rate limiting an "exam API endpoint" doesn't map cleanly onto this architecture — there is no custom Vercel API route to rate-limit; every request goes through Supabase's own Auth/PostgREST layer. Bot/spam protection would need a Supabase Edge Function acting as a gateway in front of exam endpoints — not built, flagged as a residual gap.
-
-**Genuinely unverified / residual risk:**
-- Current RLS policies on pre-existing tables (`exam_attempts`, `attempt_answers`, `questions`, etc.) were never seen in full — only inferred from query behavior. The Advisors tool above is the way to actually check this.
-- `get_effective_exam_end()` RPC (caps a student's timer against the exam's real closing time) receives a client-supplied timestamp as a parameter — its *comment* claims server-side computation, implying it likely uses Postgres's own `now()` internally and the parameter is auxiliary, but its source was never seen, so this is unconfirmed, not verified safe.
-- Load test was never actually run — indexes and the finalize RPC are reasoned fixes, not benchmarked ones. Run `loadtest/exam-flow.js` against a real or duplicated project before the first real 1000-student exam, not for the first time on exam day.
-
-**Supabase plan reality check (as of this audit):** Free tier's shared compute instance has 500MB RAM, 60 direct + 200 pooler connections, 5GB bandwidth, and pauses after 7 days idle with no backups. For a synchronized 1000-student exam-submission spike, this is very likely insufficient — Pro ($25/mo base: 8GB DB, dedicated pooler, 250GB bandwidth, never pauses, daily backups) is close to a hard requirement here, not a nice-to-have, and a compute add-on above Pro's default Micro instance may still be needed depending on load test results.
-
-## Super Admin flexibility audit — no-code-touch content management
-Explicit goal: find everything a Super Admin might need to edit/manage that currently requires a code change, and move it into the database. Found by actually reading the code, not guessing — confirmed already-flexible: Packages (full CRUD in `PaymentAdminPage.jsx`), Users (role/password/delete), Questions/Categories/Subjects/Chapters, feature toggles. Fixed the rest:
-- **Notice Board**: had no Edit at all, and Delete only worked for the original poster. `NoticeBoardAdminPage.jsx` now has an `EditNoticeForm`; `canManage(notice)` = own post OR `role === 'super_admin'` — Super Admin can now edit/delete ANY notice, moderators keep the original "own posts only" restriction. This needed a matching RLS migration (`migration_notice_super_admin.sql`) — the UI showing a button means nothing if the database still rejects the write; Postgres combines multiple permissive policies with OR, so this is additive, doesn't touch/replace whatever policy already existed for "own posts."
-- **Contact Us**: was two fixed fields (`contact_email`, `contact_facebook`) in `app_settings`. Redesigned as a single JSON array under key `contact_methods` — each entry `{id, type, icon, label, value}`. `ContactInfoPanel.jsx` (admin) supports Add/Edit/Remove/Reorder for any type (email/phone/whatsapp/facebook/custom) with no code change ever needed for a new contact method. `ContactUsPage.jsx` derives the right link behavior per type (`mailto:`, `tel:`, `wa.me/`, or a raw URL for facebook/custom).
-- **Feedback**: had select+update RLS for staff but no delete — spam/test entries were permanent. Added `feedback_delete_staff` policy (`migration_feedback_delete.sql`) + a Delete button in `FeedbackAdminPage.jsx`.
-- **Help Center**: the 14 sections were hardcoded JSX in `HelpCenterPage.jsx`. Moved to `help_center_sections` table (`migration_help_center.sql`, seeded with the exact original content so nothing was lost — body is plain text, paragraphs split on blank lines, deliberately NOT parsed as HTML/markdown to avoid ever needing to sanitize admin-entered content). `HelpCenterAdminPage.jsx` gives full add/edit/delete/reorder. Public RLS (`to public`, not just `authenticated`) since this page is reachable before login.
-- **Upcoming Features** (the dashboard roadmap cards): same treatment — `upcoming_features` table (`migration_upcoming_features.sql`, seeded with the original 12), `UpcomingFeaturesAdminPage.jsx` for management. RLS here is `to authenticated` only (unlike Help Center) since this only ever renders inside the logged-in Student Dashboard.
-- Both new admin panels (Help Center, Upcoming Features) were folded into the existing Settings composite page rather than given their own top-level nav items — the Super Admin nav was already at 13 items; grouping "site content management" together avoids it growing unbounded.
-
-## Deployment workflow used throughout this project
-1. I generate/edit files in `/home/claude/examapp` (a Vite React project)
-2. `npm run build` to verify no errors
-3. Zip the whole project (excluding `node_modules`, `.git`, `.env`) into `examapp.zip`
-4. User downloads, extracts, and re-uploads via GitHub's web "Add file → Upload files" (drag-and-drop the extracted contents, NOT the zip itself, NOT the outer folder — the files need to land at repo root)
-5. Vercel auto-detects the push and redeploys
-6. For DB changes, I provide a separate `.sql` migration file the user runs in Supabase's SQL Editor
-
-## Also implemented (not previously listed in this file — found in codebase, documenting now for continuity)
-- **Packages/Subscriptions**: `packages`, `package_categories`, `category_access_grants`, `payment_claims` tables; `PackagePage.jsx` (student-facing claim/promo/txn flow), `PaymentAdminPage.jsx` (staff approval), `PackagesReadOnlyPage.jsx`. Access to a category's exams/practice is gated by `has_active_access()` RPC checking `category_access_grants`, not a flat `is_active` flag. A package can link multiple categories (`package_categories`); claiming/approval creates one grant row per linked category, each with its own `expires_at` — there is no single unified "current package" row, by design (see `SubscriptionStrip` in `StudentDashboardHome.jsx` for how the dashboard summarizes this honestly instead of faking a single-package model).
-- **Prescription module**: `prescriptions`, `advice_templates` tables; per-doctor logo watermark + custom footer text (stored on `profiles.prescription_logo_url` / `prescription_footer_text` / `prescription_watermark_opacity`), auto `serial_number`, tooth-quadrant clinical notation (`ToothQuadrantInput`), jsPDF generation with embedded Bengali font, "Reprint/Edit" from a recent-5 list. `PrescriptionActivityPage.jsx` gives staff a usage summary (`prescription_usage_summary` view) drillable per user.
-- **Access Control / Audit Log**: `AccessControlPage.jsx`, `AuditLogPage.jsx` — not yet cross-referenced in this summary's business rules; read the components directly if working in this area.
-- **PWA install prompt**: `InstallAppButton.jsx`.
-
-## What's NOT yet built
-- **Chamber future modules** (Marketplace, Lab Booking, Equipment Repair Booking, Bulk SMS, Direct Call, WhatsApp, Digital Marketing, Follow-up/Recall Campaigns, Financial Reports, Inventory, Staff Management) — architecture/naming convention reserved (see Chamber Management section above), no code built.
-- Everything else, including Chamber Management (Smart Prescription + Patient Management), Question Bank Practice, and Bookmarked Questions, is complete as of this summary.
-
-## A note on trusting this file
-Twice during this session, files in this project contained content that was never requested — a streak counter, "Question of the Day," a topic heatmap, and (more seriously) a `recordPracticeResult()` helper that had silently replaced the original, working wrong-answer-tracking logic in both `PracticeSession` and `ArchivedRetakeSession` with an unreviewed rewrite. The cause was never identified. All of it — the extra components, the extra CSS, the fabricated migration file, and the business-logic swap — was found and reverted back to the original, verified logic. If anything in this file describes a feature you don't remember asking for, or if behavior around practice submissions/wrong-question tracking looks off, treat it as suspect and verify against the actual component files rather than trusting this summary.
+## এখনো যা নেই / ভবিষ্যতে করা যেতে পারে
+- মূল ৭-পয়েন্ট স্পেকের সব ফিচার আগেই সম্পূর্ণ ছিল। এই ভার্সনে যোগ হওয়া বড় মডিউলগুলো (Dental Chamber, Payment/Promo system, Feedback, Help Center, Referral, Bookmarks, Smart Search, Sentry error tracking, Forgot/Reset password) — এগুলোর প্রতিটাই ফাংশনাল অবস্থায় ডিপ্লয়েড।
+- পেমেন্ট সিস্টেম কারেন্টলি ম্যানুয়াল ট্রানজেকশন-আইডি ভেরিফিকেশন-ভিত্তিক (bKash ইত্যাদি) — অটোমেটেড পেমেন্ট গেটওয়ে ইন্টিগ্রেশন নেই।
+- Sentry ঐচ্ছিক এবং এখনো DSN কনফিগার করা না থাকলে সক্রিয় না — ভবিষ্যতে অ্যাক্টিভেট করার কথা মনে রাখা দরকার।
