@@ -17,6 +17,7 @@ function timeAgo(iso) {
 const ICONS = {
   payment_approved: '✅',
   payment_rejected: '⚠️',
+  payment_pending: '💳',
   chat_message: '💬',
   exam_published: '📝',
   expiry_warning: '⏰',
