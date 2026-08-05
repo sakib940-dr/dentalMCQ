@@ -1,8 +1,9 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import LandingPage from './LandingPage';
 
 export default function HomeRedirect() {
-  const { role, loading } = useAuth();
+  const { role, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -16,6 +17,17 @@ export default function HomeRedirect() {
   if (role === 'moderator' || role === 'admin') return <Navigate to="/moderator" replace />;
   if (role === 'examinee') return <Navigate to="/dashboard" replace />;
 
-  // Profile not loaded yet or unknown role — send to login
-  return <Navigate to="/login" replace />;
+  // Logged in but the profile row hasn't loaded yet (e.g. right after
+  // signup) — wait rather than flashing the public landing page.
+  if (user) {
+    return (
+      <div className="full-page-center">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  // Not logged in at all — show the public marketing/landing page instead
+  // of forcing straight to the login form.
+  return <LandingPage />;
 }
