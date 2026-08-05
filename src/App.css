@@ -3364,3 +3364,138 @@ textarea:focus-visible,
   padding: 10px 12px;
   margin-top: 10px;
 }
+
+/* ---------- Public landing page ---------- */
+.landing-page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.landing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.landing-hero {
+  text-align: center;
+  padding: 28px 20px 40px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.landing-hero-title {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  line-height: 1.35;
+  color: var(--teal-deep);
+  margin: 0 0 14px;
+}
+.landing-hero-sub {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 22px;
+}
+.landing-hero-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.landing-section {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+.landing-section-title {
+  font-family: Georgia, serif;
+  color: var(--teal-deep);
+  text-align: center;
+  margin: 0 0 20px;
+  font-size: 22px;
+}
+.landing-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.landing-feature-card { text-align: left; }
+.landing-feature-icon { font-size: 28px; margin-bottom: 8px; }
+.landing-feature-title {
+  font-weight: 700;
+  color: var(--teal-deep);
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.landing-mentor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.mentor-card {
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 18px 14px;
+  text-align: center;
+}
+.mentor-card-photo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 12px;
+  background: #F1EEE5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--gold);
+}
+.mentor-card-photo img { width: 100%; height: 100%; object-fit: cover; }
+.mentor-card-photo-fallback { font-size: 34px; }
+.mentor-card-name { font-weight: 700; color: var(--teal-deep); font-size: 14.5px; }
+.mentor-card-degree { color: var(--ink); font-size: 12.5px; margin-top: 4px; }
+.mentor-card-institute { color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
+.mentor-card-bio { color: var(--ink-soft); font-size: 12px; margin-top: 8px; line-height: 1.5; }
+
+.landing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+.landing-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.landing-step-num {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+.landing-step-title { font-weight: 700; color: var(--teal-deep); font-size: 14px; margin-bottom: 2px; }
+
+.landing-footer {
+  text-align: center;
+  padding: 24px 20px 40px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.landing-footer a { color: var(--teal); }
