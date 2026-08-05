@@ -119,6 +119,8 @@ function PackageForm({ initial, onSaved, onCancel }) {
   const [price, setPrice] = useState(initial?.price ?? 1000);
   const [discount, setDiscount] = useState(initial?.discount_percent ?? 0);
   const [durationDays, setDurationDays] = useState(initial?.duration_days ?? 30);
+  const PRESET_DURATIONS = [7, 15, 30, 90, 180, 365];
+  const [isPresetDuration, setIsPresetDuration] = useState(PRESET_DURATIONS.includes(initial?.duration_days ?? 30));
   const [packageType, setPackageType] = useState(initial?.package_type || 'category');
   const [paymentNumber, setPaymentNumber] = useState(initial?.payment_number || '');
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
@@ -210,12 +212,35 @@ function PackageForm({ initial, onSaved, onCancel }) {
         </label>
         <label>
           <span>Duration</span>
-          <select value={durationDays} onChange={(e) => setDurationDays(parseInt(e.target.value))}>
-            <option value={30}>1 Month</option>
-            <option value={90}>3 Months</option>
-            <option value={180}>6 Months</option>
-            <option value={365}>1 Year</option>
+          <select
+            value={isPresetDuration ? durationDays : 'custom'}
+            onChange={(e) => {
+              if (e.target.value === 'custom') {
+                setIsPresetDuration(false);
+              } else {
+                setIsPresetDuration(true);
+                setDurationDays(parseInt(e.target.value));
+              }
+            }}
+          >
+            <option value={7}>7 Days</option>
+            <option value={15}>15 Days</option>
+            <option value={30}>1 Month (30 Days)</option>
+            <option value={90}>3 Months (90 Days)</option>
+            <option value={180}>6 Months (180 Days)</option>
+            <option value={365}>1 Year (365 Days)</option>
+            <option value="custom">Custom…</option>
           </select>
+          {!isPresetDuration && (
+            <input
+              type="number"
+              min={1}
+              style={{ marginTop: 6 }}
+              value={durationDays}
+              onChange={(e) => setDurationDays(Math.max(1, parseInt(e.target.value) || 1))}
+              placeholder="যেকোনো সংখ্যক দিন লিখুন, যেমন 7"
+            />
+          )}
         </label>
       </div>
       <div className="option-grid">
