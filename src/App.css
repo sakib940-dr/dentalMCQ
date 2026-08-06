@@ -3580,15 +3580,7 @@ textarea:focus-visible,
   align-items: flex-start;
   gap: 10px;
 }
-.study-question-top input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--teal); }
-.study-options {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--ink);
-}
+.study-question-top input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--teal); margin-top: 2px; }
 .study-question-actions {
   display: flex;
   gap: 6px;

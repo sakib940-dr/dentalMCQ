@@ -235,32 +235,37 @@ function QuestionStudyList({ title, chapterIds, onBack }) {
 
       {questions === null && <p className="muted small">Loading…</p>}
 
-      {(questions || []).map((q) => {
+      {(questions || []).map((q, idx) => {
         const isRead = readIds.has(q.id);
         const isBm = bookmarkedIds.has(q.id);
         const rev = revealed[q.id] || {};
+        const globalNum = (page - 1) * PAGE_SIZE + idx + 1;
         return (
           <div key={q.id} className={`study-question-card${isRead ? ' study-question-read' : ''}`}>
             <div className="study-question-top">
-              <div className="q-text" style={{ margin: 0 }}>{q.question_text}</div>
+              <span className="q-num-label">Question {globalNum}</span>
               <input type="checkbox" checked={isRead} onChange={() => toggleRead(q.id)} title="পড়া হয়েছে হিসেবে চিহ্নিত করুন" />
             </div>
-            <div className="study-options">
-              <div>ক) {q.option_a}</div>
-              <div>খ) {q.option_b}</div>
-              <div>গ) {q.option_c}</div>
-              <div>ঘ) {q.option_d}</div>
+            <div className="q-text">{q.question_text}</div>
+            <div className="opt-list">
+              {['A', 'B', 'C', 'D'].map((letter) => {
+                const isCorrectOpt = rev.answer && letter === q.correct_option;
+                let cls = 'opt-btn opt-static';
+                if (isCorrectOpt) cls += ' opt-correct';
+                return (
+                  <div key={letter} className={cls}>
+                    <span className="opt-letter">{letter}</span>
+                    <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
+                    {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                  </div>
+                );
+              })}
             </div>
-            {rev.answer && (
-              <div className="expl-box">
-                <b>সঠিক উত্তর:</b> {{ a: 'ক', b: 'খ', c: 'গ', d: 'ঘ' }[q.correct_option]}) {q[`option_${q.correct_option}`]}
-              </div>
-            )}
             {rev.explanation && q.explanation && (
               <div className="expl-box"><b>ব্যাখ্যা:</b> {q.explanation}</div>
             )}
             <div className="study-question-actions">
-              <button className="btn-secondary sm" onClick={() => toggleReveal(q.id, 'answer')}>উত্তর</button>
+              <button className="btn-secondary sm" onClick={() => toggleReveal(q.id, 'answer')}>{rev.answer ? 'উত্তর লুকান' : 'উত্তর দেখুন'}</button>
               <button className="btn-secondary sm" onClick={() => toggleReveal(q.id, 'explanation')} disabled={!q.explanation}>ব্যাখ্যা</button>
               <button className={isBm ? 'btn-secondary sm study-heart-active' : 'btn-secondary sm'} onClick={() => toggleBookmark(q.id)}>{isBm ? '♥' : '♡'}</button>
             </div>
