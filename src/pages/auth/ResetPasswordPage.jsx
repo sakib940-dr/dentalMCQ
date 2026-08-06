@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import BrandWordmark from '../../components/BrandWordmark';
+import PasswordField, { isStrongPassword } from '../../components/PasswordField';
 
 export default function ResetPasswordPage() {
   const { session, loading: authLoading, updatePasswordAfterRecovery } = useAuth();
@@ -16,6 +17,10 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setError('');
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (!isStrongPassword(password)) {
+      setError('পাসওয়ার্ডে কমপক্ষে ৮ অক্ষর, একটি বড় হাতের অক্ষর, একটি ছোট হাতের অক্ষর ও একটি সংখ্যা থাকতে হবে।');
+      return;
+    }
     if (password !== confirm) { setError('Passwords do not match.'); return; }
 
     setLoading(true);
@@ -57,16 +62,7 @@ export default function ResetPasswordPage() {
           </>
         ) : (
           <form onSubmit={handleSubmit} className="auth-form">
-            <label>
-              <span>New password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </label>
+            <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} label="New password" />
             <label>
               <span>Confirm new password</span>
               <input

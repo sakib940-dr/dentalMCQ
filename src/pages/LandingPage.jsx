@@ -34,26 +34,49 @@ function MentorCard({ m }) {
 export default function LandingPage() {
   const navigate = useNavigate();
   const [mentors, setMentors] = useState(null);
+  const [faqs, setFaqs] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [banner, setBanner] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
-    supabase
-      .from('mentors')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order')
-      .then(({ data }) => setMentors(data || []));
+    supabase.from('mentors').select('*').eq('is_active', true).order('display_order').then(({ data }) => setMentors(data || []));
+    supabase.from('faqs').select('*').eq('is_active', true).order('display_order').limit(5).then(({ data }) => setFaqs(data || []));
+    supabase.from('app_settings').select('key, value').in('key', ['site_logo_url', 'site_banner', 'site_notice']).then(({ data }) => {
+      const map = {};
+      (data || []).forEach((r) => { map[r.key] = r.value; });
+      setLogoUrl(map.site_logo_url || null);
+      setBanner(map.site_banner || null);
+      setNotice(map.site_notice || null);
+    });
   }, []);
 
   return (
     <div className="landing-page">
+      {/* ---------- Notice bar ---------- */}
+      {notice?.enabled && notice.text && (
+        <div className="landing-notice-bar" onClick={() => notice.link && navigate(notice.link)} style={{ cursor: notice.link ? 'pointer' : 'default' }}>
+          {notice.text}
+        </div>
+      )}
+
       {/* ---------- Header ---------- */}
       <div className="landing-header">
-        <BrandWordmark />
+        {logoUrl ? <img src={logoUrl} alt="Logo" style={{ height: 44 }} /> : <BrandWordmark />}
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn-secondary sm" onClick={() => navigate('/login')}>লগইন</button>
           <button className="btn-primary sm" onClick={() => navigate('/register')}>ফ্রি রেজিস্ট্রেশন</button>
         </div>
       </div>
+
+      {/* ---------- Banner ---------- */}
+      {banner?.enabled && banner.title && (
+        <div className="landing-banner" onClick={() => banner.link && navigate(banner.link)} style={{ cursor: banner.link ? 'pointer' : 'default' }}>
+          {banner.image_url && <img src={banner.image_url} alt="" className="landing-banner-img" />}
+          <div className="landing-banner-title">{banner.title}</div>
+          {banner.subtitle && <div className="landing-banner-subtitle">{banner.subtitle}</div>}
+        </div>
+      )}
 
       {/* ---------- Hero ---------- */}
       <div className="landing-hero">
@@ -110,6 +133,24 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* ---------- FAQ preview ---------- */}
+      {faqs && faqs.length > 0 && (
+        <div className="landing-section">
+          <h2 className="landing-section-title">সাধারণ জিজ্ঞাসা</h2>
+          <div className="panel faq-accordion">
+            {faqs.map((f) => (
+              <details key={f.id} className="faq-item">
+                <summary className="faq-item-title">{f.question}</summary>
+                <div className="faq-item-body"><p>{f.answer}</p></div>
+              </details>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <a href="/faq">সব প্রশ্ন দেখুন →</a>
+          </div>
+        </div>
+      )}
+
       {/* ---------- Trust / closing CTA ---------- */}
       <div className="landing-section">
         <div className="panel" style={{ textAlign: 'center' }}>
@@ -124,6 +165,14 @@ export default function LandingPage() {
         <span>যোগাযোগ: <a href="mailto:dentalmcqbd@gmail.com">dentalmcqbd@gmail.com</a></span>
         <span> · </span>
         <a href="/help">হেল্প সেন্টার</a>
+        <span> · </span>
+        <a href="/blog">ব্লগ</a>
+        <span> · </span>
+        <a href="/faq">FAQ</a>
+        <span> · </span>
+        <a href="/terms">শর্তাবলী</a>
+        <span> · </span>
+        <a href="/privacy">প্রাইভেসি পলিসি</a>
       </div>
     </div>
   );

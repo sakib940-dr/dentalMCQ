@@ -219,6 +219,23 @@ src/
 - **Settings ট্যাব** এখন শুধু সিস্টেম/অ্যাকাউন্ট লেভেলের জিনিস রাখে: Feature Toggles, Referral Reward সেটিং, Change Password।
 - বদলানো ফাইল: `src/pages/admin/SuperAdminDashboard.jsx`
 
+### ✅ Done — Full-App CMS (Logo, Banner, Notice, FAQ, Blog, Terms, Privacy)
+- Super Admin → Website/CMS ট্যাবে এখন সব ওয়েবসাইট কনটেন্ট ম্যানেজ করা যায়: **Mentors, Logo+Banner+Notice, Contact Info, Motivational Line, FAQ, Blog, Terms/Privacy, Help Center, Upcoming Features**
+- **ডিফল্ট বিহেভিয়ার নিশ্চিত করা হয়েছে**: প্রতিটা নতুন টেবিল/সেটিং সেন্সিবল ডিফল্ট নিয়ে সিড করা (banner/notice off, FAQ/Blog খালি, Terms/Privacy-তে বাস্তব লেখা কনটেন্ট) — এডিট না করলে যা এখন আছে তাই দেখাবে, কিছু ভাঙবে না।
+- **নতুন পাবলিক পেজ**: `/terms`, `/privacy`, `/faq`, `/blog`, `/blog/:slug` — সব লগইন ছাড়াই দেখা যায়
+- ল্যান্ডিং পেজে এখন: লোগো (আপলোড করলে BrandWordmark-এর জায়গায়), হোমপেজ ব্যানার (on/off), সাইট-ওয়াইড নোটিস বার (on/off), FAQ প্রিভিউ সেকশন, ফুটারে সব নতুন পেজের লিংক
+- রেজিস্ট্রেশন ফর্মে Terms/Privacy-এর লিংক যোগ হয়েছে ("রেজিস্ট্রেশন করার মাধ্যমে আপনি সম্মত হচ্ছেন...")
+- নতুন ফাইল: `components/{LegalPagesAdminPage,FaqAdminPage,BlogAdminPage,LogoBannerAdminPage,PasswordField}.jsx`, `pages/{LegalPage,FaqPage,BlogListPage,BlogPostPage}.jsx`
+- DB: `migration_full_cms.sql` — নতুন টেবিল (`legal_pages`, `faqs`, `blog_posts`), নতুন স্টোরেজ বাকেট (`site-media`), `app_settings`-এ ৩টা নতুন পাবলিক-রিডেবল কী (`site_logo_url`, `site_banner`, `site_notice`), এবং Terms/Privacy-এর বাস্তব ডিফল্ট কনটেন্ট সিড করা (Bangla-তে লেখা, প্রয়োজনে CMS থেকে এডিট করুন)
+- ⚠️ **আমি আইনজীবী না** — সিড করা Terms/Privacy একটা ভালো শুরুর টেমপ্লেট, কিন্তু পেমেন্ট নেওয়া ও রোগীর তথ্য (Chamber ফিচার) হ্যান্ডেল করা প্ল্যাটফর্ম হিসেবে একজন আইনজীবী দিয়ে একবার রিভিউ করানো ভালো।
+
+### ✅ Done — পাসওয়ার্ড স্ট্রেংথ UI (Register + Reset Password)
+- নতুন `PasswordField.jsx` কম্পোনেন্ট — show/hide 👁️ আইকন + লাইভ চেকলিস্ট (৮+ অক্ষর, বড় হাতের, ছোট হাতের, সংখ্যা)
+- রেজিস্ট্রেশন ও Reset Password — দুই জায়গাতেই এখন স্ট্রং পাসওয়ার্ড বাধ্যতামূলক (আগে শুধু ৬ অক্ষর দিলেই হতো)
+
+### 🐛 Fixed — Payment history/claim ডিলিট কাজ করছিল না
+- `payment_claims` টেবিলে DELETE-এর জন্য কোনো RLS পলিসিই ছিল না — তাই Super Admin "Delete" চাপলে কোনো এরর ছাড়াই চুপচাপ ০টা রো ডিলিট হতো। `fix_payment_claims_delete.sql`-এ ফিক্স করা হয়েছে।
+
 ## এখনো যা নেই / ভবিষ্যতে করা যেতে পারে
 - মূল ৭-পয়েন্ট স্পেকের সব ফিচার আগেই সম্পূর্ণ ছিল। এই ভার্সনে যোগ হওয়া বড় মডিউলগুলো (Dental Chamber, Payment/Promo system, Feedback, Help Center, Referral, Bookmarks, Smart Search, Sentry error tracking, Forgot/Reset password) — এগুলোর প্রতিটাই ফাংশনাল অবস্থায় ডিপ্লয়েড।
 - পেমেন্ট সিস্টেম কারেন্টলি ম্যানুয়াল ট্রানজেকশন-আইডি ভেরিফিকেশন-ভিত্তিক (bKash ইত্যাদি) — অটোমেটেড পেমেন্ট গেটওয়ে ইন্টিগ্রেশন নেই।

@@ -22,6 +22,10 @@ import UpcomingFeaturesAdminPage from '../../components/UpcomingFeaturesAdminPag
 import MotivationalLinePanel from '../../components/MotivationalLinePanel';
 import MentorsAdminPage from '../../components/MentorsAdminPage';
 import ReferralSettingsPanel from '../../components/ReferralSettingsPanel';
+import LogoBannerAdminPage from '../../components/LogoBannerAdminPage';
+import LegalPagesAdminPage from '../../components/LegalPagesAdminPage';
+import FaqAdminPage from '../../components/FaqAdminPage';
+import BlogAdminPage from '../../components/BlogAdminPage';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: '📊', end: true, quick: true, group: 'Overview' },
@@ -63,8 +67,12 @@ function CmsPage() {
         </p>
       </div>
       <MentorsAdminPage />
+      <LogoBannerAdminPage />
       <ContactInfoPanel />
       <MotivationalLinePanel />
+      <FaqAdminPage />
+      <BlogAdminPage />
+      <LegalPagesAdminPage />
       <HelpCenterAdminPage />
       <UpcomingFeaturesAdminPage />
     </div>

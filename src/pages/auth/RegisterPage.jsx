@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import BrandWordmark from '../../components/BrandWordmark';
+import PasswordField, { isStrongPassword } from '../../components/PasswordField';
 import { useResendCooldown, parseRateLimitSeconds } from '../../lib/useResendCooldown';
 
 export default function RegisterPage() {
@@ -36,6 +37,10 @@ export default function RegisterPage() {
     }
     if (form.password.length < 6) {
       setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (!isStrongPassword(form.password)) {
+      setError('পাসওয়ার্ডে কমপক্ষে ৮ অক্ষর, একটি বড় হাতের অক্ষর, একটি ছোট হাতের অক্ষর ও একটি সংখ্যা থাকতে হবে।');
       return;
     }
     const phoneDigits = form.mobileNumber.trim();
@@ -149,14 +154,15 @@ export default function RegisterPage() {
               required
             />
           </label>
-          <label>
-            <span>Password</span>
-            <input type="password" value={form.password} onChange={update('password')} required />
-          </label>
+          <PasswordField value={form.password} onChange={update('password')} />
           {error && <div className="error-box">{error}</div>}
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Creating account…' : 'Create account'}
           </button>
+          <p className="muted small" style={{ textAlign: 'center' }}>
+            রেজিস্ট্রেশন করার মাধ্যমে আপনি আমাদের <a href="/terms" target="_blank" rel="noopener noreferrer">শর্তাবলী</a> ও{' '}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer">প্রাইভেসি পলিসি</a>-তে সম্মত হচ্ছেন।
+          </p>
         </form>
         )}
 
