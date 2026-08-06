@@ -36,6 +36,7 @@ const navItems = [
   { to: '/admin/notices', label: 'Notice Board', icon: '📢', group: 'Communication' },
   { to: '/admin/chat', label: 'Messages', icon: '💬', group: 'Communication' },
   { to: '/admin/feedback', label: 'Feedback', icon: '📮', group: 'Communication' },
+  { to: '/admin/cms', label: 'Website / CMS', icon: '🖥️', quick: true, group: 'System' },
   { to: '/admin/settings', label: 'Settings', icon: '⚙️', group: 'System' },
 ];
 
@@ -48,16 +49,33 @@ function Placeholder({ label }) {
   );
 }
 
+// Everything that shapes what visitors/students actually SEE on the
+// website (landing page, contact info, mentors, help center, roadmap)
+// lives here — separate from account/system settings.
+function CmsPage() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="panel" style={{ background: '#FAF9F5' }}>
+        <h2 style={{ margin: 0 }}>ওয়েবসাইট / অ্যাপ কনটেন্ট ম্যানেজমেন্ট (CMS)</h2>
+        <p className="muted small" style={{ marginBottom: 0 }}>
+          নিচের প্রতিটা প্যানেল থেকে যা এডিট করবেন তা সরাসরি ওয়েবসাইটে (ল্যান্ডিং পেজ, Contact Us, Help Center) সাথে সাথে
+          দেখাবে — কোনো কোড ডিপ্লয় লাগবে না।
+        </p>
+      </div>
+      <MentorsAdminPage />
+      <ContactInfoPanel />
+      <MotivationalLinePanel />
+      <HelpCenterAdminPage />
+      <UpcomingFeaturesAdminPage />
+    </div>
+  );
+}
+
 function SettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <FeatureTogglesPanel />
-      <ContactInfoPanel />
-      <MotivationalLinePanel />
-      <MentorsAdminPage />
       <ReferralSettingsPanel />
-      <HelpCenterAdminPage />
-      <UpcomingFeaturesAdminPage />
       <ChangePasswordPanel />
     </div>
   );
@@ -79,6 +97,7 @@ export default function SuperAdminDashboard() {
         <Route path="notices" element={<NoticeBoardAdminPage />} />
         <Route path="chat" element={<StaffChatInbox />} />
         <Route path="feedback" element={<FeedbackAdminPage />} />
+        <Route path="cms" element={<CmsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Routes>
     </DashboardLayout>

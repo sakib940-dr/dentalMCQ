@@ -207,6 +207,18 @@ src/
 - DB: `migration_question_read_marks.sql` — নতুন `question_read_marks` টেবিল + দুটো RPC (`get_subject_study_progress`, `get_subject_bookmark_count`) — বড় subject-এ (৬০০০+ প্রশ্ন) হাজার হাজার question id ক্লায়েন্টে না পাঠিয়ে সার্ভার-সাইডে efficient ভাবে গণনা করার জন্য
 - **স্কোপ থেকে বাদ দেওয়া হয়েছে ইচ্ছাকৃতভাবে**: রেফারেন্স স্ক্রিনশটে একটা পাই-চার্ট আইকন ছিল (সম্ভবত stats/analytics) — এটা স্পষ্টভাবে বর্ণনা করা হয়নি, তাই যোগ করা হয়নি। ভবিষ্যতে দরকার হলে জানাবেন।
 
+### 🐛 Fixed — Admin role blocked from Payment Claims (RBAC gap)
+- `get_all_payment_claims` ও `review_payment_claim` — এই দুটো DB ফাংশনে হার্ডকোড করা ছিল `role <> 'super_admin'` হলেই এরর, `admin` রোলকে বিবেচনাই করা হয়নি। এজন্যই Admin-এর Payment Claims কার্ডে কোনো ডেটা আসছিল না।
+- `fix_admin_payment_access.sql`-এ ফিক্স করা হয়েছে — এখন `super_admin` ও `admin` দুটোই কাজ করবে, Moderator এখনো বাদ (আগের RBAC অনুযায়ী)।
+- সাথে Payment Claims/Package কার্ডের মোবাইল রেসপন্সিভ CSS বাগও ফিক্স হয়েছে (`.claim-row-main` ক্লাসটা আগে সংজ্ঞায়িতই ছিল না)।
+
+### ✅ Done — Super Admin CMS Panel পুনর্গঠন + app_settings রুট-কজ ফিক্স
+- **root cause পাওয়া গেছে**: `app_settings.value` কলাম বহুদিন ধরে `boolean` টাইপে আটকে ছিল, যার ফলে `ContactInfoPanel`/`MotivationalLinePanel` (যেগুলো টেক্সট/লিস্ট সেভ করার চেষ্টা করে) **সাইলেন্টলি ফেইল** করছিল। আগের চেষ্টা (`migration_referral_reward_fixed.sql`) কলামের DEFAULT ভ্যালুর কারণে ব্যর্থ হয়েছিল।
+- `fix_app_settings_jsonb.sql`-এ সঠিকভাবে ফিক্স করা হয়েছে (আগে DEFAULT ড্রপ করে, তারপর টাইপ বদলে, তারপর নতুন jsonb-compatible DEFAULT সেট করে) — **এটা রান করলে Contact Us page ও Motivational line CMS প্যানেল দুটোই প্রথমবারের মতো আসলেই কাজ করবে**।
+- Super Admin-এর নেভিগেশনে নতুন **"Website / CMS"** ট্যাব যোগ হয়েছে (`/admin/cms`) — Mentors, Contact Info, Motivational Line, Help Center, Upcoming Features — এই ৫টা ওয়েবসাইট-কনটেন্ট প্যানেল এখন এক জায়গায়, Settings থেকে আলাদা।
+- **Settings ট্যাব** এখন শুধু সিস্টেম/অ্যাকাউন্ট লেভেলের জিনিস রাখে: Feature Toggles, Referral Reward সেটিং, Change Password।
+- বদলানো ফাইল: `src/pages/admin/SuperAdminDashboard.jsx`
+
 ## এখনো যা নেই / ভবিষ্যতে করা যেতে পারে
 - মূল ৭-পয়েন্ট স্পেকের সব ফিচার আগেই সম্পূর্ণ ছিল। এই ভার্সনে যোগ হওয়া বড় মডিউলগুলো (Dental Chamber, Payment/Promo system, Feedback, Help Center, Referral, Bookmarks, Smart Search, Sentry error tracking, Forgot/Reset password) — এগুলোর প্রতিটাই ফাংশনাল অবস্থায় ডিপ্লয়েড।
 - পেমেন্ট সিস্টেম কারেন্টলি ম্যানুয়াল ট্রানজেকশন-আইডি ভেরিফিকেশন-ভিত্তিক (bKash ইত্যাদি) — অটোমেটেড পেমেন্ট গেটওয়ে ইন্টিগ্রেশন নেই।
