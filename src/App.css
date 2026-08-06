@@ -2762,15 +2762,19 @@ body {
 }
 .claim-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 12px 14px;
+  overflow-wrap: anywhere;
 }
-.claim-row-name { font-size: 14px; font-weight: 700; color: var(--ink); }
-.claim-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.claim-row-main { min-width: 0; }
+.claim-row-name { font-size: 14px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.claim-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.claim-row-actions .btn-secondary,
+.claim-row-actions .btn-danger { flex: 1; min-width: 84px; }
 
 /* ---------- Prescription generator ---------- */
 .prescription-doctor-preview {
