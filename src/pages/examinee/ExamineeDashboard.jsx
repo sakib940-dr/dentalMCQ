@@ -6,6 +6,7 @@ import StudentDashboardHome from '../../components/StudentDashboardHome';
 import CategoryExamsPage from '../../components/CategoryExamsPage';
 import BookmarksPage from '../../components/BookmarksPage';
 import QuestionBankPracticePage from '../../components/QuestionBankPracticePage';
+import QuestionStudyHub from '../../components/QuestionStudyHub';
 import PracticeSessionRoute from '../../components/PracticeSessionRoute';
 import ChamberHome from '../../components/ChamberHome';
 import PatientsListPage from '../../components/PatientsListPage';
@@ -140,6 +141,7 @@ export default function ExamineeDashboard() {
         <Route index element={<StudentDashboardHome />} />
         <Route path="exams" element={<LiveExamGate><CategoryExamsPage /></LiveExamGate>} />
         <Route path="question-bank" element={<QuestionBankPracticePage />} />
+        <Route path="question-bank-study" element={<QuestionStudyHub />} />
         <Route path="bookmarks" element={<BookmarksPage />} />
         <Route path="search" element={<SmartSearchPage />} />
         <Route path="practice-session" element={<PracticeSessionRoute />} />

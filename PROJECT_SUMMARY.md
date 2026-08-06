@@ -194,6 +194,19 @@ src/
 ### 🐛 Fixed — Zip packaging bug (dotfiles missing)
 - এতদিন ডেলিভার করা প্রতিটা zip থেকে `.env.example`, `.gitignore`, `.oxlintrc.json` বাদ পড়ে যাচ্ছিল (একটা `cp` কমান্ডের bug — dotfile কপি হচ্ছিল না)। এই zip থেকে ফিক্স করা হয়েছে, এখন এই ৩টা ফাইলও থাকবে।
 
+### ✅ Done — Push Notification System (finally working!)
+- অনেক ডিবাগিংয়ের পর সফলভাবে কাজ করছে। মূল সমস্যাগুলো ছিল: (১) Supabase-এর Kong গেটওয়ে `apikey` হেডার (Authorization থেকে আলাদা) সবসময় বাধ্যতামূলক চায়, (২) `VAPID_SUBJECT`-এ `mailto:` প্রিফিক্স ছাড়া ভ্যালিড URL হয় না, (৩) নতুন প্রজেক্টে Legacy JWT keys ছাড়াও নতুন Publishable/Secret key সিস্টেম আছে যেটা নিয়ে সতর্ক থাকতে হবে
+- ফাইনাল কাজ করা trigger-এ `apikey` + `Authorization` (দুটোতেই anon key) + `x-push-secret` (নিজস্ব) — তিনটা হেডারই লাগে
+
+### ✅ Done — Question Bank Study Mode (নতুন ফিচার)
+- Examinee ড্যাশবোর্ডে "Question Bank Practice"-এর পাশে নতুন **"Question Bank (Study)"** কুইক অ্যাকশন — কুইজ শুরু না করেই প্রশ্ন ব্রাউজ/পড়া যায়
+- ফ্লো: ক্যাটাগরি বাছাই → প্রতিটা Subject-এর কার্ড (প্রোগ্রেস রিং, হার্ট কাউন্ট, Subtopics/Questions সংখ্যা) → **All Questions** (পুরো subject-এর সব প্রশ্ন, paginated 50/page) / **All Subtopics** (subcategory বেছে সেটার প্রশ্ন) / **Random Quiz** (বিদ্যমান practice session লজিক পুনর্ব্যবহার করে, নতুন কিছু লেখা হয়নি)
+- প্রতিটা প্রশ্নে: read/unread checkbox, উত্তর দেখান, ব্যাখ্যা দেখান, বুকমার্ক (♡/♥) — বুকমার্ক আগে থেকে থাকা `bookmarked_questions`/`lib/bookmarks.js` পুনর্ব্যবহার করে
+- নতুন ফাইল: `src/components/QuestionStudyHub.jsx`, `src/lib/readMarks.js`
+- বদলানো ফাইল: `src/pages/examinee/ExamineeDashboard.jsx` (রুট `question-bank-study`), `src/components/StudentDashboardHome.jsx` (নতুন কুইক অ্যাকশন), `src/App.css`
+- DB: `migration_question_read_marks.sql` — নতুন `question_read_marks` টেবিল + দুটো RPC (`get_subject_study_progress`, `get_subject_bookmark_count`) — বড় subject-এ (৬০০০+ প্রশ্ন) হাজার হাজার question id ক্লায়েন্টে না পাঠিয়ে সার্ভার-সাইডে efficient ভাবে গণনা করার জন্য
+- **স্কোপ থেকে বাদ দেওয়া হয়েছে ইচ্ছাকৃতভাবে**: রেফারেন্স স্ক্রিনশটে একটা পাই-চার্ট আইকন ছিল (সম্ভবত stats/analytics) — এটা স্পষ্টভাবে বর্ণনা করা হয়নি, তাই যোগ করা হয়নি। ভবিষ্যতে দরকার হলে জানাবেন।
+
 ## এখনো যা নেই / ভবিষ্যতে করা যেতে পারে
 - মূল ৭-পয়েন্ট স্পেকের সব ফিচার আগেই সম্পূর্ণ ছিল। এই ভার্সনে যোগ হওয়া বড় মডিউলগুলো (Dental Chamber, Payment/Promo system, Feedback, Help Center, Referral, Bookmarks, Smart Search, Sentry error tracking, Forgot/Reset password) — এগুলোর প্রতিটাই ফাংশনাল অবস্থায় ডিপ্লয়েড।
 - পেমেন্ট সিস্টেম কারেন্টলি ম্যানুয়াল ট্রানজেকশন-আইডি ভেরিফিকেশন-ভিত্তিক (bKash ইত্যাদি) — অটোমেটেড পেমেন্ট গেটওয়ে ইন্টিগ্রেশন নেই।

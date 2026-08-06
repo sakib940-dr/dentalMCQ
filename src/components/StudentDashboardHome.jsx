@@ -14,6 +14,7 @@ function QuickActionsGrid() {
 
   const studyActions = [
     { icon: '📖', label: 'Question Bank Practice', onClick: () => navigate('/dashboard/question-bank'), featured: true },
+    { icon: '📚', label: 'Question Bank (Study)', onClick: () => navigate('/dashboard/question-bank-study'), featured: true },
     { icon: '🎯', label: 'Start Mock Exam', onClick: () => navigate('/dashboard/exams') },
     { icon: '🔁', label: 'Wrong Answer Revision', onClick: () => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } }) },
     { icon: '❤️', label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks'), featured: true },
