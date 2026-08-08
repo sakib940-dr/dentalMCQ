@@ -398,9 +398,17 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
 
   if (!accessChecked || exams === null) return <div className="panel"><p className="muted">Loading exams…</p></div>;
 
-  const live = exams.filter((e) => computeEffectiveStatus(e) === 'live');
-  const upcoming = exams.filter((e) => computeEffectiveStatus(e) === 'upcoming');
-  const archived = exams.filter((e) => computeEffectiveStatus(e) === 'archived');
+  // Keep each tab in chronological order based on when the exam actually happens.
+  // Upcoming: earliest exam first. Archive: most recently held exam first.
+  const live = exams
+    .filter((e) => computeEffectiveStatus(e) === 'live')
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  const upcoming = exams
+    .filter((e) => computeEffectiveStatus(e) === 'upcoming')
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  const archived = exams
+    .filter((e) => computeEffectiveStatus(e) === 'archived')
+    .sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 
   if (!hasAccess && tab !== 'schedule') {
     return (
