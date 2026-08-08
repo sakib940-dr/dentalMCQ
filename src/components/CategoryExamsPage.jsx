@@ -375,7 +375,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
         .select('*')
         .eq('category_id', category.id)
         .eq('is_published', true)
-        .order('start_time', { ascending: false });
+        .order('start_time', { ascending: true });
       if (cancelled) return;
       setExams(data || []);
 
@@ -398,15 +398,9 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
 
   if (!accessChecked || exams === null) return <div className="panel"><p className="muted">Loading exams…</p></div>;
 
-  const live = exams
-    .filter((e) => computeEffectiveStatus(e) === 'live')
-    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-  const upcoming = exams
-    .filter((e) => computeEffectiveStatus(e) === 'upcoming')
-    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-  const archived = exams
-    .filter((e) => computeEffectiveStatus(e) === 'archived')
-    .sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+  const live = exams.filter((e) => computeEffectiveStatus(e) === 'live');
+  const upcoming = exams.filter((e) => computeEffectiveStatus(e) === 'upcoming');
+  const archived = exams.filter((e) => computeEffectiveStatus(e) === 'archived');
 
   if (!hasAccess && tab !== 'schedule') {
     return (
