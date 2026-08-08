@@ -285,10 +285,10 @@ function ExamSchedulePanel({ categoryId }) {
   })();
   const upcomingEntries = entries
     .filter((e) => e.scheduled_date >= today)
-    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+    .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
   const pastEntries = entries
     .filter((e) => e.scheduled_date < today)
-    .sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
+    .sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date));
 
   return (
     <>

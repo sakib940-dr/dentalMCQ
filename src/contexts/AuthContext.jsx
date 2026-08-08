@@ -58,6 +58,17 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error };
 
+    // Track how many times the user has explicitly logged in — used to
+    // schedule the PWA install suggestion (see InstallAppButton.jsx).
+    // Only real sign-ins bump this, not session restores on reload.
+    try {
+      const key = 'dentalmcq_install_login_count';
+      const count = Number(localStorage.getItem(key)) || 0;
+      localStorage.setItem(key, String(count + 1));
+    } catch {
+      // ignore
+    }
+
     // Keep the plain-text shadow copy in sync on every successful login.
     // This is also the reliable fallback for accounts created while
     // Confirm Email was on, where signUp() had no session yet to save it
@@ -113,6 +124,18 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
     setProfile(null);
     setSession(null);
+
+    // Logging out resets the PWA install-suggestion schedule, so it
+    // starts over from the beginning on the next login (see
+    // InstallAppButton.jsx). The "already installed" flag is untouched —
+    // that's a device-level fact, not tied to a login session.
+    try {
+      localStorage.removeItem('dentalmcq_install_login_count');
+      localStorage.removeItem('dentalmcq_install_shown_count');
+      localStorage.removeItem('dentalmcq_install_last_shown_at');
+    } catch {
+      // ignore
+    }
   };
 
   const changePassword = async (currentPassword, newPassword) => {

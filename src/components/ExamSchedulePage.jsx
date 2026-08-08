@@ -20,12 +20,20 @@ function EditEntryForm({ entry, onSaved, onCancel }) {
     e.preventDefault();
     if (!date || !syllabus.trim()) return;
     setSaving(true);
-    await supabase.from('exam_schedule_entries').update({
+    const { data, error } = await supabase.from('exam_schedule_entries').update({
       scheduled_date: date,
       subject_syllabus: syllabus.trim(),
       notes: notes.trim() || null,
-    }).eq('id', entry.id);
+    }).eq('id', entry.id).select();
     setSaving(false);
+    if (error) {
+      alert('Could not save changes: ' + error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      alert('Changes were not saved. You may not have permission to edit this schedule entry (check database access rules).');
+      return;
+    }
     onSaved();
   };
 
@@ -68,7 +76,7 @@ export default function ExamSchedulePage() {
     e.preventDefault();
     if (!date || !syllabus.trim()) return;
     setSaving(true);
-    await supabase.from('exam_schedule_entries').insert({
+    const { error } = await supabase.from('exam_schedule_entries').insert({
       category_id: categoryId,
       scheduled_date: date,
       subject_syllabus: syllabus.trim(),
@@ -76,6 +84,10 @@ export default function ExamSchedulePage() {
       display_order: entries.length,
     });
     setSaving(false);
+    if (error) {
+      alert('Could not add schedule entry: ' + error.message);
+      return;
+    }
     setDate('');
     setSyllabus('');
     setNotes('');
@@ -83,7 +95,11 @@ export default function ExamSchedulePage() {
   };
 
   const removeEntry = async (id) => {
-    await supabase.from('exam_schedule_entries').delete().eq('id', id);
+    const { error } = await supabase.from('exam_schedule_entries').delete().eq('id', id);
+    if (error) {
+      alert('Could not delete schedule entry: ' + error.message);
+      return;
+    }
     if (editingId === id) setEditingId(null);
     load();
   };
@@ -93,10 +109,10 @@ export default function ExamSchedulePage() {
   const today = todayStr();
   const upcomingEntries = entries
     .filter((e) => e.scheduled_date >= today)
-    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+    .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
   const pastEntries = entries
     .filter((e) => e.scheduled_date < today)
-    .sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
+    .sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date));
 
   return (
     <div className="panel">
