@@ -279,16 +279,43 @@ function ExamSchedulePanel({ categoryId }) {
   if (entries === null) return <div className="muted small">Loading schedule…</div>;
   if (entries.length === 0) return <div className="muted small">No schedule published yet.</div>;
 
+  const today = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const upcomingEntries = entries
+    .filter((e) => e.scheduled_date >= today)
+    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+  const pastEntries = entries
+    .filter((e) => e.scheduled_date < today)
+    .sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
+
   return (
-    <div className="schedule-list">
-      {entries.map((e) => (
-        <div key={e.id} className="schedule-row">
-          <div className="schedule-date">{fmtScheduleDate(e.scheduled_date)}</div>
-          <div className="schedule-syllabus">{e.subject_syllabus}</div>
-          {e.notes && <div className="muted small">{e.notes}</div>}
-        </div>
-      ))}
-    </div>
+    <>
+      <h4 className="section-subtitle">Upcoming Exams</h4>
+      {upcomingEntries.length === 0 && <div className="muted small">Nothing upcoming.</div>}
+      <div className="schedule-list">
+        {upcomingEntries.map((e) => (
+          <div key={e.id} className="schedule-row">
+            <div className="schedule-date">{fmtScheduleDate(e.scheduled_date)}</div>
+            <div className="schedule-syllabus">{e.subject_syllabus}</div>
+            {e.notes && <div className="muted small">{e.notes}</div>}
+          </div>
+        ))}
+      </div>
+
+      <h4 className="section-subtitle" style={{ marginTop: 18 }}>Archive / Past Exams</h4>
+      {pastEntries.length === 0 && <div className="muted small">No past entries yet.</div>}
+      <div className="schedule-list">
+        {pastEntries.map((e) => (
+          <div key={e.id} className="schedule-row">
+            <div className="schedule-date">{fmtScheduleDate(e.scheduled_date)}</div>
+            <div className="schedule-syllabus">{e.subject_syllabus}</div>
+            {e.notes && <div className="muted small">{e.notes}</div>}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

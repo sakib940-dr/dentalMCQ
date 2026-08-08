@@ -5,6 +5,43 @@ function fmtScheduleDate(dateStr) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function EditEntryForm({ entry, onSaved, onCancel }) {
+  const [date, setDate] = useState(entry.scheduled_date);
+  const [syllabus, setSyllabus] = useState(entry.subject_syllabus);
+  const [notes, setNotes] = useState(entry.notes || '');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!date || !syllabus.trim()) return;
+    setSaving(true);
+    await supabase.from('exam_schedule_entries').update({
+      scheduled_date: date,
+      subject_syllabus: syllabus.trim(),
+      notes: notes.trim() || null,
+    }).eq('id', entry.id);
+    setSaving(false);
+    onSaved();
+  };
+
+  return (
+    <form className="schedule-add-form" onSubmit={submit} style={{ marginTop: 8 }}>
+      <input type="date" value={date} onChange={(ev) => setDate(ev.target.value)} required />
+      <input value={syllabus} onChange={(ev) => setSyllabus(ev.target.value)} placeholder="Subject / syllabus" required />
+      <input value={notes} onChange={(ev) => setNotes(ev.target.value)} placeholder="Notes (optional)" />
+      <div className="exam-setup-actions">
+        <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+      </div>
+    </form>
+  );
+}
+
 export default function ExamSchedulePage() {
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState('');
@@ -13,6 +50,7 @@ export default function ExamSchedulePage() {
   const [syllabus, setSyllabus] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     supabase.from('categories').select('*').order('display_order').then(({ data }) => setCategories(data || []));
@@ -46,10 +84,19 @@ export default function ExamSchedulePage() {
 
   const removeEntry = async (id) => {
     await supabase.from('exam_schedule_entries').delete().eq('id', id);
+    if (editingId === id) setEditingId(null);
     load();
   };
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
+
+  const today = todayStr();
+  const upcomingEntries = entries
+    .filter((e) => e.scheduled_date >= today)
+    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+  const pastEntries = entries
+    .filter((e) => e.scheduled_date < today)
+    .sort((a, b) => b.scheduled_date.localeCompare(a.scheduled_date));
 
   return (
     <div className="panel">
@@ -74,18 +121,58 @@ export default function ExamSchedulePage() {
           <h3 className="section-subtitle">Schedule for "{selectedCategory?.name}"</h3>
 
           {entries.length === 0 && <div className="muted small">No schedule entries yet — add the first one below.</div>}
-          <div className="schedule-list" style={{ marginTop: 10 }}>
-            {entries.map((e) => (
-              <div key={e.id} className="schedule-admin-row">
-                <div className="schedule-admin-row-main">
-                  <div className="schedule-admin-date">{fmtScheduleDate(e.scheduled_date)}</div>
-                  <div className="schedule-admin-syllabus">{e.subject_syllabus}</div>
-                  {e.notes && <div className="muted small">{e.notes}</div>}
-                </div>
-                <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove">✕</button>
+
+          {entries.length > 0 && (
+            <>
+              <h4 className="section-subtitle" style={{ marginTop: 12 }}>Upcoming Exams</h4>
+              {upcomingEntries.length === 0 && <div className="muted small">Nothing upcoming.</div>}
+              <div className="schedule-list" style={{ marginTop: 10 }}>
+                {upcomingEntries.map((e) => (
+                  <div key={e.id} className="schedule-admin-row">
+                    {editingId === e.id ? (
+                      <EditEntryForm entry={e} onSaved={() => { setEditingId(null); load(); }} onCancel={() => setEditingId(null)} />
+                    ) : (
+                      <>
+                        <div className="schedule-admin-row-main">
+                          <div className="schedule-admin-date">{fmtScheduleDate(e.scheduled_date)}</div>
+                          <div className="schedule-admin-syllabus">{e.subject_syllabus}</div>
+                          {e.notes && <div className="muted small">{e.notes}</div>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="icon-btn" onClick={() => setEditingId(e.id)} title="Edit">✎</button>
+                          <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove">✕</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+
+              <h4 className="section-subtitle" style={{ marginTop: 18 }}>Archive / Past Exams</h4>
+              {pastEntries.length === 0 && <div className="muted small">No past entries yet.</div>}
+              <div className="schedule-list" style={{ marginTop: 10 }}>
+                {pastEntries.map((e) => (
+                  <div key={e.id} className="schedule-admin-row">
+                    {editingId === e.id ? (
+                      <EditEntryForm entry={e} onSaved={() => { setEditingId(null); load(); }} onCancel={() => setEditingId(null)} />
+                    ) : (
+                      <>
+                        <div className="schedule-admin-row-main">
+                          <div className="schedule-admin-date">{fmtScheduleDate(e.scheduled_date)}</div>
+                          <div className="schedule-admin-syllabus">{e.subject_syllabus}</div>
+                          {e.notes && <div className="muted small">{e.notes}</div>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="icon-btn" onClick={() => setEditingId(e.id)} title="Edit">✎</button>
+                          <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove">✕</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           <form className="schedule-add-form" onSubmit={addEntry} style={{ marginTop: 14 }}>
             <input type="date" value={date} onChange={(ev) => setDate(ev.target.value)} required />
