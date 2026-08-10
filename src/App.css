@@ -2743,10 +2743,14 @@ body {
   height: 96px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: conic-gradient(var(--teal) calc(var(--pct) * 1%), #EEEAE0 0);
+  background: conic-gradient(var(--green) 0%, var(--teal) calc(var(--pct) * 1%), #EFE9DA 0);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+@media (max-width: 360px) {
+  .analytics-summary-row { flex-direction: column; align-items: flex-start; }
+  .accuracy-legend { width: 100%; }
 }
 .accuracy-donut-center {
   position: relative;
@@ -2797,6 +2801,13 @@ body {
 }
 .accuracy-legend-label { flex: 1; color: var(--ink-soft); font-weight: 500; }
 .accuracy-legend-value { font-weight: 700; color: var(--ink); }
+
+/* Colorful top-accent treatment for this dashboard's stat cards only —
+   a modifier class layered on top of the shared .analytics-stat-card,
+   so the Moderator/Admin analytics screens stay untouched. */
+.dash-stat-card {
+  border-top: 3px solid var(--stat-accent, var(--teal));
+}
 
 .dash-greeting {
   margin: 4px 2px 14px;

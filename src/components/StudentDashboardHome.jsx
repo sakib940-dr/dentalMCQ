@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { daysLeft, timeAgo } from '../lib/formatters';
+import { timeAgo } from '../lib/formatters';
 import { useAppSetting } from './FeatureLock';
 import {
   IconBookOpen,
@@ -70,54 +70,6 @@ function QuickActionsGrid() {
 }
 
 // ============================================================
-// Subscription summary — a compact status strip, not a rebuild of
-// PackagePage. Shows the grant closest to expiring; "Manage" opens the
-// full package page for anything more detailed.
-// ============================================================
-function SubscriptionStrip({ grants, categories }) {
-  const navigate = useNavigate();
-  const now = new Date();
-  const active = grants
-    .filter((g) => !g.expires_at || new Date(g.expires_at) > now)
-    .sort((a, b) => {
-      if (!a.expires_at) return 1;
-      if (!b.expires_at) return -1;
-      return new Date(a.expires_at) - new Date(b.expires_at);
-    });
-
-  if (active.length === 0) {
-    return (
-      <div className="panel subscription-strip subscription-strip-empty">
-        <div>
-          <div className="subscription-strip-title">No active subscription</div>
-          <div className="subscription-strip-sub">Subscribe to a category to unlock its exams and practice.</div>
-        </div>
-        <button className="btn-primary sm" onClick={() => navigate('/dashboard/package')}>Browse Packages</button>
-      </div>
-    );
-  }
-
-  const soonest = active[0];
-  const remaining = daysLeft(soonest.expires_at);
-  const name = soonest.resource_type === 'prescription' ? 'Prescription' : (categories.find((c) => c.id === soonest.category_id)?.name || 'Category');
-
-  return (
-    <div className="panel subscription-strip">
-      <div>
-        <div className="subscription-strip-title">
-          {active.length > 1 ? `${active.length} active subscriptions` : name}
-        </div>
-        <div className="subscription-strip-sub">
-          {active.length > 1 ? `Next to expire: ${name}` : 'Current Package'}
-          {remaining !== null ? ` · ${remaining} day${remaining !== 1 ? 's' : ''} left` : ' · No expiry'}
-        </div>
-      </div>
-      <button className="btn-secondary sm" onClick={() => navigate('/dashboard/package')}>Renew / Manage</button>
-    </div>
-  );
-}
-
-// ============================================================
 // Performance Analytics — accuracy ring, right-vs-wrong comparison and
 // compact accented stat cards. All values come from the same `stats`
 // object computed above; this only changes how they're presented.
@@ -135,15 +87,15 @@ function AccuracyDonut({ pct, correct, wrong, unanswered }) {
         <div className="accuracy-legend-row">
           <span className="accuracy-legend-dot" style={{ background: 'var(--green)' }} />
           <span className="accuracy-legend-label">Correct</span>
-          <span className="accuracy-legend-value">{correct}</span>
+          <span className="accuracy-legend-value" style={{ color: 'var(--green)' }}>{correct}</span>
         </div>
         <div className="accuracy-legend-row">
           <span className="accuracy-legend-dot" style={{ background: 'var(--red)' }} />
           <span className="accuracy-legend-label">Wrong</span>
-          <span className="accuracy-legend-value">{wrong}</span>
+          <span className="accuracy-legend-value" style={{ color: 'var(--red)' }}>{wrong}</span>
         </div>
         <div className="accuracy-legend-row">
-          <span className="accuracy-legend-dot" style={{ background: 'var(--card-border)' }} />
+          <span className="accuracy-legend-dot" style={{ background: 'var(--ink-soft)' }} />
           <span className="accuracy-legend-label">Unanswered</span>
           <span className="accuracy-legend-value">{unanswered}</span>
         </div>
@@ -180,7 +132,7 @@ function AnalyticsStatCard({ icon, label, value, sub, accent = 'var(--teal)', on
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
-      className={onClick ? 'analytics-stat-card analytics-stat-card-tappable' : 'analytics-stat-card'}
+      className={onClick ? 'analytics-stat-card dash-stat-card analytics-stat-card-tappable' : 'analytics-stat-card dash-stat-card'}
       style={{ '--stat-accent': accent }}
       onClick={onClick}
     >
@@ -260,8 +212,6 @@ export default function StudentDashboardHome() {
   const navigate = useNavigate();
   const { value: motivationalLine } = useAppSetting('dashboard_motivational_line', 'Every question you solve today is one step closer to the merit list.');
   const [stats, setStats] = useState(null);
-  const [grants, setGrants] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
@@ -270,7 +220,6 @@ export default function StudentDashboardHome() {
     async function load() {
       const [
         grantsResult,
-        categoriesResult,
         officialAttemptedResult,
         officialCorrectResult,
         officialWrongResult,
@@ -285,7 +234,6 @@ export default function StudentDashboardHome() {
         bookmarkCountResult,
       ] = await Promise.all([
         supabase.from('category_access_grants').select('*').eq('examinee_id', user.id),
-        supabase.from('categories').select('id, name'),
         supabase.from('attempt_answers').select('id, exam_attempts!inner(examinee_id)', { count: 'exact', head: true }).eq('exam_attempts.examinee_id', user.id).not('selected_option', 'is', null),
         supabase.from('attempt_answers').select('id, exam_attempts!inner(examinee_id)', { count: 'exact', head: true }).eq('exam_attempts.examinee_id', user.id).eq('is_correct', true),
         supabase.from('attempt_answers').select('id, exam_attempts!inner(examinee_id)', { count: 'exact', head: true }).eq('exam_attempts.examinee_id', user.id).eq('is_correct', false),
@@ -362,8 +310,6 @@ export default function StudentDashboardHome() {
         wrongForRevision: wrongCountResult.count || 0,
         bookmarked: bookmarkCountResult.count || 0,
       });
-      setGrants(grantsResult.data || []);
-      setCategories(categoriesResult.data || []);
 
       // ---------- Recent activity: merge official attempts + practice sessions ----------
       const examActivity = attempts.slice(0, 5).map((a) => ({
@@ -401,8 +347,6 @@ export default function StudentDashboardHome() {
       <QuickStatsRow stats={stats} />
 
       <QuickActionsGrid />
-
-      <SubscriptionStrip grants={grants} categories={categories} />
 
       {stats === null ? (
         <div className="panel"><p className="muted">Loading your stats…</p></div>
