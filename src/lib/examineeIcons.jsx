@@ -6,13 +6,16 @@
 // Moderator/Admin/Super Admin panels keep their existing emoji icons and
 // are untouched by this change.
 import {
+  Activity,
   Award,
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   Bell,
   Bookmark,
   BookOpen,
   Bug,
+  Calendar,
   Check,
   CheckCircle2,
   ClipboardList,
@@ -34,6 +37,7 @@ import {
   Package,
   Paperclip,
   Phone,
+  PieChart,
   Pin,
   RotateCcw,
   Search,
@@ -59,13 +63,16 @@ function withDefaults(LucideIcon) {
   return ExamineeIcon;
 }
 
+export const IconActivity = withDefaults(Activity);
 export const IconAward = withDefaults(Award);
 export const IconArrowLeft = withDefaults(ArrowLeft);
 export const IconArrowRight = withDefaults(ArrowRight);
+export const IconBarChart = withDefaults(BarChart3);
 export const IconBell = withDefaults(Bell);
 export const IconBookmark = withDefaults(Bookmark);
 export const IconBookOpen = withDefaults(BookOpen);
 export const IconBug = withDefaults(Bug);
+export const IconCalendar = withDefaults(Calendar);
 export const IconCheck = withDefaults(Check);
 export const IconCheckCircle = withDefaults(CheckCircle2);
 export const IconClipboardList = withDefaults(ClipboardList);
@@ -87,6 +94,7 @@ export const IconMessageCircle = withDefaults(MessageCircle);
 export const IconPackage = withDefaults(Package);
 export const IconPaperclip = withDefaults(Paperclip);
 export const IconPhone = withDefaults(Phone);
+export const IconPieChart = withDefaults(PieChart);
 export const IconPin = withDefaults(Pin);
 export const IconRotateCcw = withDefaults(RotateCcw);
 export const IconSearch = withDefaults(Search);

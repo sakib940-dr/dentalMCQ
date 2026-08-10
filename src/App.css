@@ -10,6 +10,15 @@
   --green: #2E6B4F;
   --blue: #2F6FA8;
   --purple: #6C4F94;
+
+  /* Soft tints of the accent colors above, used as icon-chip backgrounds
+     on the redesigned Examinee Dashboard home (StudentDashboardHome). */
+  --teal-tint: #E3ECEA;
+  --gold-tint: #FBF3E1;
+  --red-tint: #F8E8E5;
+  --green-tint: #E5F1EA;
+  --blue-tint: #E6EFF7;
+  --purple-tint: #EEE9F5;
 }
 
 * { box-sizing: border-box; }
@@ -2933,6 +2942,471 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+
+/* ============================================================
+   Examinee Dashboard Home — premium mobile analytics redesign
+   (StudentDashboardHome.jsx only; all classes below are new/
+   exclusive to that component and do not affect any shared
+   .panel / .analytics-* / .quick-action-* styles used elsewhere).
+   ============================================================ */
+
+/* Section headers with a small leading icon */
+.panel h2.panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.panel h2.panel-title-row svg { color: var(--teal); flex-shrink: 0; }
+.panel-title-sub {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+}
+
+/* ---------- 1. Welcome + date ---------- */
+.home-welcome {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 6px 2px 18px;
+  flex-wrap: wrap;
+}
+.home-welcome-text { min-width: 0; }
+.home-welcome-greet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.home-welcome-name {
+  font-family: Georgia, serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  margin-top: 2px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.home-welcome-sub {
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-top: 5px;
+  max-width: 240px;
+}
+.home-date-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(15, 61, 62, 0.06);
+  flex-shrink: 0;
+}
+.home-date-chip svg { color: var(--teal); flex-shrink: 0; }
+.home-date-chip-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.home-date-chip-day {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.home-date-chip-date {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+@media (max-width: 380px) {
+  .home-welcome { flex-direction: column; align-items: stretch; }
+  .home-date-chip { align-self: flex-start; }
+}
+
+/* ---------- 2. Quick actions rail (slim horizontal cards) ---------- */
+.qa-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.qa-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: #FCFBF8;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  min-width: 0;
+}
+.qa-row:active { background: #F1EEE5; }
+.qa-row-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--qa-bg, var(--teal-tint));
+  color: var(--qa-fg, var(--teal));
+}
+.qa-row-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qa-row-chevron { color: var(--ink-soft); flex-shrink: 0; }
+
+/* ---------- 3. Performance analytics (refined donut + compare) ---------- */
+.perf-donut-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.perf-donut {
+  --pct: 0;
+  position: relative;
+  width: 108px;
+  height: 108px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--green) 0%, var(--teal) calc(var(--pct) * 1%), #EFE9DA 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(15, 61, 62, 0.10);
+}
+.perf-donut-center {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.perf-donut-value {
+  font-family: Georgia, serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  line-height: 1.1;
+}
+.perf-donut-caption {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+.perf-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 140px;
+}
+.perf-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.perf-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.perf-legend-label { flex: 1; color: var(--ink-soft); font-weight: 500; }
+.perf-legend-value { font-weight: 700; color: var(--ink); }
+
+.perf-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--card-border);
+}
+.perf-compare-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.perf-compare-label {
+  width: 52px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.perf-compare-track {
+  flex: 1;
+  height: 14px;
+  background: #F1EEE5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.perf-compare-fill {
+  height: 100%;
+  border-radius: 8px;
+  background: var(--fill-color, var(--teal));
+  min-width: 3%;
+  transition: width 0.4s ease;
+}
+.perf-compare-value {
+  width: 28px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ---------- 4. Subject-wise distribution (2-col donut grid) ---------- */
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.subject-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #FCFBF8;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 10px;
+  min-width: 0;
+}
+.subject-card-donut {
+  --pct: 0;
+  --donut-color: var(--teal);
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--donut-color) calc(var(--pct) * 1%), #EFE9DA 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.subject-card-donut-center {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.subject-card-info { min-width: 0; flex: 1; }
+.subject-card-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subject-card-count {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 5. Weekly question activity (area/line chart) ---------- */
+.wk-line-wrap { margin-top: 16px; }
+.wk-line-svg-box {
+  width: 100%;
+  height: 92px;
+}
+.wk-line-svg-box svg { width: 100%; height: 100%; display: block; }
+.wk-line-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 0 2px;
+  gap: 2px;
+}
+.wk-line-label-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.wk-line-day {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+.wk-line-val {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+
+/* ---------- 6. Weekly exam activity (stacked bar chart) ---------- */
+.wk-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 0 2px;
+}
+.wk-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.wk-bar-area {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 80px;
+}
+.wk-bar-track {
+  width: 100%;
+  max-width: 22px;
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: 6px 6px 3px 3px;
+  overflow: hidden;
+}
+.wk-bar-seg-archived {
+  width: 100%;
+  background: linear-gradient(180deg, var(--teal) 0%, var(--teal-deep) 100%);
+}
+.wk-bar-seg-live {
+  width: 100%;
+  background: linear-gradient(180deg, var(--gold) 0%, #A9803B 100%);
+}
+.wk-bar-empty {
+  width: 100%;
+  max-width: 22px;
+  height: 3px;
+  border-radius: 3px;
+  background: #E4DFD3;
+  margin: 0 auto;
+}
+.wk-bar-total {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 6px;
+}
+.wk-bar-day {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  margin-top: 1px;
+}
+.wk-bar-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+}
+.wk-bar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.wk-bar-legend-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+
+.wk-empty-note {
+  margin: 10px 2px 0;
+}
+
+/* ---------- 7. Key performance summary (compact cards) ---------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #FCFBF8;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 11px 12px;
+  min-width: 0;
+}
+.kpi-card-tap {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  width: 100%;
+}
+.kpi-card-tap:active { background: #F1EEE5; }
+.kpi-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--kpi-bg, var(--teal-tint));
+  color: var(--kpi-fg, var(--teal));
+}
+.kpi-card-text { display: flex; flex-direction: column; min-width: 0; }
+.kpi-card-value {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.kpi-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
 .subscription-strip {
