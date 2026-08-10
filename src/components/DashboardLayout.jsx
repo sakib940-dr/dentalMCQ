@@ -17,7 +17,7 @@ import { usePushNotifications } from '../lib/usePushNotifications';
 // and hides the top quick-bar, since the bottom bar takes over that
 // job. Only the Examinee dashboard passes this; the other three roles
 // are unaffected and keep the top quick-bar exactly as before.
-export default function DashboardLayout({ title, navItems, bottomNavItems, drawerProfile, appVersion, children }) {
+export default function DashboardLayout({ title, navItems, bottomNavItems, drawerProfile, appVersion, showPackageInfo = true, children }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -110,19 +110,21 @@ export default function DashboardLayout({ title, navItems, bottomNavItems, drawe
             </div>
             <div>
               <div className="dash-drawer-profile-name">{profile?.full_name}</div>
-              {drawerProfile ? (
-                <>
-                  <div className="dash-drawer-profile-package">{drawerProfile.packageName}</div>
-                  {drawerProfile.expiresAt ? (
-                    <div className="dash-drawer-profile-expiry">
-                      Expires {fmtDate(drawerProfile.expiresAt)} · {daysLeft(drawerProfile.expiresAt)} days left
-                    </div>
-                  ) : (
-                    <div className="dash-drawer-profile-expiry">Lifetime access</div>
-                  )}
-                </>
-              ) : (
-                <div className="dash-drawer-profile-expiry">No active subscription</div>
+              {showPackageInfo && (
+                drawerProfile ? (
+                  <>
+                    <div className="dash-drawer-profile-package">{drawerProfile.packageName}</div>
+                    {drawerProfile.expiresAt ? (
+                      <div className="dash-drawer-profile-expiry">
+                        Expires {fmtDate(drawerProfile.expiresAt)} · {daysLeft(drawerProfile.expiresAt)} days left
+                      </div>
+                    ) : (
+                      <div className="dash-drawer-profile-expiry">Lifetime access</div>
+                    )}
+                  </>
+                ) : (
+                  <div className="dash-drawer-profile-expiry">No active subscription</div>
+                )
               )}
             </div>
           </div>

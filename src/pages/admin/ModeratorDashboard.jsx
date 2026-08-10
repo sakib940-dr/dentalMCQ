@@ -11,7 +11,8 @@ import ExamSchedulePage from '../../components/ExamSchedulePage';
 import PaymentAdminPage from '../../components/PaymentAdminPage';
 import { useAuth } from '../../contexts/AuthContext';
 
-const baseNavItems = [
+// Moderator (non-admin): unchanged — top quick-bar + ☰ drawer, same as before.
+const moderatorNavItems = [
   { to: '/moderator', label: 'Dashboard', icon: '📊', end: true, quick: true, group: 'Overview' },
   { to: '/moderator/schedule', label: 'Exam Schedule', icon: '🗓️', group: 'Content' },
   { to: '/moderator/questions', label: 'Question Bank', icon: '❓', quick: true, group: 'Content' },
@@ -21,26 +22,38 @@ const baseNavItems = [
   { to: '/moderator/settings', label: 'Settings', icon: '⚙️', group: 'System' },
 ];
 
+// Admin: primary navigation lives in a 5-tab bottom bar (same pattern
+// DashboardLayout already supports for the Examinee dashboard).
+const adminBottomNavItems = [
+  { to: '/moderator', label: 'Analytics', icon: '📊', end: true },
+  { to: '/moderator/schedule', label: 'Exam Schedule', icon: '🗓️' },
+  { to: '/moderator/exams', label: 'Exam Create', icon: '📝' },
+  { to: '/moderator/questions', label: 'Question Add', icon: '❓' },
+  { to: '/moderator/chat', label: 'Message', icon: '💬' },
+];
+
+// Everything else stays in the ☰ drawer only — the 5 items above are
+// deliberately left out here so they don't appear twice.
+const adminDrawerNavItems = [
+  { to: '/moderator/categories', label: 'Categories', icon: '📚', group: 'Content' },
+  { to: '/moderator/notices', label: 'Notice Board', icon: '📢', group: 'Communication' },
+  { to: '/moderator/payments', label: 'Payments', icon: '📦', group: 'Money' },
+  { to: '/moderator/settings', label: 'Settings', icon: '⚙️', group: 'System' },
+];
+
 export default function ModeratorDashboard() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const title = isAdmin ? 'Admin' : 'Moderator';
 
-  // Admin can create/edit (not delete) categories, and can now approve
-  // payments / manage packages & promo codes — same PaymentAdminPage
-  // Super Admin uses. Moderator still has no category or payment access,
-  // per RBAC spec.
-  const navItems = isAdmin
-    ? [
-        baseNavItems[0],
-        { to: '/moderator/categories', label: 'Categories', icon: '📚', group: 'Content' },
-        ...baseNavItems.slice(1),
-        { to: '/moderator/payments', label: 'Payments', icon: '📦', group: 'Money' },
-      ]
-    : baseNavItems;
-
   return (
-    <DashboardLayout title={title} navItems={navItems}>
+    <DashboardLayout
+      title={title}
+      navItems={isAdmin ? adminDrawerNavItems : moderatorNavItems}
+      bottomNavItems={isAdmin ? adminBottomNavItems : undefined}
+      showPackageInfo={false}
+      appVersion={isAdmin ? 'v1.0' : undefined}
+    >
       <Routes>
         <Route index element={<ModeratorOverview />} />
         {isAdmin && <Route path="categories" element={<CategoriesPage hideDelete />} />}
