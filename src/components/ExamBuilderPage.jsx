@@ -176,7 +176,7 @@ function ManualExamForm({ exam, onSaved, onCancel }) {
 
       const { data: qs } = await supabase
         .from('questions')
-        .select('id, question_text, chapter_id')
+        .select('id, question_text, chapter_id, option_a, option_b, option_c, option_d, correct_option')
         .in('chapter_id', chapterIds)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
@@ -278,31 +278,33 @@ function ManualExamForm({ exam, onSaved, onCancel }) {
     <div className="panel">
       <h2>{exam ? 'Edit exam' : 'Manual / Custom Question Selection'}</h2>
 
-      <div className="exam-info-grid">
+      <div className="exam-info-grid exam-info-grid-compact">
         <label className="exam-info-full">
           <span>Title</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Dental Anatomy Part 01" />
         </label>
         <label className="exam-info-full">
           <span>Syllabus / topic notes</span>
-          <textarea value={syllabus} onChange={(e) => setSyllabus(e.target.value)} rows={3} />
+          <textarea value={syllabus} onChange={(e) => setSyllabus(e.target.value)} rows={2} />
         </label>
-        <label>
-          <span>Start Date</span>
-          <input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} />
-        </label>
-        <label>
-          <span>End Date</span>
-          <input type="date" value={endDate} onChange={(e) => handleEndDateChange(e.target.value)} />
-        </label>
-        <label>
-          <span>Exam Duration (minutes)</span>
-          <input type="number" min={1} max={300} value={timerMinutes} onChange={(e) => handleTimerChange(e.target.value)} />
-        </label>
-        <label>
-          <span>Negative Marking</span>
-          <input type="number" min={0} max={1} step={0.05} value={negativeMarking} onChange={(e) => setNegativeMarking(Math.max(0, parseFloat(e.target.value) || 0))} />
-        </label>
+        <div className="exam-info-full exam-info-row-4">
+          <label>
+            <span>Start Date</span>
+            <input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} />
+          </label>
+          <label>
+            <span>End Date</span>
+            <input type="date" value={endDate} onChange={(e) => handleEndDateChange(e.target.value)} />
+          </label>
+          <label>
+            <span>Duration (min)</span>
+            <input type="number" min={1} max={300} value={timerMinutes} onChange={(e) => handleTimerChange(e.target.value)} />
+          </label>
+          <label>
+            <span>Neg. Marking</span>
+            <input type="number" min={0} max={1} step={0.05} value={negativeMarking} onChange={(e) => setNegativeMarking(Math.max(0, parseFloat(e.target.value) || 0))} />
+          </label>
+        </div>
       </div>
 
       <div className="exam-time-summary">
@@ -361,21 +363,37 @@ function ManualExamForm({ exam, onSaved, onCancel }) {
         {totalQuestions > 0 && <button className="btn-danger sm" onClick={() => setSelectedIds(new Set())}>Clear all</button>}
       </div>
 
-      <div className="qsel-scroll">
+      <div className="qsel-scroll-lg">
         {!filters.categoryId && <div className="muted small" style={{ padding: '8px 6px' }}>Select a category above to see its questions.</div>}
         {filters.categoryId && questionsLoading && <div className="muted small" style={{ padding: '8px 6px' }}>Loading questions…</div>}
         {filters.categoryId && !questionsLoading && questions.length === 0 && (
           <div className="muted small" style={{ padding: '8px 6px' }}>No questions found for this filter.</div>
         )}
-        {questions.map((q) => (
-          <label key={q.id} className="qsel-row">
-            <input type="checkbox" checked={selectedIds.has(q.id)} onChange={() => toggle(q.id)} />
-            <span className="qsel-row-text">{q.question_text}</span>
-            {!filters.chapterId && chapterNameById.get(q.chapter_id) && (
-              <span className="qsel-row-tag">{chapterNameById.get(q.chapter_id)}</span>
-            )}
-          </label>
-        ))}
+        {questions.map((q) => {
+          const isSelected = selectedIds.has(q.id);
+          return (
+            <label key={q.id} className={isSelected ? 'qsel-card qsel-card-selected' : 'qsel-card'}>
+              <input type="checkbox" checked={isSelected} onChange={() => toggle(q.id)} />
+              <div className="qsel-card-body">
+                {!filters.chapterId && chapterNameById.get(q.chapter_id) && (
+                  <span className="qsel-card-tag">{chapterNameById.get(q.chapter_id)}</span>
+                )}
+                <div className="qsel-card-text">{q.question_text}</div>
+                <div className="opt-list opt-list-compact qsel-opt-list">
+                  {['A', 'B', 'C', 'D'].map((letter) => {
+                    const isCorrectOpt = letter === q.correct_option;
+                    return (
+                      <div key={letter} className={isCorrectOpt ? 'opt-btn opt-static opt-correct' : 'opt-btn opt-static'}>
+                        <span className="opt-letter">{letter}</span>
+                        <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </label>
+          );
+        })}
       </div>
 
       {error && <div className="error-box">{error}</div>}
