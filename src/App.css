@@ -29,6 +29,10 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  /* Forces light-mode rendering of native UA styling (incl. <button>
+     text color) so icons/text never wash out under a device's system
+     dark theme — same fix already applied to form fields above. */
+  color-scheme: light;
 }
 
 .full-page-center {
@@ -2590,9 +2594,17 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 15px;
+  color: #fff;
   background: var(--stat-accent, var(--teal));
   margin-bottom: 8px;
 }
+.analytics-stat-card-tappable {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  width: 100%;
+}
+.analytics-stat-card-tappable:active { background: #F7F5EE; }
 .analytics-stat-value {
   position: relative;
   font-family: Georgia, serif;
@@ -2718,6 +2730,74 @@ body {
 .recent-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
 
 /* ---------- Student Dashboard home ---------- */
+.analytics-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+.accuracy-donut {
+  --pct: 0;
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--teal) calc(var(--pct) * 1%), #EEEAE0 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.accuracy-donut-center {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.accuracy-donut-value {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  line-height: 1.1;
+}
+.accuracy-donut-caption {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+.accuracy-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.accuracy-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.accuracy-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.accuracy-legend-label { flex: 1; color: var(--ink-soft); font-weight: 500; }
+.accuracy-legend-value { font-weight: 700; color: var(--ink); }
+
 .dash-greeting {
   margin: 4px 2px 14px;
 }
@@ -2771,7 +2851,13 @@ body {
   width: 100%;
 }
 .quick-action-tile:active { background: #F1EEE5; }
-.quick-action-tile-icon { font-size: 28px; line-height: 1; }
+.quick-action-tile-icon {
+  font-size: 28px;
+  line-height: 1;
+  color: var(--teal-deep);
+  display: inline-flex;
+}
+.quick-action-tile-featured .quick-action-tile-icon { color: var(--gold); }
 .quick-action-tile-label {
   font-size: 12px;
   font-weight: 700;
@@ -2826,7 +2912,7 @@ body {
   padding: 10px 6px;
   text-align: center;
 }
-.quick-stat-icon { font-size: 16px; line-height: 1; }
+.quick-stat-icon { font-size: 16px; line-height: 1; color: var(--teal); display: inline-flex; }
 .quick-stat-value { font-size: 19px; font-weight: 800; color: var(--teal-deep); line-height: 1.2; }
 .quick-stat-label {
   font-size: 10.5px;

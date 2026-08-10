@@ -17,6 +17,9 @@ import {
   IconCheckCircle,
   IconXCircle,
   IconHand,
+  IconAward,
+  IconTrendingUp,
+  IconHelpCircle,
 } from '../lib/examineeIcons';
 
 // ============================================================
@@ -115,15 +118,76 @@ function SubscriptionStrip({ grants, categories }) {
 }
 
 // ============================================================
-// Exam overview stat cards
+// Performance Analytics — accuracy ring, right-vs-wrong comparison and
+// compact accented stat cards. All values come from the same `stats`
+// object computed above; this only changes how they're presented.
 // ============================================================
-function StatCard({ label, value, sub, onClick }) {
+function AccuracyDonut({ pct, correct, wrong, unanswered }) {
+  return (
+    <div className="analytics-summary-row">
+      <div className="accuracy-donut" style={{ '--pct': pct }}>
+        <div className="accuracy-donut-center">
+          <div className="accuracy-donut-value">{pct}%</div>
+          <div className="accuracy-donut-caption">Accuracy</div>
+        </div>
+      </div>
+      <div className="accuracy-legend">
+        <div className="accuracy-legend-row">
+          <span className="accuracy-legend-dot" style={{ background: 'var(--green)' }} />
+          <span className="accuracy-legend-label">Correct</span>
+          <span className="accuracy-legend-value">{correct}</span>
+        </div>
+        <div className="accuracy-legend-row">
+          <span className="accuracy-legend-dot" style={{ background: 'var(--red)' }} />
+          <span className="accuracy-legend-label">Wrong</span>
+          <span className="accuracy-legend-value">{wrong}</span>
+        </div>
+        <div className="accuracy-legend-row">
+          <span className="accuracy-legend-dot" style={{ background: 'var(--card-border)' }} />
+          <span className="accuracy-legend-label">Unanswered</span>
+          <span className="accuracy-legend-value">{unanswered}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RightWrongBars({ correct, wrong }) {
+  const max = Math.max(1, correct, wrong);
+  const rows = [
+    { label: 'Right', count: correct, color: 'var(--green)' },
+    { label: 'Wrong', count: wrong, color: 'var(--red)' },
+  ];
+  return (
+    <div className="analytics-compare">
+      {rows.map((r) => (
+        <div key={r.label} className="analytics-compare-row">
+          <span className="analytics-compare-label">{r.label}</span>
+          <div className="analytics-compare-track">
+            <div
+              className="analytics-compare-fill"
+              style={{ width: `${(r.count / max) * 100}%`, '--fill-color': r.color }}
+            />
+          </div>
+          <span className="analytics-compare-value">{r.count}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AnalyticsStatCard({ icon, label, value, sub, accent = 'var(--teal)', onClick }) {
   const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag className={onClick ? 'stat-card stat-card-tappable' : 'stat-card'} onClick={onClick}>
-      <div className="stat-card-value">{value}</div>
-      <div className="stat-card-label">{label}</div>
-      {sub && <div className="stat-card-sub">{sub}</div>}
+    <Tag
+      className={onClick ? 'analytics-stat-card analytics-stat-card-tappable' : 'analytics-stat-card'}
+      style={{ '--stat-accent': accent }}
+      onClick={onClick}
+    >
+      <div className="analytics-stat-icon">{icon}</div>
+      <div className="analytics-stat-value">{value}</div>
+      <div className="analytics-stat-label">{label}</div>
+      {sub && <div className="analytics-stat-sub">{sub}</div>}
     </Tag>
   );
 }
@@ -344,17 +408,18 @@ export default function StudentDashboardHome() {
         <div className="panel"><p className="muted">Loading your stats…</p></div>
       ) : (
         <div className="panel">
-          <h2>Exam Overview</h2>
-          <div className="stat-grid">
-            <StatCard label="Questions Available" value={stats.totalQuestionsAvailable} />
-            <StatCard label="Questions Attempted" value={stats.attempted} sub={`${stats.correct} correct · ${stats.wrong} wrong`} />
-            <StatCard label="Unanswered" value={stats.unanswered} sub="left blank across exams & practice" />
-            <StatCard label="Accuracy" value={`${stats.accuracyPct}%`} />
-            <StatCard label="Exams Attempted" value={stats.totalExamsAttempted} sub={`${stats.liveCount} live · ${stats.archivedCount} archived`} />
-            <StatCard label="Average Score" value={`${stats.avgScore}%`} />
-            <StatCard label="Best Score" value={`${stats.best}%`} />
-            <StatCard label="Wrong Questions" value={stats.wrongForRevision} sub="for revision" onClick={() => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } })} />
-            <StatCard label="Bookmarked" value={stats.bookmarked} onClick={() => navigate('/dashboard/bookmarks')} />
+          <h2>Performance Analytics</h2>
+          <AccuracyDonut pct={stats.accuracyPct} correct={stats.correct} wrong={stats.wrong} unanswered={stats.unanswered} />
+          <RightWrongBars correct={stats.correct} wrong={stats.wrong} />
+          <div className="analytics-stat-grid" style={{ marginTop: 18 }}>
+            <AnalyticsStatCard icon={<IconLibrary size={16} />} label="Questions Available" value={stats.totalQuestionsAvailable} accent="var(--teal)" />
+            <AnalyticsStatCard icon={<IconClipboardList size={16} />} label="Questions Attempted" value={stats.attempted} sub={`${stats.correct} correct · ${stats.wrong} wrong`} accent="var(--blue)" />
+            <AnalyticsStatCard icon={<IconTarget size={16} />} label="Exams Attempted" value={stats.totalExamsAttempted} sub={`${stats.liveCount} live · ${stats.archivedCount} archived`} accent="var(--purple)" />
+            <AnalyticsStatCard icon={<IconTrendingUp size={16} />} label="Average Score" value={`${stats.avgScore}%`} accent="var(--gold)" />
+            <AnalyticsStatCard icon={<IconAward size={16} />} label="Best Score" value={`${stats.best}%`} accent="var(--green)" />
+            <AnalyticsStatCard icon={<IconHelpCircle size={16} />} label="Unanswered" value={stats.unanswered} accent="var(--ink-soft)" />
+            <AnalyticsStatCard icon={<IconXCircle size={16} />} label="Wrong Questions" value={stats.wrongForRevision} sub="for revision" accent="var(--red)" onClick={() => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } })} />
+            <AnalyticsStatCard icon={<IconHeart size={16} />} label="Bookmarked" value={stats.bookmarked} accent="var(--gold)" onClick={() => navigate('/dashboard/bookmarks')} />
           </div>
         </div>
       )}

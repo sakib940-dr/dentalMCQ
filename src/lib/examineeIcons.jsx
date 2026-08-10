@@ -6,6 +6,7 @@
 // Moderator/Admin/Super Admin panels keep their existing emoji icons and
 // are untouched by this change.
 import {
+  Award,
   ArrowLeft,
   ArrowRight,
   Bell,
@@ -41,6 +42,7 @@ import {
   Star,
   Stethoscope,
   Target,
+  TrendingUp,
   User,
   Users,
   X,
@@ -57,6 +59,7 @@ function withDefaults(LucideIcon) {
   return ExamineeIcon;
 }
 
+export const IconAward = withDefaults(Award);
 export const IconArrowLeft = withDefaults(ArrowLeft);
 export const IconArrowRight = withDefaults(ArrowRight);
 export const IconBell = withDefaults(Bell);
@@ -92,6 +95,7 @@ export const IconSettings = withDefaults(Settings);
 export const IconStar = withDefaults(Star);
 export const IconStethoscope = withDefaults(Stethoscope);
 export const IconTarget = withDefaults(Target);
+export const IconTrendingUp = withDefaults(TrendingUp);
 export const IconUser = withDefaults(User);
 export const IconUsers = withDefaults(Users);
 export const IconX = withDefaults(X);
