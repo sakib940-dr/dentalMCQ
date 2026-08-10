@@ -1179,6 +1179,177 @@ body {
 
 .random-selector { display: flex; flex-direction: column; gap: 12px; }
 
+/* ---------- Exam Create chooser (4 options) ---------- */
+.exam-create-chooser {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 2px;
+}
+@media (max-width: 480px) {
+  .exam-create-chooser { grid-template-columns: 1fr; }
+}
+.exam-create-option-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+  background: #FAF9F5;
+  border: 1.5px solid var(--card-border);
+  border-radius: 14px;
+  padding: 13px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.exam-create-option-card:hover:not(:disabled) {
+  border-color: var(--teal);
+  transform: translateY(-1px);
+}
+.exam-create-option-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.exam-create-option-icon { font-size: 19px; }
+.exam-create-option-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.exam-create-option-desc {
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+.exam-create-option-badge {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  background: var(--gold);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+/* ---------- Manual / Custom exam create ---------- */
+.exam-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.exam-info-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.exam-info-grid input,
+.exam-info-grid select,
+.exam-info-grid textarea {
+  border: 1.5px solid var(--card-border);
+  border-radius: 9px;
+  padding: 9px 11px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--ink);
+  background: #fff;
+  color-scheme: light;
+}
+.exam-info-full { grid-column: 1 / -1; }
+@media (max-width: 480px) {
+  .exam-info-grid { grid-template-columns: 1fr; }
+}
+
+.section-subtitle.sm { margin: 14px 0 8px; font-size: 14.5px; }
+
+.manual-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.manual-filter-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.manual-filter-grid select {
+  border: 1.5px solid var(--card-border);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--ink);
+  background: #fff;
+  color-scheme: light;
+}
+.manual-filter-grid select:disabled { background: #F5F3EC; color: var(--ink-soft); }
+@media (max-width: 640px) {
+  .manual-filter-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.qsel-scroll {
+  max-height: 46vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 16px;
+}
+.qsel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink);
+  cursor: pointer;
+}
+.qsel-row:hover { background: #FAF9F5; }
+.qsel-row input { flex-shrink: 0; }
+.qsel-row-text {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.qsel-row-tag {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--teal);
+  background: #E4F1EA;
+  padding: 2px 6px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.exam-form-fields-compact { gap: 10px !important; }
+
 .exam-list-row {
   border: 1px solid var(--card-border);
   border-radius: 14px;

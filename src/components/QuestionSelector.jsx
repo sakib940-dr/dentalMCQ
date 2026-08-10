@@ -112,7 +112,7 @@ function ChapterBrowser({ categoryId, selectedIds, onToggle }) {
   );
 }
 
-function RandomSelector({ categoryId, onGenerate }) {
+export function RandomSelector({ categoryId, onGenerate }) {
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [subcategories, setSubcategories] = useState([]);
