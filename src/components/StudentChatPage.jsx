@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtDateTime as fmtTime } from '../lib/formatters';
+import { IconPaperclip } from '../lib/examineeIcons';
 
 
 const MAX_ATTACHMENT_BYTES = 500 * 1024; // 500KB
@@ -153,7 +154,7 @@ export default function StudentChatPage() {
 
       <form className="chat-input-row" onSubmit={send}>
         <label className="chat-attach-btn">
-          📎
+          <IconPaperclip size={18} />
           <input type="file" accept="image/jpeg,image/png" onChange={sendImage} disabled={sending} style={{ display: 'none' }} />
         </label>
         <input

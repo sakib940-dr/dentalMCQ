@@ -24,6 +24,20 @@ import SettingsPage from '../../components/SettingsPage';
 import ReferralPage from '../../components/ReferralPage';
 import { useAppSetting, LockedFeature } from '../../components/FeatureLock';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  IconPackage,
+  IconMegaphone,
+  IconHelpCircle,
+  IconPhone,
+  IconGift,
+  IconSettings,
+  IconMailbox,
+  IconHome,
+  IconClipboardList,
+  IconStethoscope,
+  IconMessageCircle,
+  IconUser,
+} from '../../lib/examineeIcons';
 
 // Lazy-loaded: PrescriptionPage pulls in jsPDF plus a ~600KB embedded
 // Bengali font, both only needed by the (relatively rare) act of
@@ -107,13 +121,13 @@ export default function ExamineeDashboard() {
   // Drawer now holds only secondary/less-used items — Home, Exams,
   // Chamber, Messages, and Profile all moved to the bottom nav bar.
   const navItems = [
-    { to: '/dashboard/package', label: 'Package', icon: '📦', group: 'Account' },
-    { to: '/dashboard/notices', label: 'Notice Board', icon: '📢', group: 'Account' },
-    { to: '/help', label: 'Help', icon: '❓', group: 'Support' },
-    { to: '/dashboard/contact', label: 'Contact', icon: '📞', group: 'Support' },
-    { to: '/dashboard/referral', label: 'Referral', icon: '🎁', group: 'Support' },
-    { to: '/dashboard/settings', label: 'Settings', icon: '⚙️', group: 'Support' },
-    { to: '/dashboard/feedback', label: 'Feedback', icon: '📮', group: 'Support' },
+    { to: '/dashboard/package', label: 'Package', icon: <IconPackage size={16} />, group: 'Account' },
+    { to: '/dashboard/notices', label: 'Notice Board', icon: <IconMegaphone size={16} />, group: 'Account' },
+    { to: '/help', label: 'Help', icon: <IconHelpCircle size={16} />, group: 'Support' },
+    { to: '/dashboard/contact', label: 'Contact', icon: <IconPhone size={16} />, group: 'Support' },
+    { to: '/dashboard/referral', label: 'Referral', icon: <IconGift size={16} />, group: 'Support' },
+    { to: '/dashboard/settings', label: 'Settings', icon: <IconSettings size={16} />, group: 'Support' },
+    { to: '/dashboard/feedback', label: 'Feedback', icon: <IconMailbox size={16} />, group: 'Support' },
   ];
 
   // Primary navigation for students lives in a bottom tab bar (standard
@@ -122,11 +136,11 @@ export default function ExamineeDashboard() {
   // that mode. The full navItems list above still populates the ☰
   // drawer for secondary items.
   const bottomNavItems = [
-    { to: '/dashboard', label: 'Home', icon: '🏠', end: true },
-    { to: '/dashboard/exams', label: 'Exams', icon: '📝' },
-    { to: '/dashboard/chamber', label: 'Chamber', icon: '🏥' },
-    { to: '/dashboard/chat', label: 'Messages', icon: '💬', badge: unreadMessages },
-    { to: '/dashboard/profile', label: 'Profile', icon: '👤' },
+    { to: '/dashboard', label: 'Home', icon: <IconHome size={20} />, end: true },
+    { to: '/dashboard/exams', label: 'Exams', icon: <IconClipboardList size={20} /> },
+    { to: '/dashboard/chamber', label: 'Chamber', icon: <IconStethoscope size={20} /> },
+    { to: '/dashboard/chat', label: 'Messages', icon: <IconMessageCircle size={20} />, badge: unreadMessages },
+    { to: '/dashboard/profile', label: 'Profile', icon: <IconUser size={20} /> },
   ];
 
   return (

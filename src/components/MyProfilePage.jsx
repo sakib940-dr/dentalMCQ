@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { IconUser } from '../lib/examineeIcons';
 
 const MAX_LOGO_BYTES = 200 * 1024; // 200KB
 const MAX_AVATAR_BYTES = 300 * 1024; // 300KB
@@ -58,7 +59,7 @@ function AvatarUploadPanel() {
         {profile?.avatar_url ? (
           <img src={profile.avatar_url} alt="Your avatar" />
         ) : (
-          <span className="avatar-upload-fallback">{profile?.full_name?.[0]?.toUpperCase() || '👤'}</span>
+          <span className="avatar-upload-fallback">{profile?.full_name?.[0]?.toUpperCase() || <IconUser size={22} />}</span>
         )}
       </div>
       <div>

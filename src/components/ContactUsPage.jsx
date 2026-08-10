@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { IconMail, IconPhone, IconMessageCircle, IconLink, IconGlobe } from '../lib/examineeIcons';
 
 const DEFAULT_METHODS = [
-  { id: 'default-email', type: 'email', icon: '✉️', label: 'Email', value: 'dentalmcqbd@gmail.com' },
+  { id: 'default-email', type: 'email', label: 'Email', value: 'dentalmcqbd@gmail.com' },
 ];
+
+// Contact methods are admin-managed data (app_settings.contact_methods), so
+// the icon shown here is derived from the method's fixed `type`, not the
+// raw stored value — keeps the student-facing icon set consistent no
+// matter what the admin panel has saved.
+const TYPE_ICONS = {
+  email: IconMail,
+  phone: IconPhone,
+  whatsapp: IconMessageCircle,
+  facebook: IconGlobe,
+  custom: IconLink,
+};
 
 function hrefFor(method) {
   const v = (method.value || '').trim();
@@ -49,7 +62,12 @@ export default function ContactUsPage() {
               target={m.type === 'whatsapp' || (href && href.startsWith('http')) ? '_blank' : undefined}
               rel={m.type === 'whatsapp' || (href && href.startsWith('http')) ? 'noopener noreferrer' : undefined}
             >
-              <span className="contact-card-icon">{m.icon}</span>
+              <span className="contact-card-icon">
+                {(() => {
+                  const TypeIcon = TYPE_ICONS[m.type] || IconLink;
+                  return <TypeIcon size={24} />;
+                })()}
+              </span>
               <span>
                 <span className="contact-card-label">{m.label}</span>
                 <span className="contact-card-value">{m.value}</span>

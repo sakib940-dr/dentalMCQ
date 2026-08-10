@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
+import { IconHelpCircle, IconMailbox, IconPhone } from '../lib/examineeIcons';
 
 export default function SupportHubPage() {
   const navigate = useNavigate();
 
   const items = [
-    { icon: '❓', label: 'Help Center', sub: 'Step-by-step guides in Bengali', onClick: () => window.open('/help', '_blank') },
-    { icon: '📝', label: 'Feedback', sub: 'Report a bug or suggest a feature', onClick: () => navigate('/dashboard/feedback') },
-    { icon: '📞', label: 'Contact Us', sub: 'Email and Facebook', onClick: () => navigate('/dashboard/contact') },
+    { icon: <IconHelpCircle size={26} />, label: 'Help Center', sub: 'Step-by-step guides in Bengali', onClick: () => window.open('/help', '_blank') },
+    { icon: <IconMailbox size={26} />, label: 'Feedback', sub: 'Report a bug or suggest a feature', onClick: () => navigate('/dashboard/feedback') },
+    { icon: <IconPhone size={26} />, label: 'Contact Us', sub: 'Email and Facebook', onClick: () => navigate('/dashboard/contact') },
   ];
 
   return (

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppSetting, LockedFeature } from './FeatureLock';
 import { PracticeSetup, PracticeSession, findResumablePracticeSession } from './PracticePage';
+import { IconArrowLeft } from '../lib/examineeIcons';
 
 function CategoryProgressCard({ category, onPick }) {
   return (
@@ -144,7 +145,7 @@ export default function QuestionBankPracticePage() {
   if (activeCategory) {
     return (
       <>
-        <button className="btn-secondary" onClick={() => setActiveCategory(null)} style={{ marginBottom: 12 }}>← All categories</button>
+        <button className="btn-secondary" onClick={() => setActiveCategory(null)} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={15} /> All categories</button>
         <PracticeSetup categoryId={activeCategory.id} onPick={setSession} />
       </>
     );

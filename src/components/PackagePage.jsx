@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtDateTime, daysLeft, durationLabel } from '../lib/formatters';
+import { IconCheck, IconX } from '../lib/examineeIcons';
 
 // ---------- My active subscriptions panel — one row per category,
 // each with its own independent expiry, exactly matching the new
@@ -252,9 +253,9 @@ export default function PackagePage() {
 
           <div className="promo-apply-row">
             {appliedPromo ? (
-              <div className="promo-applied-tag">
-                ✓ "{appliedPromo.code}" applied (+{appliedPromo.discount_percent}% off)
-                <button className="promo-remove-btn" onClick={removePromo}>✕</button>
+              <div className="promo-applied-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <IconCheck size={14} /> "{appliedPromo.code}" applied (+{appliedPromo.discount_percent}% off)
+                <button className="promo-remove-btn" onClick={removePromo} style={{ display: 'inline-flex', alignItems: 'center' }}><IconX size={13} /></button>
               </div>
             ) : (
               <>

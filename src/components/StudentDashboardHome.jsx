@@ -4,6 +4,20 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { daysLeft, timeAgo } from '../lib/formatters';
 import { useAppSetting } from './FeatureLock';
+import {
+  IconBookOpen,
+  IconLibrary,
+  IconTarget,
+  IconRotateCcw,
+  IconHeart,
+  IconSearch,
+  IconClipboardList,
+  IconStethoscope,
+  IconMessageCircle,
+  IconCheckCircle,
+  IconXCircle,
+  IconHand,
+} from '../lib/examineeIcons';
 
 // ============================================================
 // Quick actions — the primary "do something" entry points, grouped so
@@ -13,17 +27,17 @@ function QuickActionsGrid() {
   const navigate = useNavigate();
 
   const studyActions = [
-    { icon: '📖', label: 'Question Bank Practice', onClick: () => navigate('/dashboard/question-bank'), featured: true },
-    { icon: '📚', label: 'Question Bank (Study)', onClick: () => navigate('/dashboard/question-bank-study'), featured: true },
-    { icon: '🎯', label: 'Start Mock Exam', onClick: () => navigate('/dashboard/exams') },
-    { icon: '🔁', label: 'Wrong Answer Revision', onClick: () => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } }) },
-    { icon: '❤️', label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks'), featured: true },
-    { icon: '🔍', label: 'Smart Search', onClick: () => navigate('/dashboard/search'), featured: true },
+    { icon: <IconBookOpen size={26} />, label: 'Question Bank Practice', onClick: () => navigate('/dashboard/question-bank'), featured: true },
+    { icon: <IconLibrary size={26} />, label: 'Question Bank (Study)', onClick: () => navigate('/dashboard/question-bank-study'), featured: true },
+    { icon: <IconTarget size={26} />, label: 'Start Mock Exam', onClick: () => navigate('/dashboard/exams') },
+    { icon: <IconRotateCcw size={26} />, label: 'Wrong Answer Revision', onClick: () => navigate('/dashboard/practice-session', { state: { session: { mode: 'wrong' } } }) },
+    { icon: <IconHeart size={26} />, label: 'Bookmarked Questions', onClick: () => navigate('/dashboard/bookmarks'), featured: true },
+    { icon: <IconSearch size={26} />, label: 'Smart Search', onClick: () => navigate('/dashboard/search'), featured: true },
   ];
   const chamberActions = [
-    { icon: '📋', label: 'Prescription Tool', onClick: () => navigate('/dashboard/prescription'), featured: true },
-    { icon: '🏥', label: 'Dental Chamber', onClick: () => navigate('/dashboard/chamber') },
-    { icon: '💬', label: 'Help & Support', onClick: () => navigate('/dashboard/support') },
+    { icon: <IconClipboardList size={26} />, label: 'Prescription Tool', onClick: () => navigate('/dashboard/prescription'), featured: true },
+    { icon: <IconStethoscope size={26} />, label: 'Dental Chamber', onClick: () => navigate('/dashboard/chamber') },
+    { icon: <IconMessageCircle size={26} />, label: 'Help & Support', onClick: () => navigate('/dashboard/support') },
   ];
 
   const renderTiles = (actions) => (
@@ -159,10 +173,10 @@ function UpcomingFeaturesPanel() {
 function QuickStatsRow({ stats }) {
   if (!stats) return null;
   const items = [
-    { icon: '📚', label: 'Questions Attempted', value: stats.attempted },
-    { icon: '✅', label: 'Total Right', value: stats.correct },
-    { icon: '❌', label: 'Total Wrong', value: stats.wrong },
-    { icon: '🎯', label: 'Accuracy', value: `${stats.accuracyPct}%` },
+    { icon: <IconLibrary size={16} />, label: 'Questions Attempted', value: stats.attempted },
+    { icon: <IconCheckCircle size={16} />, label: 'Total Right', value: stats.correct },
+    { icon: <IconXCircle size={16} />, label: 'Total Wrong', value: stats.wrong },
+    { icon: <IconTarget size={16} />, label: 'Accuracy', value: `${stats.accuracyPct}%` },
   ];
   return (
     <div className="quick-stats-row">
@@ -290,14 +304,14 @@ export default function StudentDashboardHome() {
       // ---------- Recent activity: merge official attempts + practice sessions ----------
       const examActivity = attempts.slice(0, 5).map((a) => ({
         key: `exam_${a.id}`,
-        icon: '🎯',
+        icon: <IconTarget size={14} />,
         title: a.exams?.title || 'Exam',
         date: a.submitted_at,
         result: `${a.percentage}%`,
       }));
       const practiceActivity = (practiceSessionsResult.data || []).map((p) => ({
         key: `practice_${p.id}`,
-        icon: '📚',
+        icon: <IconLibrary size={14} />,
         title: 'Practice session',
         date: p.finished_at,
         result: p.total_questions > 0 ? `${p.correct_count}/${p.total_questions} correct` : '—',
@@ -315,7 +329,7 @@ export default function StudentDashboardHome() {
   return (
     <>
       <div className="dash-greeting">
-        <div className="dash-greeting-sub">Welcome back 👋</div>
+        <div className="dash-greeting-sub" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Welcome back <IconHand size={15} /></div>
         <div className="dash-greeting-name">{profile?.full_name || 'Doctor'}</div>
         {motivationalLine && <div className="dash-greeting-motivation">{motivationalLine}</div>}
       </div>
@@ -351,7 +365,7 @@ export default function StudentDashboardHome() {
         <div className="recent-list">
           {recentActivity.map((r) => (
             <div key={r.key} className="recent-row">
-              <span className="recent-name">{r.icon} {r.title}</span>
+              <span className="recent-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{r.icon} {r.title}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="muted small">{timeAgo(r.date)}</span>
                 <span className="status-pill status-live">{r.result}</span>

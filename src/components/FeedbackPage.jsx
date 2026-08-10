@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { IconBug, IconLightbulb, IconMessageCircle, IconStar } from '../lib/examineeIcons';
 
 const TYPES = [
-  { key: 'bug', label: '🐛 Report a Bug', placeholder: 'কী সমস্যা হয়েছে, কোন পেজে, কী করার চেষ্টা করছিলেন...' },
-  { key: 'feature', label: '💡 Suggest a Feature', placeholder: 'কী ফিচার থাকলে ভালো হতো...' },
-  { key: 'general', label: '💬 Share Feedback', placeholder: 'আপনার মতামত লিখুন...' },
+  { key: 'bug', icon: IconBug, label: 'Report a Bug', placeholder: 'কী সমস্যা হয়েছে, কোন পেজে, কী করার চেষ্টা করছিলেন...' },
+  { key: 'feature', icon: IconLightbulb, label: 'Suggest a Feature', placeholder: 'কী ফিচার থাকলে ভালো হতো...' },
+  { key: 'general', icon: IconMessageCircle, label: 'Share Feedback', placeholder: 'আপনার মতামত লিখুন...' },
 ];
 
 function StarRating({ value, onChange }) {
@@ -19,7 +20,7 @@ function StarRating({ value, onChange }) {
           onClick={() => onChange(n)}
           aria-label={`${n} star`}
         >
-          {n <= value ? '★' : '☆'}
+          <IconStar size={20} fill={n <= value ? 'currentColor' : 'none'} />
         </button>
       ))}
     </div>
@@ -71,8 +72,9 @@ export default function FeedbackPage() {
               type="button"
               className={type === t.key ? 'mode-tab mode-tab-active' : 'mode-tab'}
               onClick={() => setType(t.key)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              {t.label}
+              <t.icon size={15} /> {t.label}
             </button>
           ))}
         </div>

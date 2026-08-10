@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtDateTime } from '../lib/formatters';
+import { IconArrowLeft } from '../lib/examineeIcons';
 
 function BookAppointmentForm({ patientId, onBooked }) {
   const { user } = useAuth();
@@ -115,7 +116,7 @@ export default function PatientProfilePage() {
 
   return (
     <>
-      <button className="btn-secondary" onClick={() => navigate('/dashboard/chamber/patients')} style={{ marginBottom: 12 }}>← All patients</button>
+      <button className="btn-secondary" onClick={() => navigate('/dashboard/chamber/patients')} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={15} /> All patients</button>
 
       <div className="panel">
         <h2>{patient.full_name}</h2>

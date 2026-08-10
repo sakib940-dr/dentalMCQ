@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { IconLock } from '../lib/examineeIcons';
 
 export function useAppSetting(key, defaultValue = true) {
   const [value, setValue] = useState(defaultValue);
@@ -25,7 +26,7 @@ export function useAppSetting(key, defaultValue = true) {
 export function LockedFeature() {
   return (
     <div className="panel locked-feature">
-      <div className="locked-feature-icon">🔒</div>
+      <div className="locked-feature-icon" style={{ display: 'flex', justifyContent: 'center' }}><IconLock size={40} /></div>
       <h2>This feature is locked</h2>
       <p className="muted">
         This feature is locked because your subscription is not active.

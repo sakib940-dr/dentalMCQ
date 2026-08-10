@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtDateTime } from '../lib/formatters';
+import { IconClipboardList, IconUsers } from '../lib/examineeIcons';
 
 export default function ChamberHome() {
   const { user } = useAuth();
@@ -49,11 +50,11 @@ export default function ChamberHome() {
         <p className="muted small">Your private patient records — separate from the exam platform's shared data.</p>
         <div className="quick-action-grid" style={{ marginTop: 14 }}>
           <button className="quick-action-tile" onClick={() => navigate('/dashboard/prescription')}>
-            <span className="quick-action-tile-icon">📋</span>
+            <span className="quick-action-tile-icon"><IconClipboardList size={26} /></span>
             <span className="quick-action-tile-label">Smart Prescription</span>
           </button>
           <button className="quick-action-tile" onClick={() => navigate('/dashboard/chamber/patients')}>
-            <span className="quick-action-tile-icon">👥</span>
+            <span className="quick-action-tile-icon"><IconUsers size={26} /></span>
             <span className="quick-action-tile-label">Patient Management</span>
           </button>
         </div>

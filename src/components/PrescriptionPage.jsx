@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { NOTO_SANS_BENGALI_BASE64 } from '../assets/notoSansBengaliBase64';
 import { findOrCreatePatient } from '../lib/patients';
+import { IconX, IconDownload, IconLock, IconArrowRight } from '../lib/examineeIcons';
 
 function emptyMedicine() {
   return { name: '', dose: '', duration: '' };
@@ -57,7 +58,7 @@ function ClinicalSection({ label, lines, onChange, withTooth }) {
               <ToothQuadrantInput value={l.tooth} onChange={(v) => update(i, 'tooth', v)} />
             )}
             {lines.length > 1 && (
-              <button type="button" className="icon-btn-danger" onClick={() => remove(i)} aria-label="Remove">✕</button>
+              <button type="button" className="icon-btn-danger" onClick={() => remove(i)} aria-label="Remove"><IconX size={14} /></button>
             )}
           </div>
         ))}
@@ -113,7 +114,7 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
           <span className="advice-template-text">
             {t.text}{t.tooth_number && <span className="advice-template-tooth"> (#{t.tooth_number})</span>}
           </span>
-          <button type="button" className="icon-btn-danger" onClick={(e) => { e.preventDefault(); removeTemplate(t.id); }} aria-label="Remove">✕</button>
+          <button type="button" className="icon-btn-danger" onClick={(e) => { e.preventDefault(); removeTemplate(t.id); }} aria-label="Remove"><IconX size={14} /></button>
         </label>
       ))}
 
@@ -587,7 +588,7 @@ export default function PrescriptionPage() {
     return (
       <div className="panel">
         <div className="locked-feature">
-          <div className="locked-feature-icon">🔒</div>
+          <div className="locked-feature-icon" style={{ display: 'flex', justifyContent: 'center' }}><IconLock size={40} /></div>
           <h2>This category requires an active subscription.</h2>
           <p className="muted">Unlock the prescription generator with an active subscription.</p>
           <button className="btn-primary" onClick={() => navigate('/dashboard/package')}>View packages</button>
@@ -667,7 +668,7 @@ export default function PrescriptionPage() {
               <input placeholder="Dose (e.g. 1+0+1, 30 min after meal)" value={m.dose} onChange={(e) => updateMedicine(i, 'dose', e.target.value)} />
               <input placeholder="Duration (e.g. 5 days)" value={m.duration} onChange={(e) => updateMedicine(i, 'duration', e.target.value)} />
               {medicines.length > 1 && (
-                <button type="button" className="icon-btn-danger" onClick={() => removeMedicine(i)} aria-label="Remove">✕</button>
+                <button type="button" className="icon-btn-danger" onClick={() => removeMedicine(i)} aria-label="Remove"><IconX size={14} /></button>
               )}
             </div>
           ))}
@@ -688,7 +689,7 @@ export default function PrescriptionPage() {
               className="btn-primary pdf-download-link"
               style={{ alignSelf: 'flex-start', textDecoration: 'none', display: 'inline-block' }}
             >
-              ⬇ Download PDF
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconDownload size={15} /> Download PDF</span>
             </a>
           )}
         </div>
@@ -743,7 +744,7 @@ export default function PrescriptionPage() {
         <div className="panel">
           <div className="panel-head-row">
             <h2>Recent prescriptions</h2>
-            <button className="btn-secondary sm" onClick={() => navigate('/dashboard/chamber/prescriptions')}>Full history & search →</button>
+            <button className="btn-secondary sm" onClick={() => navigate('/dashboard/chamber/prescriptions')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Full history & search <IconArrowRight size={14} /></button>
           </div>
           <div className="recent-list">
             {recent.map((p) => (

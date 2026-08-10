@@ -6,6 +6,7 @@ import ExamRunner from './ExamRunner';
 import PracticePage from './PracticePage';
 import { fmtDateTime } from '../lib/formatters';
 import { loadBookmarkedIds, addBookmark, removeBookmark } from '../lib/bookmarks';
+import { IconArrowLeft, IconHeart, IconCheck, IconLock } from '../lib/examineeIcons';
 
 
 // ============================================================
@@ -117,7 +118,7 @@ function ExamResultView({ exam, onBack }) {
 
   return (
     <div className="answer-sheet-page">
-      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Back</button>
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={15} /> Back</button>
       <div className="panel answer-sheet-summary">
         <h2>{exam.title}</h2>
         <div className="result-stat-row">
@@ -162,7 +163,7 @@ function ExamResultView({ exam, onBack }) {
                     onClick={() => toggleBookmark(q.id)}
                     aria-label={bookmarkedIds.has(q.id) ? 'Remove bookmark' : 'Bookmark this question'}
                   >
-                    {bookmarkedIds.has(q.id) ? '❤️' : '🤍'}
+                    {bookmarkedIds.has(q.id) ? <IconHeart size={16} fill="currentColor" /> : <IconHeart size={16} />}
                   </button>
                 </div>
               </div>
@@ -178,7 +179,7 @@ function ExamResultView({ exam, onBack }) {
                     <div key={letter} className={cls}>
                       <span className="opt-letter">{letter}</span>
                       <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
-                      {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                      {isCorrectOpt && <span className="opt-tag-correct" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconCheck size={13} /> correct</span>}
                       {isChosenWrong && <span className="opt-tag-wrong">your answer</span>}
                     </div>
                   );
@@ -222,7 +223,7 @@ function ExamMeritView({ exam, onBack }) {
 
   return (
     <div className="panel">
-      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Back</button>
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={15} /> Back</button>
       <h2>{exam.title} — Merit List</h2>
       <p className="muted small">{rows.length} student{rows.length !== 1 ? 's' : ''} attempted this exam.</p>
       <div className="merit-table-wrap">
@@ -413,7 +414,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
   if (!hasAccess && tab !== 'schedule') {
     return (
       <div className="panel">
-        <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Categories</button>
+        <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={15} /> Categories</button>
         <h2>{category.name}</h2>
         <div className="mode-tabs">
           <button className={tab === 'schedule' ? 'mode-tab mode-tab-active' : 'mode-tab'} onClick={() => setTab('schedule')}>Exam Schedule</button>
@@ -423,7 +424,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
           <button className="mode-tab" disabled>Practice</button>
         </div>
         <div className="locked-feature">
-          <div className="locked-feature-icon">🔒</div>
+          <div className="locked-feature-icon" style={{ display: 'flex', justifyContent: 'center' }}><IconLock size={40} /></div>
           <h2>This category requires an active subscription.</h2>
           <p className="muted">Claim or purchase a package that includes this category to unlock it.</p>
           <button className="btn-primary" onClick={() => navigate('/dashboard/package')}>View packages</button>
@@ -436,7 +437,7 @@ function CategoryDetail({ category, onBack, onStartLive, onRetakeArchived, onVie
 
   return (
     <div className="panel">
-      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Categories</button>
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={15} /> Categories</button>
       <h2>{category.name}</h2>
 
       <div className="mode-tabs">

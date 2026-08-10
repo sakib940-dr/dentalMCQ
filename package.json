@@ -13,6 +13,7 @@
     "@sentry/react": "^10.66.0",
     "@supabase/supabase-js": "^2.110.2",
     "jspdf": "^4.2.1",
+    "lucide-react": "^1.31.0",
     "papaparse": "^5.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

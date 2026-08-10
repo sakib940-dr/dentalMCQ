@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { getExamFontSize } from '../lib/examFontSize';
+import { IconHeart, IconStar, IconCheck } from '../lib/examineeIcons';
 
 function fmtTime(totalSeconds) {
   const s = Math.max(0, Math.round(totalSeconds));
@@ -30,14 +31,15 @@ const RunnerQuestionCard = memo(function RunnerQuestionCard({
               onClick={() => onToggleBookmark(question.id)}
               aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark this question'}
             >
-              {isBookmarked ? '❤️' : '🤍'}
+              {isBookmarked ? <IconHeart size={16} fill="currentColor" /> : <IconHeart size={16} />}
             </button>
           )}
           <button
             className={isMarked ? 'mark-inline-btn mark-inline-btn-active' : 'mark-inline-btn'}
             onClick={() => onToggleMark(question.id)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
-            ★ {isMarked ? 'Marked' : 'Mark'}
+            <IconStar size={13} fill={isMarked ? 'currentColor' : 'none'} /> {isMarked ? 'Marked' : 'Mark'}
           </button>
         </div>
       </div>
@@ -347,7 +349,7 @@ export default function ExamRunner({
                         onClick={() => onToggleBookmark(q.id)}
                         aria-label={bookmarkedIds?.has(q.id) ? 'Remove bookmark' : 'Bookmark this question'}
                       >
-                        {bookmarkedIds?.has(q.id) ? '❤️' : '🤍'}
+                        {bookmarkedIds?.has(q.id) ? <IconHeart size={16} fill="currentColor" /> : <IconHeart size={16} />}
                       </button>
                     )}
                   </div>
@@ -364,7 +366,7 @@ export default function ExamRunner({
                       <div key={letter} className={cls}>
                         <span className="opt-letter">{letter}</span>
                         <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
-                        {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                        {isCorrectOpt && <span className="opt-tag-correct" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconCheck size={13} /> correct</span>}
                         {isChosenWrong && <span className="opt-tag-wrong">your answer</span>}
                       </div>
                     );

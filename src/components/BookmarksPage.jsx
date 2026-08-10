@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { removeBookmark } from '../lib/bookmarks';
+import { IconHeart, IconCheck, IconBookmark } from '../lib/examineeIcons';
 
 function BookmarkCard({ question, onRemove }) {
   return (
     <div className="panel answer-sheet-card">
       <div className="bookmark-card-head">
-        <button className="icon-btn-danger" onClick={onRemove} aria-label="Remove bookmark">❤️ Remove</button>
+        <button className="icon-btn-danger" onClick={onRemove} aria-label="Remove bookmark" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconHeart size={15} fill="currentColor" /> Remove</button>
       </div>
       <div className="q-text">{question.question_text}</div>
       <div className="opt-list">
@@ -18,7 +19,7 @@ function BookmarkCard({ question, onRemove }) {
             <div key={letter} className={isCorrectOpt ? 'opt-btn opt-static opt-correct' : 'opt-btn opt-static'}>
               <span className="opt-letter">{letter}</span>
               <span className="opt-text">{question[`option_${letter.toLowerCase()}`]}</span>
-              {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+              {isCorrectOpt && <span className="opt-tag-correct" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconCheck size={13} /> correct</span>}
             </div>
           );
         })}
@@ -71,7 +72,7 @@ export default function BookmarksPage() {
         )}
       </div>
       {questions.length === 0 && (
-        <div className="panel"><p className="muted">No bookmarks yet — tap 🔖 Save on any question while practicing or taking an exam.</p></div>
+        <div className="panel"><p className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>No bookmarks yet — tap <IconBookmark size={14} /> Save on any question while practicing or taking an exam.</p></div>
       )}
       <div className="answer-sheet-list">
         {questions.map((q) => (

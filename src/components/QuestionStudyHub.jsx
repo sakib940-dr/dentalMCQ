@@ -5,6 +5,7 @@ import { useAppSetting, LockedFeature } from './FeatureLock';
 import { PracticeSession } from './PracticePage';
 import { loadBookmarkedIds, addBookmark, removeBookmark } from '../lib/bookmarks';
 import { loadReadIds, markRead, markUnread, markManyRead, markManyUnread } from '../lib/readMarks';
+import { IconArrowLeft, IconArrowRight, IconHeart, IconCheck } from '../lib/examineeIcons';
 
 const PAGE_SIZE = 50;
 
@@ -79,7 +80,7 @@ function SubjectStudyCard({ subject, onOpenAllQuestions, onOpenSubtopics, onStar
     <div className="panel study-subject-card">
       <div className="study-subject-header">
         <div className="study-subject-name">{subject.name}</div>
-        <div className="study-subject-hearts">♥ {stats ? stats.hearts : '…'}</div>
+        <div className="study-subject-hearts" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconHeart size={13} fill="currentColor" /> {stats ? stats.hearts : '…'}</div>
       </div>
 
       <div className="study-subject-body">
@@ -127,7 +128,7 @@ function SubtopicList({ subject, onBack, onOpenSubtopic }) {
 
   return (
     <div className="panel">
-      <button className="btn-secondary sm" onClick={onBack} style={{ marginBottom: 10 }}>← {subject.name}</button>
+      <button className="btn-secondary sm" onClick={onBack} style={{ marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={14} /> {subject.name}</button>
       <h2>{subject.name} — Subtopics</h2>
       {subcats === null && <p className="muted small">Loading…</p>}
       {subcats && subcats.length === 0 && <p className="muted small">No subtopics found.</p>}
@@ -214,7 +215,7 @@ function QuestionStudyList({ title, chapterIds, onBack }) {
 
   return (
     <div className="panel">
-      <button className="btn-secondary sm" onClick={onBack} style={{ marginBottom: 10 }}>← ফিরে যান</button>
+      <button className="btn-secondary sm" onClick={onBack} style={{ marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={14} /> ফিরে যান</button>
 
       <div className="study-list-header">
         <h2 style={{ margin: 0 }}>{title}</h2>
@@ -256,7 +257,7 @@ function QuestionStudyList({ title, chapterIds, onBack }) {
                   <div key={letter} className={cls}>
                     <span className="opt-letter">{letter}</span>
                     <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
-                    {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                    {isCorrectOpt && <span className="opt-tag-correct" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconCheck size={13} /> correct</span>}
                   </div>
                 );
               })}
@@ -267,7 +268,7 @@ function QuestionStudyList({ title, chapterIds, onBack }) {
             <div className="study-question-actions">
               <button className="btn-secondary sm" onClick={() => toggleReveal(q.id, 'answer')}>{rev.answer ? 'উত্তর লুকান' : 'উত্তর দেখুন'}</button>
               <button className="btn-secondary sm" onClick={() => toggleReveal(q.id, 'explanation')} disabled={!q.explanation}>ব্যাখ্যা</button>
-              <button className={isBm ? 'btn-secondary sm study-heart-active' : 'btn-secondary sm'} onClick={() => toggleBookmark(q.id)}>{isBm ? '♥' : '♡'}</button>
+              <button className={isBm ? 'btn-secondary sm study-heart-active' : 'btn-secondary sm'} onClick={() => toggleBookmark(q.id)}>{isBm ? <IconHeart size={14} fill="currentColor" /> : <IconHeart size={14} />}</button>
             </div>
           </div>
         );
@@ -276,9 +277,9 @@ function QuestionStudyList({ title, chapterIds, onBack }) {
       {questions && questions.length === 0 && <p className="muted small">কোনো প্রশ্ন পাওয়া যায়নি।</p>}
 
       <div className="study-list-page-control" style={{ marginTop: 14, justifyContent: 'center' }}>
-        <button className="btn-secondary sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← আগের পেজ</button>
+        <button className="btn-secondary sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={14} /> আগের পেজ</button>
         <span className="muted small">Page {page} of {totalPages}</span>
-        <button className="btn-secondary sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>পরের পেজ →</button>
+        <button className="btn-secondary sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>পরের পেজ <IconArrowRight size={14} /></button>
       </div>
     </div>
   );
@@ -346,7 +347,7 @@ export default function QuestionStudyHub() {
   if (activeCategory) {
     return (
       <div>
-        <button className="btn-secondary sm" onClick={() => setActiveCategory(null)} style={{ marginBottom: 12 }}>← সব ক্যাটাগরি</button>
+        <button className="btn-secondary sm" onClick={() => setActiveCategory(null)} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={14} /> সব ক্যাটাগরি</button>
         {subjects === null && <p className="muted small">Loading subjects…</p>}
         {subjects && subjects.length === 0 && <p className="muted small">No subjects found in this category.</p>}
         <div className="study-subject-grid">

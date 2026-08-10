@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { useAppSetting } from './FeatureLock';
+import { IconMessageCircle, IconSend } from '../lib/examineeIcons';
 
 const SHARE_MESSAGE = 'DentalMCQ-এ ফ্রি রেজিস্ট্রেশন করুন — লাইভ এক্সাম, প্র্যাকটিস প্রশ্ন সব একসাথে:';
 
@@ -82,8 +83,8 @@ export default function ReferralPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-        <button className="btn-secondary sm" onClick={shareToWhatsapp}>💬 WhatsApp-এ শেয়ার</button>
-        <button className="btn-secondary sm" onClick={shareToMessenger}>📨 Messenger-এ শেয়ার</button>
+        <button className="btn-secondary sm" onClick={shareToWhatsapp} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconMessageCircle size={15} /> WhatsApp-এ শেয়ার</button>
+        <button className="btn-secondary sm" onClick={shareToMessenger} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconSend size={15} /> Messenger-এ শেয়ার</button>
       </div>
 
       {referrals.length > 0 && (

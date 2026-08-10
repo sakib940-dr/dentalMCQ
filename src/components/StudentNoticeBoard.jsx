@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { IconPin } from '../lib/examineeIcons';
 
 function fmtDateTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -29,7 +30,7 @@ export default function StudentNoticeBoard() {
         {notices?.map((n) => (
           <div key={n.id} className={n.is_pinned ? 'notice-card notice-card-pinned' : 'notice-card'}>
             <div className="notice-card-top">
-              {n.is_pinned && <span className="notice-pin-tag">📌 Pinned</span>}
+              {n.is_pinned && <span className="notice-pin-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconPin size={13} /> Pinned</span>}
               <span className="notice-card-meta">{n.profiles?.full_name || 'Staff'} · {fmtDateTime(n.created_at)}</span>
             </div>
             <div className="notice-card-title">{n.title}</div>

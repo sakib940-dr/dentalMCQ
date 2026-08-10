@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { IconCheck } from '../lib/examineeIcons';
 
 function highlight(text, term) {
   if (!text || !term) return text;
@@ -27,7 +28,7 @@ function ResultCard({ q, term }) {
             <div key={letter} className={isCorrectOpt ? 'opt-btn opt-static opt-correct' : 'opt-btn opt-static'}>
               <span className="opt-letter">{letter}</span>
               <span className="opt-text">{highlight(q[`option_${letter.toLowerCase()}`], term)}</span>
-              {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+              {isCorrectOpt && <span className="opt-tag-correct" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconCheck size={13} /> correct</span>}
             </div>
           );
         })}
