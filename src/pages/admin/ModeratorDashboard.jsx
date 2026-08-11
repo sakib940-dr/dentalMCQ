@@ -10,35 +10,46 @@ import ModeratorOverview from '../../components/ModeratorOverview';
 import ExamSchedulePage from '../../components/ExamSchedulePage';
 import PaymentAdminPage from '../../components/PaymentAdminPage';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  IconLayoutDashboard,
+  IconCalendar,
+  IconHelpCircle,
+  IconFileText,
+  IconMegaphone,
+  IconMessageCircle,
+  IconSettings,
+  IconBookOpen,
+  IconPackage,
+} from '../../lib/adminIcons';
 
 // Moderator (non-admin): unchanged — top quick-bar + ☰ drawer, same as before.
 const moderatorNavItems = [
-  { to: '/moderator', label: 'Dashboard', icon: '📊', end: true, quick: true, group: 'Overview' },
-  { to: '/moderator/schedule', label: 'Exam Schedule', icon: '🗓️', group: 'Content' },
-  { to: '/moderator/questions', label: 'Question Bank', icon: '❓', quick: true, group: 'Content' },
-  { to: '/moderator/exams', label: 'Exams', icon: '📝', group: 'Content' },
-  { to: '/moderator/notices', label: 'Notice Board', icon: '📢', group: 'Communication' },
-  { to: '/moderator/chat', label: 'Messages', icon: '💬', quick: true, group: 'Communication' },
-  { to: '/moderator/settings', label: 'Settings', icon: '⚙️', group: 'System' },
+  { to: '/moderator', label: 'Dashboard', icon: <IconLayoutDashboard size={16} />, end: true, quick: true, group: 'Overview' },
+  { to: '/moderator/schedule', label: 'Exam Schedule', icon: <IconCalendar size={16} />, group: 'Content' },
+  { to: '/moderator/questions', label: 'Question Bank', icon: <IconHelpCircle size={16} />, quick: true, group: 'Content' },
+  { to: '/moderator/exams', label: 'Exams', icon: <IconFileText size={16} />, group: 'Content' },
+  { to: '/moderator/notices', label: 'Notice Board', icon: <IconMegaphone size={16} />, group: 'Communication' },
+  { to: '/moderator/chat', label: 'Messages', icon: <IconMessageCircle size={16} />, quick: true, group: 'Communication' },
+  { to: '/moderator/settings', label: 'Settings', icon: <IconSettings size={16} />, group: 'System' },
 ];
 
 // Admin: primary navigation lives in a 5-tab bottom bar (same pattern
 // DashboardLayout already supports for the Examinee dashboard).
 const adminBottomNavItems = [
-  { to: '/moderator', label: 'Analytics', icon: '📊', end: true },
-  { to: '/moderator/schedule', label: 'Exam Schedule', icon: '🗓️' },
-  { to: '/moderator/exams', label: 'Exam Create', icon: '📝' },
-  { to: '/moderator/questions', label: 'Question Add', icon: '❓' },
-  { to: '/moderator/chat', label: 'Message', icon: '💬' },
+  { to: '/moderator', label: 'Analytics', icon: <IconLayoutDashboard size={20} />, end: true },
+  { to: '/moderator/schedule', label: 'Exam Schedule', icon: <IconCalendar size={20} /> },
+  { to: '/moderator/exams', label: 'Exam Create', icon: <IconFileText size={20} /> },
+  { to: '/moderator/questions', label: 'Question Add', icon: <IconHelpCircle size={20} /> },
+  { to: '/moderator/chat', label: 'Message', icon: <IconMessageCircle size={20} /> },
 ];
 
 // Everything else stays in the ☰ drawer only — the 5 items above are
 // deliberately left out here so they don't appear twice.
 const adminDrawerNavItems = [
-  { to: '/moderator/categories', label: 'Categories', icon: '📚', group: 'Content' },
-  { to: '/moderator/notices', label: 'Notice Board', icon: '📢', group: 'Communication' },
-  { to: '/moderator/payments', label: 'Payments', icon: '📦', group: 'Money' },
-  { to: '/moderator/settings', label: 'Settings', icon: '⚙️', group: 'System' },
+  { to: '/moderator/categories', label: 'Categories', icon: <IconBookOpen size={16} />, group: 'Content' },
+  { to: '/moderator/notices', label: 'Notice Board', icon: <IconMegaphone size={16} />, group: 'Communication' },
+  { to: '/moderator/payments', label: 'Payments', icon: <IconPackage size={16} />, group: 'Money' },
+  { to: '/moderator/settings', label: 'Settings', icon: <IconSettings size={16} />, group: 'System' },
 ];
 
 export default function ModeratorDashboard() {

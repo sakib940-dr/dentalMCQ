@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { IconPencil, IconX } from '../lib/adminIcons';
 
 function fmtScheduleDate(dateStr) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
@@ -155,8 +156,8 @@ export default function ExamSchedulePage() {
                           {e.notes && <div className="muted small">{e.notes}</div>}
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="icon-btn" onClick={() => setEditingId(e.id)} title="Edit">✎</button>
-                          <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove">✕</button>
+                          <button className="icon-btn" onClick={() => setEditingId(e.id)} title="Edit"><IconPencil size={14} /></button>
+                          <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove"><IconX size={14} /></button>
                         </div>
                       </>
                     )}
@@ -179,8 +180,8 @@ export default function ExamSchedulePage() {
                           {e.notes && <div className="muted small">{e.notes}</div>}
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="icon-btn" onClick={() => setEditingId(e.id)} title="Edit">✎</button>
-                          <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove">✕</button>
+                          <button className="icon-btn" onClick={() => setEditingId(e.id)} title="Edit"><IconPencil size={14} /></button>
+                          <button className="icon-btn-danger" onClick={() => removeEntry(e.id)} aria-label="Remove"><IconX size={14} /></button>
                         </div>
                       </>
                     )}

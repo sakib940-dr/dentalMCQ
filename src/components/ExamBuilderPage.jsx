@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { RandomSelector } from './QuestionSelector';
+import { IconTarget, IconDices, IconFileText, IconEdit3 } from '../lib/adminIcons';
 
 function toDateOnly(iso) {
   if (!iso) return '';
@@ -36,24 +37,24 @@ function ExamCreateChooser({ onSelect, onCancel }) {
 
       <div className="exam-create-chooser">
         <button className="exam-create-option-card" onClick={() => onSelect('manual')}>
-          <span className="exam-create-option-icon">🎯</span>
+          <span className="exam-create-option-icon"><IconTarget size={24} /></span>
           <span className="exam-create-option-title">Manual / Custom Question Selection</span>
           <span className="exam-create-option-desc">Hand-pick questions from the existing question bank.</span>
         </button>
         <button className="exam-create-option-card" onClick={() => onSelect('random')}>
-          <span className="exam-create-option-icon">🎲</span>
+          <span className="exam-create-option-icon"><IconDices size={24} /></span>
           <span className="exam-create-option-title">Random Question Selection</span>
           <span className="exam-create-option-desc">Auto-pick by Category / Subject / Chapter.</span>
         </button>
         <button className="exam-create-option-card exam-create-option-disabled" disabled>
           <span className="exam-create-option-badge">Coming soon</span>
-          <span className="exam-create-option-icon">📄</span>
+          <span className="exam-create-option-icon"><IconFileText size={24} /></span>
           <span className="exam-create-option-title">CSV Question Import</span>
           <span className="exam-create-option-desc">Build an exam directly from a CSV file.</span>
         </button>
         <button className="exam-create-option-card exam-create-option-disabled" disabled>
           <span className="exam-create-option-badge">Coming soon</span>
-          <span className="exam-create-option-icon">✍️</span>
+          <span className="exam-create-option-icon"><IconEdit3 size={24} /></span>
           <span className="exam-create-option-title">Manually Type Question & Options</span>
           <span className="exam-create-option-desc">Write brand-new questions straight into the exam.</span>
         </button>

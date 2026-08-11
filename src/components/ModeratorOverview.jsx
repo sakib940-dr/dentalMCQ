@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  IconHelpCircle,
+  IconBookOpen,
+  IconFolderTree,
+  IconFileText,
+  IconTarget,
+  IconArchive,
+  IconAlertTriangle,
+} from '../lib/adminIcons';
 
 function StatCard({ icon, label, value, sub, accent = 'var(--teal)' }) {
   return (
@@ -220,12 +229,12 @@ export default function ModeratorOverview() {
         <p className="muted small">{subheading}</p>
 
         <div className="analytics-stat-grid">
-          <StatCard icon="❓" label="Questions" value={stats.totalQuestions} accent="var(--teal)" />
-          <StatCard icon="📚" label="Subjects" value={stats.totalSubjects} accent="var(--gold)" />
-          <StatCard icon="🗂️" label="Categories" value={stats.totalCategories} accent="var(--blue)" />
-          <StatCard icon="📝" label="Total Exams" value={stats.totalExams} sub={`${stats.live} live · ${stats.upcoming} upcoming`} accent="var(--purple)" />
-          <StatCard icon="🎯" label="Attempts Today" value={stats.attemptsToday} accent="var(--green)" />
-          <StatCard icon="🗄️" label="Archived Exams" value={stats.archived} accent="var(--red)" />
+          <StatCard icon={<IconHelpCircle size={20} />} label="Questions" value={stats.totalQuestions} accent="var(--teal)" />
+          <StatCard icon={<IconBookOpen size={20} />} label="Subjects" value={stats.totalSubjects} accent="var(--gold)" />
+          <StatCard icon={<IconFolderTree size={20} />} label="Categories" value={stats.totalCategories} accent="var(--blue)" />
+          <StatCard icon={<IconFileText size={20} />} label="Total Exams" value={stats.totalExams} sub={`${stats.live} live · ${stats.upcoming} upcoming`} accent="var(--purple)" />
+          <StatCard icon={<IconTarget size={20} />} label="Attempts Today" value={stats.attemptsToday} accent="var(--green)" />
+          <StatCard icon={<IconArchive size={20} />} label="Archived Exams" value={stats.archived} accent="var(--red)" />
         </div>
       </div>
 
@@ -269,7 +278,7 @@ export default function ModeratorOverview() {
           <div className="attention-list">
             {attention.map((a, i) => (
               <div key={i} className="attention-row">
-                <span className="attention-icon">⚠️</span>
+                <span className="attention-icon"><IconAlertTriangle size={16} /></span>
                 <div>
                   <div className="attention-name">{a.name}</div>
                   <div className="muted small">{a.reason}</div>

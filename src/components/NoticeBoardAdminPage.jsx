@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { IconPin } from '../lib/adminIcons';
 
 function fmtDateTime(iso) {
   return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -144,7 +145,7 @@ export default function NoticeBoardAdminPage() {
             ) : (
               <>
                 <div className="notice-card-top">
-                  {n.is_pinned && <span className="notice-pin-tag">📌 Pinned</span>}
+                  {n.is_pinned && <span className="notice-pin-tag" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconPin size={12} /> Pinned</span>}
                   <span className="notice-card-meta">{n.profiles?.full_name || 'Staff'} · {fmtDateTime(n.created_at)}</span>
                 </div>
                 <div className="notice-card-title">{n.title}</div>

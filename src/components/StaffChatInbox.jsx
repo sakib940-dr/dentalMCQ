@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtDateTime as fmtTime } from '../lib/formatters';
+import { IconImage, IconArrowLeft, IconPaperclip } from '../lib/adminIcons';
 
 
 const MAX_ATTACHMENT_BYTES = 500 * 1024; // 500KB
@@ -76,7 +77,7 @@ function ThreadList({ onOpen }) {
                 {t.lastMessage
                   ? (t.lastMessage.body
                       ? t.lastMessage.body.slice(0, 46) + (t.lastMessage.body.length > 46 ? '…' : '')
-                      : '📷 Image')
+                      : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconImage size={13} /> Image</span>)
                   : 'No messages yet'}
               </div>
             </div>
@@ -172,7 +173,7 @@ function ThreadConversation({ thread, onBack }) {
 
   return (
     <div className="panel chat-page">
-      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12 }}>← Inbox</button>
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}><IconArrowLeft size={15} /> Inbox</button>
       <h2>{thread.profiles?.full_name || 'Student'}</h2>
       <p className="muted small">{thread.profiles?.username}</p>
 
@@ -202,7 +203,7 @@ function ThreadConversation({ thread, onBack }) {
 
       <form className="chat-input-row" onSubmit={send}>
         <label className="chat-attach-btn">
-          📎
+          <IconPaperclip size={17} />
           <input type="file" accept="image/jpeg,image/png" onChange={sendImage} disabled={sending} style={{ display: 'none' }} />
         </label>
         <input className="chat-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Reply…" />

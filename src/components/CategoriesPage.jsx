@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { IconPencil, IconX } from '../lib/adminIcons';
 
 function slugify(s) {
   return s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -54,9 +55,9 @@ function TreeRow({ name, active, onSelect, onRename, onDelete }) {
         </button>
       )}
       <div className="tree-row-actions">
-        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setValue(name); setEditing(true); }} title="Rename">✎</button>
+        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setValue(name); setEditing(true); }} title="Rename"><IconPencil size={14} /></button>
         {onDelete && (
-          <button className="icon-btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete">✕</button>
+          <button className="icon-btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete"><IconX size={14} /></button>
         )}
       </div>
     </div>

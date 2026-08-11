@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { fmtDateTime } from '../lib/formatters';
 import { useAuth } from '../contexts/AuthContext';
+import { IconAlertTriangle } from '../lib/adminIcons';
 
 function PromoCodesPanel() {
   const [codes, setCodes] = useState(null);
@@ -352,7 +353,7 @@ function PackageSettings() {
                   </div>
                   {p.package_type !== 'prescription' && (
                     <div className="muted small" style={{ marginTop: 2 }}>
-                      Unlocks: {categoryNamesByPackage[p.id]?.length ? categoryNamesByPackage[p.id].join(', ') : '⚠️ No categories linked yet'}
+                      Unlocks: {categoryNamesByPackage[p.id]?.length ? categoryNamesByPackage[p.id].join(', ') : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconAlertTriangle size={13} /> No categories linked yet</span>}
                     </div>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, Suspense, lazy } from 'react';
 import Papa from 'papaparse';
 import { supabase } from '../lib/supabaseClient';
+import { IconDownload, IconCheck, IconLightbulb } from '../lib/adminIcons';
 
 const CsvQuestionImporter = lazy(() => import('./CsvQuestionImporter'));
 
@@ -242,12 +243,12 @@ function QuestionList({ chapterId, refreshKey }) {
                   <div key={letter} className={isCorrectOpt ? 'opt-btn opt-static opt-correct' : 'opt-btn opt-static'}>
                     <span className="opt-letter">{letter}</span>
                     <span className="opt-text">{q[`option_${letter.toLowerCase()}`]}</span>
-                    {isCorrectOpt && <span className="opt-tag-correct">✓ correct</span>}
+                    {isCorrectOpt && <span className="opt-tag-correct" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><IconCheck size={13} /> correct</span>}
                   </div>
                 );
               })}
             </div>
-            {q.explanation && <div className="q-row-explanation">💡 {q.explanation}</div>}
+            {q.explanation && <div className="q-row-explanation" style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}><IconLightbulb size={15} style={{ flexShrink: 0, marginTop: 2 }} /> <span>{q.explanation}</span></div>}
           </div>
         </div>
       ))}
@@ -336,8 +337,8 @@ export default function QuestionBankPage() {
     <div className="panel">
       <div className="panel-head-row">
         <h2>Question Bank</h2>
-        <button className="btn-secondary sm" onClick={() => exportFullQuestionBank(setExporting)} disabled={exporting}>
-          {exporting ? 'Exporting…' : '⬇ Backup entire bank'}
+        <button className="btn-secondary sm" onClick={() => exportFullQuestionBank(setExporting)} disabled={exporting} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {exporting ? 'Exporting…' : <><IconDownload size={14} /> Backup entire bank</>}
         </button>
       </div>
       <HierarchyPicker value={hierarchy} onChange={setHierarchy} />

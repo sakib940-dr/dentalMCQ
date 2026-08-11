@@ -2,6 +2,15 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  IconBell,
+  IconCheckCircle,
+  IconAlertTriangle,
+  IconCreditCard,
+  IconMessageCircle,
+  IconFileText,
+  IconClock,
+} from '../lib/adminIcons';
 
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -15,12 +24,12 @@ function timeAgo(iso) {
 }
 
 const ICONS = {
-  payment_approved: '✅',
-  payment_rejected: '⚠️',
-  payment_pending: '💳',
-  chat_message: '💬',
-  exam_published: '📝',
-  expiry_warning: '⏰',
+  payment_approved: <IconCheckCircle size={16} />,
+  payment_rejected: <IconAlertTriangle size={16} />,
+  payment_pending: <IconCreditCard size={16} />,
+  chat_message: <IconMessageCircle size={16} />,
+  exam_published: <IconFileText size={16} />,
+  expiry_warning: <IconClock size={16} />,
 };
 
 export default function NotificationBell() {
@@ -79,7 +88,7 @@ export default function NotificationBell() {
   return (
     <div className="notif-bell-root" ref={rootRef}>
       <button className="notif-bell-btn" onClick={() => setOpen((o) => !o)} aria-label="Notifications">
-        🔔
+        <IconBell size={19} />
         {unreadCount > 0 && <span className="notif-bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
@@ -93,7 +102,7 @@ export default function NotificationBell() {
             {notifications.length === 0 && <div className="notif-empty">No notifications yet.</div>}
             {notifications.map((n) => (
               <button key={n.id} className={n.is_read ? 'notif-row' : 'notif-row notif-row-unread'} onClick={() => handleClick(n)}>
-                <span className="notif-row-icon">{ICONS[n.type] || '🔔'}</span>
+                <span className="notif-row-icon">{ICONS[n.type] || <IconBell size={16} />}</span>
                 <span className="notif-row-body">
                   <span className="notif-row-title">{n.title}</span>
                   {n.body && <span className="notif-row-text">{n.body}</span>}
