@@ -8,9 +8,11 @@
 // CategoriesPage, ExamBuilderPage, ExamSchedulePage, NoticeBoardAdminPage,
 // StaffChatInbox, PaymentAdminPage, NotificationBell).
 import {
+  Activity,
   AlertTriangle,
   Archive,
   ArrowLeft,
+  BarChart3,
   Bell,
   BookOpen,
   Calendar,
@@ -33,9 +35,14 @@ import {
   Paperclip,
   Pencil,
   Pin,
+  PieChart,
   Settings,
+  Sparkles,
   Target,
+  TrendingUp,
+  Users,
   X,
+  XCircle,
 } from 'lucide-react';
 
 const DEFAULT_SIZE = 18;
@@ -48,9 +55,11 @@ function withDefaults(LucideIcon) {
   return AdminIcon;
 }
 
+export const IconActivity = withDefaults(Activity);
 export const IconAlertTriangle = withDefaults(AlertTriangle);
 export const IconArchive = withDefaults(Archive);
 export const IconArrowLeft = withDefaults(ArrowLeft);
+export const IconBarChart3 = withDefaults(BarChart3);
 export const IconBell = withDefaults(Bell);
 export const IconBookOpen = withDefaults(BookOpen);
 export const IconCalendar = withDefaults(Calendar);
@@ -72,7 +81,12 @@ export const IconMessageCircle = withDefaults(MessageCircle);
 export const IconPackage = withDefaults(Package);
 export const IconPaperclip = withDefaults(Paperclip);
 export const IconPencil = withDefaults(Pencil);
+export const IconPieChart = withDefaults(PieChart);
 export const IconPin = withDefaults(Pin);
 export const IconSettings = withDefaults(Settings);
+export const IconSparkles = withDefaults(Sparkles);
 export const IconTarget = withDefaults(Target);
+export const IconTrendingUp = withDefaults(TrendingUp);
+export const IconUsers = withDefaults(Users);
 export const IconX = withDefaults(X);
+export const IconXCircle = withDefaults(XCircle);

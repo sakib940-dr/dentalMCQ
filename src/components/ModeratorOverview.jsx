@@ -3,13 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import {
+  AdminAnalyticsHeader,
+  WeeklyBarPanel,
+  AreaLineChartPanel,
+  PaymentOverviewPanel,
+  SubjectQuestionsPanel,
+  NeedsAttentionPanel,
+  lastNDays,
+  bucketCountByDay,
+  bucketUniqueCountByDay,
+} from './AdminAnalyticsWidgets';
+import {
   IconHelpCircle,
   IconBookOpen,
   IconFolderTree,
   IconFileText,
   IconTarget,
   IconArchive,
-  IconAlertTriangle,
+  IconUsers,
+  IconCreditCard,
+  IconActivity,
+  IconPieChart,
 } from '../lib/adminIcons';
 
 function StatCard({ icon, label, value, sub, accent = 'var(--teal)' }) {
@@ -23,67 +37,6 @@ function StatCard({ icon, label, value, sub, accent = 'var(--teal)' }) {
   );
 }
 
-function BarChart({ data, color = 'var(--teal)', colorDeep = 'var(--teal-deep)' }) {
-  const max = Math.max(1, ...data.map((d) => d.count));
-  return (
-    <div className="analytics-bar-chart">
-      {data.map((d, i) => (
-        <div key={i} className="analytics-bar-col">
-          <div className="analytics-bar-wrap">
-            <div
-              className="analytics-bar"
-              style={{ height: `${(d.count / max) * 100}%`, '--bar-color': color, '--bar-color-deep': colorDeep }}
-            />
-          </div>
-          <div className="analytics-bar-value">{d.count}</div>
-          <div className="analytics-bar-label">{d.label}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CompareBars({ rows }) {
-  const max = Math.max(1, ...rows.map((r) => r.count));
-  return (
-    <div className="analytics-compare">
-      {rows.map((r) => (
-        <div key={r.label} className="analytics-compare-row">
-          <span className="analytics-compare-label">{r.label}</span>
-          <div className="analytics-compare-track">
-            <div
-              className="analytics-compare-fill"
-              style={{ width: `${(r.count / max) * 100}%`, '--fill-color': r.color }}
-            />
-          </div>
-          <span className="analytics-compare-value">{r.count}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Buckets a list of rows (each with a date field) into the last N
-// calendar days, oldest first — used by every chart below so they all
-// read the same week the same way.
-function lastNDays(n) {
-  const days = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d);
-  }
-  return days;
-}
-
-function bucketByDay(rows, dateField, days) {
-  return days.map((d) => {
-    const label = d.toLocaleDateString('en-GB', { weekday: 'short' });
-    const count = rows.filter((r) => r[dateField] && new Date(r[dateField]).toDateString() === d.toDateString()).length;
-    return { label, count };
-  });
-}
-
 export default function ModeratorOverview() {
   const navigate = useNavigate();
   const { profile } = useAuth();
@@ -92,9 +45,10 @@ export default function ModeratorOverview() {
   const [recentAttempts, setRecentAttempts] = useState([]);
   const [attention, setAttention] = useState([]);
   const [registrationChart, setRegistrationChart] = useState([]);
+  const [paymentCounts, setPaymentCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
   const [participationChart, setParticipationChart] = useState([]);
-  const [qbWeeklyChart, setQbWeeklyChart] = useState([]);
-  const [practiceComparison, setPracticeComparison] = useState([]);
+  const [practiceUsersChart, setPracticeUsersChart] = useState([]);
+  const [subjectDistribution, setSubjectDistribution] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,9 +65,16 @@ export default function ModeratorOverview() {
         { count: attemptsToday },
         attemptsResult,
         subjectsResult,
-        { data: recentSignups },
-        { data: recentAttemptRows },
-        { data: recentPracticeSessions },
+        { data: weekAttemptRows },
+        { data: weekPracticeSessions },
+        // Weekly Registration & Payment Overview are Admin-only sections
+        // (moderators don't have a Payments page/route) — skip the
+        // queries entirely for plain moderators instead of fetching data
+        // that will never render.
+        signupsResult,
+        pendingResult,
+        approvedResult,
+        rejectedResult,
       ] = await Promise.all([
         supabase.from('questions').select('id', { count: 'exact', head: true }),
         supabase.from('subjects').select('id', { count: 'exact', head: true }),
@@ -122,15 +83,15 @@ export default function ModeratorOverview() {
         supabase.from('exam_attempts').select('id', { count: 'exact', head: true }).gte('started_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
         supabase.from('exam_attempts').select('*, profiles(full_name), exams(title)').eq('status', 'submitted').order('submitted_at', { ascending: false }).limit(5),
         supabase.from('subjects').select('id, name, category_id'),
-        // Existing data only — same "profiles.created_at" signal already
-        // used by the Super Admin overview's sign-up chart.
-        supabase.from('profiles').select('created_at').gte('created_at', weekStartIso),
         // Live/official exam participation — exam_attempts never contains
         // practice sessions (those live in practice_sessions instead).
         supabase.from('exam_attempts').select('started_at').gte('started_at', weekStartIso),
-        // Question Bank practice has source_exam_id = null; retaking an
-        // archived exam sets source_exam_id, per the existing app convention.
-        supabase.from('practice_sessions').select('finished_at, source_exam_id').gte('finished_at', weekStartIso),
+        // Question Bank + Archive Exam practice, deduped to unique users per day below.
+        supabase.from('practice_sessions').select('finished_at, examinee_id').gte('finished_at', weekStartIso),
+        isAdmin ? supabase.from('profiles').select('created_at').gte('created_at', weekStartIso) : Promise.resolve({ data: [] }),
+        isAdmin ? supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'pending') : Promise.resolve({ count: 0 }),
+        isAdmin ? supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'approved') : Promise.resolve({ count: 0 }),
+        isAdmin ? supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'rejected') : Promise.resolve({ count: 0 }),
       ]);
 
       if (cancelled) return;
@@ -152,23 +113,21 @@ export default function ModeratorOverview() {
         totalExams: (examStatusRows || []).length,
         live, upcoming, archived,
         attemptsToday: attemptsToday || 0,
+        pendingClaims: pendingResult.count || 0,
       });
       setRecentAttempts(attemptsResult.data || []);
 
-      setRegistrationChart(bucketByDay(recentSignups || [], 'created_at', days));
-      setParticipationChart(bucketByDay(recentAttemptRows || [], 'started_at', days));
-
-      const qbSessions = (recentPracticeSessions || []).filter((s) => !s.source_exam_id);
-      const archiveSessions = (recentPracticeSessions || []).filter((s) => s.source_exam_id);
-      setQbWeeklyChart(bucketByDay(qbSessions, 'finished_at', days));
-      setPracticeComparison([
-        { label: 'Question Bank', count: qbSessions.length, color: 'var(--teal)' },
-        { label: 'Archive Exam', count: archiveSessions.length, color: 'var(--gold)' },
-      ]);
+      if (isAdmin) {
+        setRegistrationChart(bucketCountByDay(signupsResult.data, 'created_at', days));
+        setPaymentCounts({ pending: pendingResult.count || 0, approved: approvedResult.count || 0, rejected: rejectedResult.count || 0 });
+      }
+      setParticipationChart(bucketCountByDay(weekAttemptRows, 'started_at', days));
+      setPracticeUsersChart(bucketUniqueCountByDay(weekPracticeSessions, 'finished_at', 'examinee_id', days));
 
       // Same bulk-query rewrite as SuperAdminOverview — avoids up to 90
-      // sequential round-trips for up to 30 subjects.
-      const subjectsToCheck = (subjectsResult.data || []).slice(0, 30);
+      // sequential round-trips for up to 30 subjects. Also reused for the
+      // Subject-wise Question Count donut.
+      const subjectsToCheck = (subjectsResult.data || []).slice(0, 60);
       const subjectIds = subjectsToCheck.map((s) => s.id);
 
       const { data: allSubcats } = subjectIds.length
@@ -195,72 +154,100 @@ export default function ModeratorOverview() {
         if (subjId) questionCountBySubject.set(subjId, (questionCountBySubject.get(subjId) || 0) + 1);
       });
 
-      const subjectAttention = [];
-      for (const s of subjectsToCheck) {
+      const distribution = subjectsToCheck
+        .map((s) => ({ id: s.id, name: s.name, count: questionCountBySubject.get(s.id) || 0 }))
+        .filter((s) => s.count > 0)
+        .sort((a, b) => b.count - a.count);
+      if (cancelled) return;
+      setSubjectDistribution(distribution);
+
+      // ---------- Needs attention: only real, currently-true conditions ----------
+      const attentionItems = [];
+      if (isAdmin && (pendingResult.count || 0) > 0) {
+        attentionItems.push({
+          name: 'Pending payments',
+          reason: `${pendingResult.count} payment claim${pendingResult.count === 1 ? '' : 's'} awaiting review`,
+          onClick: () => navigate('/moderator/payments'),
+        });
+      }
+      subjectsToCheck.forEach((s) => {
         const hasAnySubcat = (allSubcats || []).some((sc) => sc.subject_id === s.id);
         if (!hasAnySubcat) {
-          subjectAttention.push({ name: s.name, reason: 'No chapters set up yet' });
-          continue;
+          attentionItems.push({ name: s.name, reason: 'No chapters set up yet' });
+          return;
         }
         const count = questionCountBySubject.get(s.id) || 0;
         if (count < 5) {
-          subjectAttention.push({ name: s.name, reason: `Only ${count} question${count === 1 ? '' : 's'}` });
+          attentionItems.push({ name: s.name, reason: `Only ${count} question${count === 1 ? '' : 's'}` });
         }
-      }
+      });
       if (cancelled) return;
-      setAttention(subjectAttention.slice(0, 5));
+      setAttention(attentionItems.slice(0, 6));
     }
 
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [isAdmin, navigate]);
 
   if (!stats) return <div className="panel"><p className="muted">Loading overview…</p></div>;
 
-  const heading = isAdmin ? 'Analytics' : 'Moderator Overview';
+  const heading = isAdmin ? 'Admin Analytics' : 'Moderator Overview';
   const subheading = isAdmin
-    ? 'A live snapshot of platform activity — exams, question bank & practice trends.'
+    ? 'Platform activity at a glance'
     : 'A snapshot of the question bank and exams you help manage.';
 
   return (
     <>
-      <div className="panel">
-        <h2>{heading}</h2>
-        <p className="muted small">{subheading}</p>
+      <AdminAnalyticsHeader title={heading} subtitle={subheading} />
 
+      <div className="panel">
         <div className="analytics-stat-grid">
-          <StatCard icon={<IconHelpCircle size={20} />} label="Questions" value={stats.totalQuestions} accent="var(--teal)" />
-          <StatCard icon={<IconBookOpen size={20} />} label="Subjects" value={stats.totalSubjects} accent="var(--gold)" />
-          <StatCard icon={<IconFolderTree size={20} />} label="Categories" value={stats.totalCategories} accent="var(--blue)" />
-          <StatCard icon={<IconFileText size={20} />} label="Total Exams" value={stats.totalExams} sub={`${stats.live} live · ${stats.upcoming} upcoming`} accent="var(--purple)" />
-          <StatCard icon={<IconTarget size={20} />} label="Attempts Today" value={stats.attemptsToday} accent="var(--green)" />
-          <StatCard icon={<IconArchive size={20} />} label="Archived Exams" value={stats.archived} accent="var(--red)" />
+          <StatCard icon={<IconHelpCircle size={18} />} label="Questions" value={stats.totalQuestions} accent="var(--teal)" />
+          <StatCard icon={<IconBookOpen size={18} />} label="Subjects" value={stats.totalSubjects} accent="var(--gold)" />
+          <StatCard icon={<IconFolderTree size={18} />} label="Categories" value={stats.totalCategories} accent="var(--blue)" />
+          <StatCard icon={<IconFileText size={18} />} label="Total Exams" value={stats.totalExams} sub={`${stats.live} live · ${stats.upcoming} upcoming`} accent="var(--purple)" />
+          <StatCard icon={<IconTarget size={18} />} label="Attempts Today" value={stats.attemptsToday} accent="var(--green)" />
+          <StatCard icon={<IconArchive size={18} />} label="Archived Exams" value={stats.archived} accent="var(--red)" />
         </div>
       </div>
 
-      <div className="panel analytics-chart-panel">
-        <h2>Weekly Registration</h2>
-        <p className="muted small analytics-chart-sub">New sign-ups over the last 7 days.</p>
-        <BarChart data={registrationChart} color="var(--blue)" colorDeep="var(--teal-deep)" />
-      </div>
+      {/* Weekly Registration — Admin only, absent for plain moderators */}
+      {isAdmin && (
+        <WeeklyBarPanel
+          icon={<IconUsers size={17} />}
+          title="Weekly Registration"
+          subtitle="New sign-ups over the last 7 days"
+          data={registrationChart}
+          color="var(--blue)"
+          colorDeep="#1F4E75"
+          emptyLabel="No new sign-ups this week."
+        />
+      )}
 
-      <div className="panel analytics-chart-panel">
-        <h2>Live Exam Participation</h2>
-        <p className="muted small analytics-chart-sub">Official exam attempts over the last 7 days.</p>
-        <BarChart data={participationChart} color="var(--teal)" colorDeep="var(--teal-deep)" />
-      </div>
+      {/* Payment Overview — Admin only, absent for plain moderators */}
+      {isAdmin && <PaymentOverviewPanel icon={<IconCreditCard size={17} />} {...paymentCounts} />}
 
-      <div className="panel analytics-chart-panel">
-        <h2>Question Bank vs Archive Exam Practice</h2>
-        <p className="muted small analytics-chart-sub">Practice sessions in the last 7 days, by type.</p>
-        <CompareBars rows={practiceComparison} />
-      </div>
+      <AreaLineChartPanel
+        icon={<IconActivity size={17} />}
+        title="Live Exam Participation"
+        subtitle="Official exam attempts per day — last 7 days"
+        days={participationChart}
+        color="var(--teal)"
+        gradientId="moderatorParticipationGrad"
+        emptyLabel="No exam attempts yet this week."
+      />
 
-      <div className="panel analytics-chart-panel">
-        <h2>Weekly Question Bank Practice</h2>
-        <p className="muted small analytics-chart-sub">Question Bank practice sessions over the last 7 days.</p>
-        <BarChart data={qbWeeklyChart} color="var(--gold)" colorDeep="#8A6A2E" />
-      </div>
+      <WeeklyBarPanel
+        icon={<IconBookOpen size={17} />}
+        title="Unique Practice Users"
+        subtitle="Distinct users who practiced each day — last 7 days"
+        data={practiceUsersChart}
+        color="var(--gold)"
+        colorDeep="#8A6A2E"
+        emptyLabel="No practice activity yet this week."
+      />
+
+      <SubjectQuestionsPanel icon={<IconPieChart size={17} />} subjects={subjectDistribution} />
 
       <div className="panel">
         <h2>Quick actions</h2>
@@ -272,22 +259,7 @@ export default function ModeratorOverview() {
         </div>
       </div>
 
-      {attention.length > 0 && (
-        <div className="panel">
-          <h2>Needs attention</h2>
-          <div className="attention-list">
-            {attention.map((a, i) => (
-              <div key={i} className="attention-row">
-                <span className="attention-icon"><IconAlertTriangle size={16} /></span>
-                <div>
-                  <div className="attention-name">{a.name}</div>
-                  <div className="muted small">{a.reason}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <NeedsAttentionPanel items={attention} />
 
       <div className="panel">
         <h2>Recent exam submissions</h2>

@@ -2527,8 +2527,20 @@ body {
   border-radius: 10px;
   padding: 10px 12px;
 }
-.attention-icon { font-size: 15px; flex-shrink: 0; }
+.attention-icon { font-size: 15px; flex-shrink: 0; display: flex; align-items: center; color: var(--gold); }
 .attention-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.attention-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  background: #EEF6F1;
+  border: 1px solid var(--green);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--green);
+}
+.attention-empty-title { font-size: 13.5px; font-weight: 700; color: var(--ink); }
 
 .mini-chart {
   display: flex;
@@ -3179,6 +3191,19 @@ body {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
+}
+
+/* ---------- Admin/Moderator: multi-segment donut (Payment Overview) ---------- */
+.multi-donut {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(15, 61, 62, 0.10);
 }
 
 /* ---------- 4. Subject-wise distribution (2-col donut grid) ---------- */
