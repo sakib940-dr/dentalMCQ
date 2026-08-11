@@ -22,19 +22,9 @@ import {
   IconPackage,
 } from '../../lib/adminIcons';
 
-// Moderator (non-admin): unchanged — top quick-bar + ☰ drawer, same as before.
-const moderatorNavItems = [
-  { to: '/moderator', label: 'Dashboard', icon: <IconLayoutDashboard size={16} />, end: true, quick: true, group: 'Overview' },
-  { to: '/moderator/schedule', label: 'Exam Schedule', icon: <IconCalendar size={16} />, group: 'Content' },
-  { to: '/moderator/questions', label: 'Question Bank', icon: <IconHelpCircle size={16} />, quick: true, group: 'Content' },
-  { to: '/moderator/exams', label: 'Exams', icon: <IconFileText size={16} />, group: 'Content' },
-  { to: '/moderator/notices', label: 'Notice Board', icon: <IconMegaphone size={16} />, group: 'Communication' },
-  { to: '/moderator/chat', label: 'Messages', icon: <IconMessageCircle size={16} />, quick: true, group: 'Communication' },
-  { to: '/moderator/settings', label: 'Settings', icon: <IconSettings size={16} />, group: 'System' },
-];
-
-// Admin: primary navigation lives in a 5-tab bottom bar (same pattern
-// DashboardLayout already supports for the Examinee dashboard).
+// Admin (role: admin, viewed at /moderator): primary navigation lives
+// in a 5-tab bottom bar (same pattern DashboardLayout already supports
+// for the Examinee dashboard).
 const adminBottomNavItems = [
   { to: '/moderator', label: 'Analytics', icon: <IconLayoutDashboard size={20} />, end: true },
   { to: '/moderator/schedule', label: 'Exam Schedule', icon: <IconCalendar size={20} /> },
@@ -52,6 +42,24 @@ const adminDrawerNavItems = [
   { to: '/moderator/settings', label: 'Settings', icon: <IconSettings size={16} />, group: 'System' },
 ];
 
+// Moderator (plain, non-admin): same 5-tab bottom bar pattern as
+// Admin, but with Message swapped out for Notice — moderators use the
+// Notice Board more than staff chat day-to-day.
+const moderatorBottomNavItems = [
+  { to: '/moderator', label: 'Analytics', icon: <IconLayoutDashboard size={20} />, end: true },
+  { to: '/moderator/schedule', label: 'Exam Schedule', icon: <IconCalendar size={20} /> },
+  { to: '/moderator/exams', label: 'Exam Create', icon: <IconFileText size={20} /> },
+  { to: '/moderator/questions', label: 'Question Add', icon: <IconHelpCircle size={20} /> },
+  { to: '/moderator/notices', label: 'Notice', icon: <IconMegaphone size={20} /> },
+];
+
+// Everything not already in the bottom bar — Messages moves here so it
+// isn't duplicated in both places.
+const moderatorDrawerNavItems = [
+  { to: '/moderator/chat', label: 'Messages', icon: <IconMessageCircle size={16} />, group: 'Communication' },
+  { to: '/moderator/settings', label: 'Settings', icon: <IconSettings size={16} />, group: 'System' },
+];
+
 export default function ModeratorDashboard() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
@@ -60,10 +68,10 @@ export default function ModeratorDashboard() {
   return (
     <DashboardLayout
       title={title}
-      navItems={isAdmin ? adminDrawerNavItems : moderatorNavItems}
-      bottomNavItems={isAdmin ? adminBottomNavItems : undefined}
+      navItems={isAdmin ? adminDrawerNavItems : moderatorDrawerNavItems}
+      bottomNavItems={isAdmin ? adminBottomNavItems : moderatorBottomNavItems}
       showPackageInfo={false}
-      appVersion={isAdmin ? 'v1.0' : undefined}
+      appVersion="v1.0"
     >
       <Routes>
         <Route index element={<ModeratorOverview />} />

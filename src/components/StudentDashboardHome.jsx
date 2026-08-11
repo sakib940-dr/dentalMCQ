@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { timeAgo } from '../lib/formatters';
-import { useAppSetting } from './FeatureLock';
 import {
   IconActivity,
   IconAward,
@@ -13,7 +12,6 @@ import {
   IconBookmark,
   IconCalendar,
   IconClipboardList,
-  IconHand,
   IconHeart,
   IconLibrary,
   IconMessageCircle,
@@ -33,28 +31,21 @@ import {
 const ACCENTS = ['teal', 'blue', 'purple', 'gold', 'green', 'red'];
 
 // ============================================================
-// 1. Welcome + date — greeting (existing profile name + motivational
-// line, unchanged data) with a compact, non-interactive "today" chip.
+// 1. Compact date header — replaces the old large "Welcome back /
+// Name" banner. Just the day name + full date, minimal vertical
+// space. The user's identity still shows on the Profile page; this
+// is dashboard-only real estate we're reclaiming.
 // ============================================================
-function WelcomeDateHeader({ name, motivationalLine }) {
+function CompactDateHeader() {
   const today = new Date();
   const weekday = today.toLocaleDateString('en-GB', { weekday: 'long' });
-  const dateLabel = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const dateLabel = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className="home-welcome">
-      <div className="home-welcome-text">
-        <div className="home-welcome-greet">Welcome back <IconHand size={15} /></div>
-        <div className="home-welcome-name">{name}</div>
-        {motivationalLine && <div className="home-welcome-sub">{motivationalLine}</div>}
-      </div>
-      <div className="home-date-chip">
-        <IconCalendar size={17} />
-        <div className="home-date-chip-text">
-          <span className="home-date-chip-day">{weekday}</span>
-          <span className="home-date-chip-date">{dateLabel}</span>
-        </div>
-      </div>
+    <div className="home-date-compact">
+      <IconCalendar size={15} />
+      <span className="home-date-compact-day">{weekday}</span>
+      <span className="home-date-compact-date">{dateLabel}</span>
     </div>
   );
 }
@@ -386,9 +377,8 @@ function dayKey(d) {
 }
 
 export default function StudentDashboardHome() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const { value: motivationalLine } = useAppSetting('dashboard_motivational_line', 'Every question you solve today is one step closer to the merit list.');
   const [stats, setStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
 
@@ -578,7 +568,7 @@ export default function StudentDashboardHome() {
 
   return (
     <>
-      <WelcomeDateHeader name={profile?.full_name || 'Doctor'} motivationalLine={motivationalLine} />
+      <CompactDateHeader />
 
       <QuickActionsRail />
 

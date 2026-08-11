@@ -9,11 +9,7 @@
 // Every chart here is fed real rows already fetched by the caller from
 // Supabase; nothing in this file invents or fabricates data.
 import { useState } from 'react';
-import {
-  IconAlertTriangle,
-  IconCalendar,
-  IconCheckCircle,
-} from '../lib/adminIcons';
+import { IconCalendar } from '../lib/adminIcons';
 
 // ---------- Day-bucket helpers (shared by both overview pages) ----------
 
@@ -50,6 +46,68 @@ export function bucketUniqueCountByDay(rows, dateField, idField, days) {
     );
     return { label, count: ids.size };
   });
+}
+
+// ============================================================
+// Shared data fetchers — both the Admin (SuperAdminOverview) and
+// Moderator (ModeratorOverview) dashboards call these EXACT functions
+// so the two pages can never drift into two different calculations
+// for the same metric. If the same date range is selected, Admin and
+// Moderator will always show identical numbers because they're running
+// the identical query.
+// ============================================================
+
+// Payment claims by status (pending / approved / rejected), all-time.
+// Feeds the "Payment Overview" donut — Admin only.
+export async function fetchPaymentCounts(supabase) {
+  const [{ count: pending }, { count: approved }, { count: rejected }] = await Promise.all([
+    supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
+    supabase.from('payment_claims').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
+  ]);
+  return { pending: pending || 0, approved: approved || 0, rejected: rejected || 0 };
+}
+
+// Subject-wise question counts. Walks subjects -> subcategories ->
+// chapters -> questions with 3 bulk queries (no per-subject loop, and
+// no artificial slice/limit on the subject list), and returns EVERY
+// subject — including ones with 0 active questions — so the reported
+// subject count always matches the real number of rows in `subjects`.
+// (Previously, subjects with 0 questions were filtered out of the
+// result, which is why the dashboard under-reported 8 of the real 12
+// subjects.)
+export async function fetchSubjectDistribution(supabase) {
+  const { data: subjects } = await supabase.from('subjects').select('id, name, category_id');
+  const subjectList = subjects || [];
+  const subjectIds = subjectList.map((s) => s.id);
+
+  const { data: allSubcats } = subjectIds.length
+    ? await supabase.from('subcategories').select('id, subject_id').in('subject_id', subjectIds)
+    : { data: [] };
+  const subcatToSubject = new Map((allSubcats || []).map((sc) => [sc.id, sc.subject_id]));
+  const subcatIds = (allSubcats || []).map((sc) => sc.id);
+
+  const { data: allChapters } = subcatIds.length
+    ? await supabase.from('chapters').select('id, subcategory_id').in('subcategory_id', subcatIds)
+    : { data: [] };
+  const chapterToSubject = new Map((allChapters || []).map((ch) => [ch.id, subcatToSubject.get(ch.subcategory_id)]));
+  const allChapterIds = (allChapters || []).map((ch) => ch.id);
+
+  const { data: allQuestions } = allChapterIds.length
+    ? await supabase.from('questions').select('chapter_id').in('chapter_id', allChapterIds).eq('is_active', true)
+    : { data: [] };
+
+  const questionCountBySubject = new Map();
+  (allQuestions || []).forEach((q) => {
+    const subjId = chapterToSubject.get(q.chapter_id);
+    if (subjId) questionCountBySubject.set(subjId, (questionCountBySubject.get(subjId) || 0) + 1);
+  });
+
+  const distribution = subjectList
+    .map((s) => ({ id: s.id, name: s.name, count: questionCountBySubject.get(s.id) || 0 }))
+    .sort((a, b) => b.count - a.count);
+
+  return distribution;
 }
 
 // ============================================================
@@ -261,41 +319,6 @@ export function SubjectQuestionsPanel({ subjects, icon, visibleCount = 6 }) {
         <button className="btn-secondary sm" style={{ marginTop: 12 }} onClick={() => setExpanded((v) => !v)}>
           {expanded ? 'Show less' : `View All (${list.length})`}
         </button>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-// 7. Needs Attention — only ever renders real, currently-true
-// database conditions. Shows a clean "all caught up" empty state
-// instead of any placeholder/fake warning.
-// ============================================================
-export function NeedsAttentionPanel({ items }) {
-  const list = items || [];
-  return (
-    <div className="panel">
-      <h2>Needs attention</h2>
-      {list.length === 0 ? (
-        <div className="attention-empty">
-          <IconCheckCircle size={20} />
-          <div>
-            <div className="attention-empty-title">All caught up</div>
-            <div className="muted small">No pending actions require your attention.</div>
-          </div>
-        </div>
-      ) : (
-        <div className="attention-list">
-          {list.map((a, i) => (
-            <div key={i} className="attention-row" onClick={a.onClick} style={a.onClick ? { cursor: 'pointer' } : undefined}>
-              <span className="attention-icon"><IconAlertTriangle size={16} /></span>
-              <div>
-                <div className="attention-name">{a.name}</div>
-                <div className="muted small">{a.reason}</div>
-              </div>
-            </div>
-          ))}
-        </div>
       )}
     </div>
   );

@@ -3041,6 +3041,33 @@ body {
   .home-date-chip { align-self: flex-start; }
 }
 
+/* ---------- 1b. Compact date header (Examinee dashboard) ----------
+   Replaces the old large "Welcome back / Name" banner with a single
+   slim row — just the day name + full date. Deliberately no card
+   background/border/shadow so it takes almost no vertical space. */
+.home-date-compact {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 4px 2px 14px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.home-date-compact svg { color: var(--teal); flex-shrink: 0; }
+.home-date-compact-day {
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.home-date-compact-date {
+  font-weight: 500;
+}
+.home-date-compact-date::before {
+  content: '·';
+  margin-right: 7px;
+  color: var(--card-border);
+}
+
+
 /* ---------- 2. Quick actions rail (slim horizontal cards) ---------- */
 .qa-rail {
   display: flex;
