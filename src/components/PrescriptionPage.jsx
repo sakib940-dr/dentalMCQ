@@ -320,15 +320,291 @@ export default function PrescriptionPage() {
   const buildPdf = async () => {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-    // Register the Bengali font (used only for Advice text, which is the
-    // one field allowed to contain Bangla script). Everything else stays
-    // in the default Helvetica.
+    // Keep the font registered in jsPDF as well. The browser canvas below uses
+    // the same Noto Sans Bengali file so Bengali gets proper complex-script shaping.
     doc.addFileToVFS('NotoSansBengali.ttf', NOTO_SANS_BENGALI_BASE64);
     doc.addFont('NotoSansBengali.ttf', 'NotoBengali', 'normal');
+
+    // Load the exact same Bengali font into the browser's font engine.
+    // Canvas text uses the browser shaping engine (GSUB/GPOS), which jsPDF's
+    // direct TTF text path does not reliably apply for Bengali conjuncts/kar/fola.
+    const BENGALI_CANVAS_FONT = 'DentalMCQNotoBengali';
+    if (typeof FontFace === 'undefined' || typeof document === 'undefined' || !document.fonts) {
+      throw new Error('This browser does not support the FontFace API required for Bengali PDF rendering.');
+    }
+
+    if (!document.fonts.check(`16px \"${BENGALI_CANVAS_FONT}\"`)) {
+      const bengaliFace = new FontFace(
+        BENGALI_CANVAS_FONT,
+        `url(data:font/ttf;base64,${NOTO_SANS_BENGALI_BASE64}) format('truetype')`,
+        { style: 'normal', weight: '400' }
+      );
+      const loadedFace = await bengaliFace.load();
+      document.fonts.add(loadedFace);
+    }
+    await document.fonts.load(`16px "${BENGALI_CANVAS_FONT}"`);
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
+
+    // ---------- Unicode/mixed-script PDF text helpers ----------
+    const hasBangla = (value) => /[\u0980-\u09FF]/.test(String(value ?? ''));
+    const isBanglaChar = (ch) => /[\u0980-\u09FF]/.test(ch);
+    const isJoiner = (ch) => ch === '\u200C' || ch === '\u200D';
+
+    const splitScriptRuns = (value) => {
+      const chars = Array.from(String(value ?? ''));
+      if (chars.length === 0) return [];
+
+      const runs = [];
+      let currentText = '';
+      let currentBangla = false;
+
+      for (let i = 0; i < chars.length; i += 1) {
+        const ch = chars[i];
+        const prevIsBangla = i > 0 && isBanglaChar(chars[i - 1]);
+        const nextIsBangla = i + 1 < chars.length && isBanglaChar(chars[i + 1]);
+        const bangla = isBanglaChar(ch) || (isJoiner(ch) && (prevIsBangla || nextIsBangla));
+
+        if (!currentText) {
+          currentText = ch;
+          currentBangla = bangla;
+        } else if (bangla === currentBangla) {
+          currentText += ch;
+        } else {
+          runs.push({ text: currentText, bangla: currentBangla });
+          currentText = ch;
+          currentBangla = bangla;
+        }
+      }
+
+      if (currentText) runs.push({ text: currentText, bangla: currentBangla });
+      return runs;
+    };
+
+    const getCanvasColor = () => {
+      const color = typeof doc.getTextColor === 'function' ? doc.getTextColor() : '#000000';
+      return typeof color === 'string' ? color : '#000000';
+    };
+
+    const measureBanglaRun = (text, fontSizePt) => {
+      const scale = 4;
+      const pxPerPt = 96 / 72;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.font = `${fontSizePt * pxPerPt * scale}px "${BENGALI_CANVAS_FONT}"`;
+      const metrics = ctx.measureText(text);
+      return metrics.width / scale / (96 / 25.4);
+    };
+
+    const measureMixedText = (text, fontStyle, fontSizePt) => {
+      const originalFont = doc.getFont();
+      const originalSize = doc.getFontSize();
+      let width = 0;
+
+      splitScriptRuns(text).forEach((run) => {
+        if (run.bangla) {
+          width += measureBanglaRun(run.text, fontSizePt);
+        } else {
+          doc.setFont('helvetica', fontStyle);
+          doc.setFontSize(fontSizePt);
+          width += doc.getTextWidth(run.text);
+        }
+      });
+
+      doc.setFont(originalFont.fontName, originalFont.fontStyle);
+      doc.setFontSize(originalSize);
+      return width;
+    };
+
+    const getGraphemes = (text) => {
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        return Array.from(new Intl.Segmenter('bn', { granularity: 'grapheme' }).segment(text), (x) => x.segment);
+      }
+      return Array.from(text);
+    };
+
+    const breakLongToken = (token, maxWidth, fontStyle, fontSizePt) => {
+      const graphemes = getGraphemes(token);
+      const parts = [];
+      let current = '';
+
+      graphemes.forEach((g) => {
+        const candidate = current + g;
+        if (current && measureMixedText(candidate, fontStyle, fontSizePt) > maxWidth) {
+          parts.push(current);
+          current = g;
+        } else {
+          current = candidate;
+        }
+      });
+
+      if (current) parts.push(current);
+      return parts;
+    };
+
+    const wrapMixedText = (value, maxWidth, fontStyle, fontSizePt) => {
+      const paragraphs = String(value ?? '').split(/\r?\n/);
+      const lines = [];
+
+      paragraphs.forEach((paragraph) => {
+        if (!maxWidth) {
+          lines.push(paragraph);
+          return;
+        }
+
+        if (paragraph === '') {
+          lines.push('');
+          return;
+        }
+
+        const tokens = paragraph.split(/(\s+)/).filter((token) => token !== '');
+        let line = '';
+
+        const pushLine = () => {
+          if (line !== '') lines.push(line.replace(/\s+$/u, ''));
+          line = '';
+        };
+
+        tokens.forEach((token) => {
+          const tokenIsWhitespace = /^\s+$/u.test(token);
+          if (tokenIsWhitespace && line === '') return;
+
+          const candidate = line + token;
+          if (measureMixedText(candidate, fontStyle, fontSizePt) <= maxWidth) {
+            line = candidate;
+            return;
+          }
+
+          if (line.trim() !== '') pushLine();
+          if (tokenIsWhitespace) return;
+
+          if (measureMixedText(token, fontStyle, fontSizePt) <= maxWidth) {
+            line = token;
+            return;
+          }
+
+          const pieces = breakLongToken(token, maxWidth, fontStyle, fontSizePt);
+          pieces.forEach((piece, index) => {
+            if (index < pieces.length - 1) lines.push(piece);
+            else line = piece;
+          });
+        });
+
+        if (line !== '') pushLine();
+      });
+
+      return lines.length ? lines : [''];
+    };
+
+    const drawBanglaRun = (text, x, baselineY, fontSizePt) => {
+      if (!text) return 0;
+
+      const scale = 4;
+      const pxPerPt = 96 / 72;
+      const pxPerMm = 96 / 25.4;
+      const fontPx = fontSizePt * pxPerPt * scale;
+      const padding = 2 * scale;
+
+      const measureCanvas = document.createElement('canvas');
+      const measureCtx = measureCanvas.getContext('2d');
+      measureCtx.font = `${fontPx}px "${BENGALI_CANVAS_FONT}"`;
+      const measured = measureCtx.measureText(text);
+
+      const ascent = Math.ceil(measured.actualBoundingBoxAscent || fontPx * 0.9);
+      const descent = Math.ceil(measured.actualBoundingBoxDescent || fontPx * 0.3);
+      const textWidthPx = Math.max(1, Math.ceil(measured.width));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = textWidthPx + padding * 2;
+      canvas.height = Math.max(1, ascent + descent + padding * 2);
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `${fontPx}px "${BENGALI_CANVAS_FONT}"`;
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = getCanvasColor();
+      ctx.fillText(text, padding, padding + ascent);
+
+      const visibleWidthMm = measured.width / scale / pxPerMm;
+      const imageWidthMm = canvas.width / scale / pxPerMm;
+      const imageHeightMm = canvas.height / scale / pxPerMm;
+      const padMm = padding / scale / pxPerMm;
+      const baselineFromTopMm = (padding + ascent) / scale / pxPerMm;
+
+      doc.addImage(
+        canvas.toDataURL('image/png'),
+        'PNG',
+        x - padMm,
+        baselineY - baselineFromTopMm,
+        imageWidthMm,
+        imageHeightMm,
+        undefined,
+        'FAST'
+      );
+
+      return visibleWidthMm;
+    };
+
+    const writeMixedLine = (text, x, y, { fontStyle = 'normal', align = 'left', fontSizePt }) => {
+      const lineWidth = measureMixedText(text, fontStyle, fontSizePt);
+      let cursorX = x;
+      if (align === 'right') cursorX = x - lineWidth;
+      else if (align === 'center') cursorX = x - lineWidth / 2;
+
+      splitScriptRuns(text).forEach((run) => {
+        if (run.bangla) {
+          cursorX += drawBanglaRun(run.text, cursorX, y, fontSizePt);
+        } else if (run.text) {
+          doc.setFont('helvetica', fontStyle);
+          doc.setFontSize(fontSizePt);
+          doc.text(run.text, cursorX, y, { align: 'left' });
+          cursorX += doc.getTextWidth(run.text);
+        }
+      });
+    };
+
+    const writeText = (
+      docInstance,
+      value,
+      x,
+      y,
+      { fontStyle = 'normal', maxWidth = null, align = 'left' } = {}
+    ) => {
+      const text = String(value ?? '');
+      const fontSizePt = docInstance.getFontSize();
+      const previousFont = docInstance.getFont();
+      const previousSize = docInstance.getFontSize();
+
+      // Exact old jsPDF path for English/numeric-only text.
+      // This preserves Helvetica metrics, variants, wrapping and alignment exactly.
+      if (!hasBangla(text)) {
+        docInstance.setFont('helvetica', fontStyle);
+        const output = maxWidth ? docInstance.splitTextToSize(text, maxWidth) : text;
+        docInstance.text(output, x, y, { align });
+        const lineCount = Array.isArray(output) ? output.length : String(output).split(/\r?\n/).length;
+        docInstance.setFont(previousFont.fontName, previousFont.fontStyle);
+        docInstance.setFontSize(previousSize);
+        return { lines: Array.isArray(output) ? output : [output], lineCount };
+      }
+
+      // Bengali/mixed text: keep English as Helvetica, but render Bengali runs
+      // through browser canvas so conjuncts, vowel signs and reordering are shaped correctly.
+      const lines = maxWidth
+        ? wrapMixedText(text, maxWidth, fontStyle, fontSizePt)
+        : text.split(/\r?\n/);
+
+      const lineHeightMm = (fontSizePt * (docInstance.getLineHeightFactor?.() || 1.15)) / docInstance.internal.scaleFactor;
+
+      lines.forEach((line, index) => {
+        writeMixedLine(line, x, y + index * lineHeightMm, { fontStyle, align, fontSizePt });
+      });
+
+      docInstance.setFont(previousFont.fontName, previousFont.fontStyle);
+      docInstance.setFontSize(previousSize);
+      return { lines, lineCount: lines.length };
+    };
 
     // ---------- Watermark: the doctor's uploaded logo, large, centered,
     // and very faint, sitting behind everything else on the page. Drawn
@@ -337,7 +613,7 @@ export default function PrescriptionPage() {
       const logoDataUrl = await fetchImageAsDataUrl(profile.prescription_logo_url);
       if (logoDataUrl) {
         try {
-          const wmSize = pageWidth * 0.65; // large, but leaves margin
+          const wmSize = pageWidth * 0.65;
           const wmX = (pageWidth - wmSize) / 2;
           const wmY = (pageHeight - wmSize) / 2;
           doc.saveGraphicsState();
@@ -345,17 +621,16 @@ export default function PrescriptionPage() {
           doc.addImage(logoDataUrl, 'PNG', wmX, wmY, wmSize, wmSize, undefined, 'FAST');
           doc.restoreGraphicsState();
         } catch {
-          // A malformed/corrupt logo should never block the prescription
-          // itself from generating — just skip the watermark silently.
+          // skip malformed logo
         }
       }
     }
 
     // ---------- Fixed A4 band layout ----------
-    const bandHeaderH = pageHeight * 0.12;   // Doctor + Chamber details
-    const bandPatientH = pageHeight * 0.06;  // Patient details bar
-    const bandFooterH = pageHeight * 0.04;   // Disclaimer footer
-    const bandMainH = pageHeight - bandHeaderH - bandPatientH - bandFooterH; // Clinical + Rx/Advice
+    const bandHeaderH = pageHeight * 0.12;
+    const bandPatientH = pageHeight * 0.06;
+    const bandFooterH = pageHeight * 0.04;
+    const bandMainH = pageHeight - bandHeaderH - bandPatientH - bandFooterH;
 
     const headerTop = 0;
     const patientTop = bandHeaderH;
@@ -367,45 +642,73 @@ export default function PrescriptionPage() {
     doc.rect(0, headerTop, pageWidth, bandHeaderH, 'F');
 
     doc.setTextColor(30, 30, 30);
-    doc.setFont('helvetica', 'bold');
     doc.setFontSize(15);
     let y = headerTop + 10;
-    doc.text(`DR. ${(profile?.full_name || '').toUpperCase()}`, margin, y);
+    writeText(doc, `DR. ${(profile?.full_name || '').toUpperCase()}`, margin, y, { fontStyle: 'bold' });
 
     doc.setFontSize(10);
     let leftY = y + 6;
-    if (profile?.designation) { doc.setFont('helvetica', 'bold'); doc.text(profile.designation, margin, leftY); doc.setFont('helvetica', 'normal'); leftY += 4.5; }
-    if (profile?.degrees) { doc.text(profile.degrees, margin, leftY); leftY += 4.5; }
-    if (profile?.medical_college) { doc.text(profile.medical_college, margin, leftY); leftY += 4.5; }
-    if (profile?.bmdc_number) { doc.text(`BMDC Reg No- ${profile.bmdc_number}`, margin, leftY); leftY += 4.5; }
+    if (profile?.designation) {
+      writeText(doc, profile.designation, margin, leftY, { fontStyle: 'bold' });
+      leftY += 4.5;
+    }
+    if (profile?.degrees) {
+      writeText(doc, profile.degrees, margin, leftY, { fontStyle: 'normal' });
+      leftY += 4.5;
+    }
+    if (profile?.medical_college) {
+      writeText(doc, profile.medical_college, margin, leftY, { fontStyle: 'normal' });
+      leftY += 4.5;
+    }
+    if (profile?.bmdc_number) {
+      writeText(doc, `BMDC Reg No- ${profile.bmdc_number}`, margin, leftY, { fontStyle: 'normal' });
+      leftY += 4.5;
+    }
 
     let rightY = y - 4;
-    doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('Chamber', pageWidth - margin, rightY, { align: 'right' }); rightY += 5.5;
-    doc.setFont('helvetica', 'normal');
+    writeText(doc, 'Chamber', pageWidth - margin, rightY, { fontStyle: 'bold', align: 'right' });
+    rightY += 5.5;
     doc.setFontSize(10);
-    if (profile?.chamber_name) { doc.text(profile.chamber_name, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
-    if (profile?.chamber_address) { doc.text(profile.chamber_address, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
-    if (profile?.chamber_mobile) { doc.text(`Mobile: ${profile.chamber_mobile}`, pageWidth - margin, rightY, { align: 'right' }); rightY += 4.5; }
+    if (profile?.chamber_name) {
+      writeText(doc, profile.chamber_name, pageWidth - margin, rightY, { fontStyle: 'normal', align: 'right' });
+      rightY += 4.5;
+    }
+    if (profile?.chamber_address) {
+      writeText(doc, profile.chamber_address, pageWidth - margin, rightY, { fontStyle: 'normal', align: 'right' });
+      rightY += 4.5;
+    }
+    if (profile?.chamber_mobile) {
+      writeText(doc, `Mobile: ${profile.chamber_mobile}`, pageWidth - margin, rightY, { fontStyle: 'normal', align: 'right' });
+      rightY += 4.5;
+    }
     if (profile?.visit_time || profile?.day_off) {
-      const line = [profile?.visit_time && `Visit: ${profile.visit_time}`, profile?.day_off && `${profile.day_off} Off`].filter(Boolean).join('  ·  ');
-      doc.text(line, pageWidth - margin, rightY, { align: 'right' });
+      const line = [
+        profile?.visit_time && `Visit: ${profile.visit_time}`,
+        profile?.day_off && `${profile.day_off} Off`,
+      ].filter(Boolean).join('  ·  ');
+      writeText(doc, line, pageWidth - margin, rightY, { fontStyle: 'normal', align: 'right' });
     }
     doc.setTextColor(20, 20, 20);
 
     // ---------- Band 2: Patient details bar ----------
     y = patientTop + 8;
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Name: ${patientName || '—'}`, margin, y);
-    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - margin, y, { align: 'right' });
+    writeText(doc, `Name: ${patientName || '—'}`, margin, y, { fontStyle: 'bold' });
+    writeText(doc, `Date: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - margin, y, {
+      fontStyle: 'bold',
+      align: 'right',
+    });
     y += 6;
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
-    const patientLine2 = [patientAge && `Age: ${patientAge}`, patientAddress && `Address: ${patientAddress}`].filter(Boolean).join('     ');
-    if (patientLine2) doc.text(patientLine2, margin, y);
-    if (patientMobile) doc.text(`Mobile: ${patientMobile}`, pageWidth - margin, y, { align: 'right' });
+    const patientLine2 = [
+      patientAge && `Age: ${patientAge}`,
+      patientAddress && `Address: ${patientAddress}`,
+    ].filter(Boolean).join('     ');
+    if (patientLine2) writeText(doc, patientLine2, margin, y, { fontStyle: 'normal' });
+    if (patientMobile) {
+      writeText(doc, `Mobile: ${patientMobile}`, pageWidth - margin, y, { fontStyle: 'normal', align: 'right' });
+    }
 
     doc.setDrawColor(80, 80, 80);
     doc.setLineWidth(0.5);
@@ -427,37 +730,38 @@ export default function PrescriptionPage() {
       doc.setLineWidth(0.3);
       doc.line(x - armLen, yCenter, x + armLen, yCenter);
       doc.line(x, yCenter - armLen, x, yCenter + armLen);
-      doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(20, 20, 20);
-      if (tooth.ul) doc.text(String(tooth.ul), x - armLen - 1, yCenter - 1.2, { align: 'right' });
-      if (tooth.ur) doc.text(String(tooth.ur), x + armLen + 1, yCenter - 1.2, { align: 'left' });
-      if (tooth.ll) doc.text(String(tooth.ll), x - armLen - 1, yCenter + 4, { align: 'right' });
-      if (tooth.lr) doc.text(String(tooth.lr), x + armLen + 1, yCenter + 4, { align: 'left' });
+      if (tooth.ul) writeText(doc, String(tooth.ul), x - armLen - 1, yCenter - 1.2, { fontStyle: 'normal', align: 'right' });
+      if (tooth.ur) writeText(doc, String(tooth.ur), x + armLen + 1, yCenter - 1.2, { fontStyle: 'normal', align: 'left' });
+      if (tooth.ll) writeText(doc, String(tooth.ll), x - armLen - 1, yCenter + 4, { fontStyle: 'normal', align: 'right' });
+      if (tooth.lr) writeText(doc, String(tooth.lr), x + armLen + 1, yCenter + 4, { fontStyle: 'normal', align: 'left' });
     };
 
     const writeClinicalSection = (label, lines, startY, tooth) => {
       const items = filteredLines(lines);
       if (items.length === 0) return startY;
       let cy = startY;
-      doc.setFont('helvetica', 'bold');
       doc.setFontSize(10.5);
       doc.setTextColor(15, 61, 62);
-      doc.text(label.toUpperCase(), leftColX, cy);
+      writeText(doc, label.toUpperCase(), leftColX, cy, { fontStyle: 'bold' });
       doc.setTextColor(20, 20, 20);
       cy += 5.5;
       doc.setFontSize(10);
       const colWidth = dividerX - leftColX - 6;
+
       items.forEach((l) => {
         const hasToothGraphic = tooth && l.tooth && (l.tooth.ur || l.tooth.ul || l.tooth.lr || l.tooth.ll);
         const textMaxWidth = colWidth - (hasToothGraphic ? 16 : 0);
-        doc.setFont('helvetica', 'normal');
-        const wrapped = doc.splitTextToSize(l.text, textMaxWidth);
         const lineStartY = cy;
-        doc.text(wrapped, leftColX + 3, cy);
+        const { lineCount } = writeText(doc, l.text, leftColX + 3, cy, {
+          fontStyle: 'normal',
+          maxWidth: textMaxWidth,
+        });
         if (hasToothGraphic) drawToothQuadrant(leftColX + 3 + textMaxWidth + 10, lineStartY - 1, l.tooth);
-        cy += Math.max(wrapped.length * 5, hasToothGraphic ? 9 : 0);
+        cy += Math.max(lineCount * 5, hasToothGraphic ? 9 : 0);
       });
+
       return cy + 4;
     };
 
@@ -473,44 +777,47 @@ export default function PrescriptionPage() {
     doc.line(dividerX, mainTop, dividerX, footerTop - 4);
 
     // Right column: Rx (large, bold italic) → medicines → Advice below
-    doc.setFont('helvetica', 'bolditalic');
     doc.setFontSize(20);
     doc.setTextColor(15, 61, 62);
-    doc.text('Rx.', rightColX, rxY);
+    writeText(doc, 'Rx.', rightColX, rxY, { fontStyle: 'bolditalic' });
     doc.setTextColor(20, 20, 20);
     rxY += 10;
 
     filteredMedicines(medicines).forEach((m, i) => {
-      doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      const nameLines = doc.splitTextToSize(`${i + 1}. ${m.name}`, pageWidth - rightColX - margin);
-      doc.text(nameLines, rightColX, rxY);
-      rxY += nameLines.length * 5.2;
-      doc.setFont('helvetica', 'normal');
+      const nameResult = writeText(doc, `${i + 1}. ${m.name}`, rightColX, rxY, {
+        fontStyle: 'bold',
+        maxWidth: pageWidth - rightColX - margin,
+      });
+      rxY += nameResult.lineCount * 5.2;
+
       doc.setFontSize(9.5);
       const details = [m.dose, m.duration].filter(Boolean).join('   ——   ');
       if (details) {
-        const detailLines = doc.splitTextToSize(details, pageWidth - rightColX - margin - 4);
-        doc.text(detailLines, rightColX + 4, rxY);
-        rxY += detailLines.length * 4.6;
+        const detailResult = writeText(doc, details, rightColX + 4, rxY, {
+          fontStyle: 'normal',
+          maxWidth: pageWidth - rightColX - margin - 4,
+        });
+        rxY += detailResult.lineCount * 4.6;
       }
       rxY += 3.5;
     });
 
     if (selectedAdvice.length > 0) {
       rxY += 6;
-      doc.setFont('helvetica', 'bolditalic');
       doc.setFontSize(13);
       doc.setTextColor(15, 61, 62);
-      doc.text('Advice', rightColX, rxY);
+      writeText(doc, 'Advice', rightColX, rxY, { fontStyle: 'bolditalic' });
       doc.setTextColor(20, 20, 20);
       rxY += 6.5;
       doc.setFontSize(10);
+
       selectedAdvice.forEach((a, i) => {
-        doc.setFont('NotoBengali', 'normal');
-        const wrapped = doc.splitTextToSize(`${i + 1}. ${a.text}`, pageWidth - rightColX - margin - 4);
-        doc.text(wrapped, rightColX + 4, rxY);
-        rxY += wrapped.length * 5;
+        const adviceResult = writeText(doc, `${i + 1}. ${a.text}`, rightColX + 4, rxY, {
+          fontStyle: 'normal',
+          maxWidth: pageWidth - rightColX - margin - 4,
+        });
+        rxY += adviceResult.lineCount * 5;
       });
     }
 
@@ -518,10 +825,9 @@ export default function PrescriptionPage() {
     doc.setDrawColor(80, 80, 80);
     doc.setLineWidth(0.4);
     doc.line(margin, footerTop, pageWidth - margin, footerTop);
-    doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
     doc.setTextColor(90, 90, 90);
-    doc.text(footerText, pageWidth / 2, footerTop + 7, { align: 'center' });
+    writeText(doc, footerText, pageWidth / 2, footerTop + 7, { fontStyle: 'italic', align: 'center' });
 
     return doc;
   };
