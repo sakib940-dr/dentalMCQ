@@ -4797,3 +4797,117 @@ textarea:focus-visible,
     max-height: 190px;
   }
 }
+
+/* ---------- Medicine autocomplete + compact prescription row ---------- */
+.prescription-med-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(95px, 0.8fr) minmax(130px, 1fr) minmax(95px, 0.8fr) auto;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: start;
+}
+.prescription-med-row input,
+.prescription-med-row select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1.5px solid var(--card-border);
+  border-radius: 8px;
+  padding: 8px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+.medicine-autocomplete {
+  position: relative;
+  min-width: 0;
+}
+.medicine-autocomplete .medicine-name-input {
+  width: 100%;
+}
+.medicine-suggestion-popover {
+  position: absolute;
+  z-index: 90;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 270px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: 9px;
+  box-shadow: 0 12px 30px rgba(15, 61, 62, 0.16);
+  padding: 4px;
+}
+.medicine-suggestion-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  padding: 8px 9px;
+  border-radius: 7px;
+  font: inherit;
+  cursor: pointer;
+}
+.medicine-suggestion-item:hover,
+.medicine-suggestion-item-active {
+  background: #F1F6F4;
+}
+.medicine-suggestion-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.medicine-suggestion-copy strong {
+  font-size: 12.5px;
+  line-height: 1.25;
+}
+.medicine-suggestion-meta {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  line-height: 1.25;
+}
+.medicine-suggestion-tag {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--teal);
+  background: #E8F2EF;
+  border-radius: 999px;
+  padding: 2px 6px;
+}
+.medicine-autocomplete-loading {
+  position: absolute;
+  right: 9px;
+  top: 7px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.medicine-remove-btn {
+  margin-top: 2px;
+}
+
+@media (max-width: 767px) {
+  .prescription-med-row {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.15fr) minmax(0, 0.8fr) auto;
+    gap: 6px;
+  }
+  .prescription-med-row .medicine-autocomplete {
+    grid-column: 1 / -1;
+  }
+  .prescription-med-row input,
+  .prescription-med-row select {
+    font-size: 11.5px;
+    padding: 8px 6px;
+  }
+  .medicine-suggestion-popover {
+    max-height: 220px;
+  }
+}

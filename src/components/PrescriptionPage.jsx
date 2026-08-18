@@ -7,9 +7,10 @@ import { NOTO_SANS_BENGALI_BASE64 } from '../assets/notoSansBengaliBase64';
 import { findOrCreatePatient } from '../lib/patients';
 import { IconX, IconDownload, IconLock, IconArrowRight } from '../lib/examineeIcons';
 import ClinicalAutocompleteInput from './ClinicalAutocompleteInput';
+import MedicineAutocompleteInput from './MedicineAutocompleteInput';
 
 function emptyMedicine() {
-  return { name: '', dose: '', duration: '' };
+  return { name: '', dose: '', meal_timing: '', duration: '', drug_master_id: null };
 }
 function emptyClinicalLine(withTooth) {
   return withTooth
@@ -792,7 +793,7 @@ export default function PrescriptionPage() {
       rxY += nameResult.lineCount * 5.2;
 
       doc.setFontSize(9.5);
-      const details = [m.dose, m.duration].filter(Boolean).join('   ——   ');
+      const details = [m.dose, m.meal_timing, m.duration].filter(Boolean).join('   ——   ');
       if (details) {
         const detailResult = writeText(doc, details, rightColX + 4, rxY, {
           fontStyle: 'normal',
@@ -985,11 +986,55 @@ export default function PrescriptionPage() {
         <div className="exam-form-fields">
           {medicines.map((m, i) => (
             <div key={i} className="prescription-med-row">
-              <input placeholder="Medicine name" value={m.name} onChange={(e) => updateMedicine(i, 'name', e.target.value)} />
-              <input placeholder="Dose (e.g. 1+0+1, 30 min after meal)" value={m.dose} onChange={(e) => updateMedicine(i, 'dose', e.target.value)} />
-              <input placeholder="Duration (e.g. 5 days)" value={m.duration} onChange={(e) => updateMedicine(i, 'duration', e.target.value)} />
+              <MedicineAutocompleteInput
+                value={m.name}
+                onChange={(value) => { updateMedicine(i, 'name', value); updateMedicine(i, 'drug_master_id', null); }}
+                onSelect={(item) => {
+                  updateMedicine(i, 'drug_master_id', item.id || null);
+                }}
+                placeholder="Medicine name"
+              />
+
+              <input
+                className="medicine-dose-input"
+                placeholder="ডোজ"
+                value={m.dose || ''}
+                onChange={(e) => updateMedicine(i, 'dose', e.target.value)}
+                list={`recent-dose-${i}`}
+              />
+              <datalist id={`recent-dose-${i}`}>
+                {[...new Set(recent.flatMap((p) => (p.medicines || []).map((x) => x?.dose).filter(Boolean)))].slice(0, 8).map((dose) => (
+                  <option key={dose} value={dose} />
+                ))}
+              </datalist>
+
+              <select
+                className="medicine-meal-select"
+                value={m.meal_timing || ''}
+                onChange={(e) => updateMedicine(i, 'meal_timing', e.target.value)}
+              >
+                <option value="">খাবারের সময়</option>
+                <option value="খাবারের আগে">খাবারের আগে</option>
+                <option value="খাবারের পরে">খাবারের পরে</option>
+                <option value="খাবারের সাথে">খাবারের সাথে</option>
+                <option value="নির্দেশনা নেই">নির্দেশনা নেই</option>
+              </select>
+
+              <input
+                className="medicine-duration-input"
+                placeholder="কত দিন"
+                value={m.duration || ''}
+                onChange={(e) => updateMedicine(i, 'duration', e.target.value)}
+                list={`recent-duration-${i}`}
+              />
+              <datalist id={`recent-duration-${i}`}>
+                {[...new Set(recent.flatMap((p) => (p.medicines || []).map((x) => x?.duration).filter(Boolean)))].slice(0, 8).map((duration) => (
+                  <option key={duration} value={duration} />
+                ))}
+              </datalist>
+
               {medicines.length > 1 && (
-                <button type="button" className="icon-btn-danger" onClick={() => removeMedicine(i)} aria-label="Remove"><IconX size={14} /></button>
+                <button type="button" className="icon-btn-danger medicine-remove-btn" onClick={() => removeMedicine(i)} aria-label="Remove"><IconX size={14} /></button>
               )}
             </div>
           ))}

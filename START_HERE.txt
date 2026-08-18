@@ -1,0 +1,32 @@
+DentalMCQ - DGDA Catalog + Prescription Autocomplete
+====================================================
+
+THIS ZIP CONTAINS
+- Full React/Vite DentalMCQ project
+- Bangla-safe prescription PDF changes
+- Clinical autocomplete (C/C, H/O, O/E, Investigation, Treatment Plan)
+- Medicine autocomplete/search integration
+- DGDA normalized medicine catalog CSV
+- Original uploaded DGDA medicine export CSV
+- Rejected/review rows CSV
+- All required Supabase SQL migrations
+
+SUPABASE SQL RUN ORDER
+1. supabase/migrations/20260818_prescription_autocomplete.sql
+2. supabase/migrations/20260818_prescription_medicine_search.sql
+3. supabase/migrations/20260818_dgda_drug_catalog_search_upgrade.sql
+
+MEDICINE DATA IMPORT
+After running the migrations, import:
+  supabase/data/dgda_drug_master_import.csv
+into the Supabase table:
+  public.drug_master
+
+The original uploaded source is preserved at:
+  supabase/data/source/medicine_information_export.csv
+
+Rows requiring manual review are at:
+  supabase/data/dgda_drug_master_rejected_rows.csv
+
+DEPLOY
+Push the project contents to GitHub and deploy as you normally do for the existing Vite app.
