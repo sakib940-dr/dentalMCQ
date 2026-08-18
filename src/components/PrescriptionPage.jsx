@@ -70,6 +70,19 @@ function ClinicalSection({ label, category, lines, onChange, withTooth }) {
 }
 
 // ---------- Advice templates manager ----------
+const COMMON_DENTAL_ADVICE_TEMPLATES = [
+  { id: 'common-advice-01', text: 'দিনে দুইবার ফ্লোরাইডযুক্ত টুথপেস্ট দিয়ে দাঁত ব্রাশ করুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-02', text: 'প্রতিদিন দাঁতের ফাঁক পরিষ্কার করতে ফ্লস বা ইন্টারডেন্টাল ব্রাশ ব্যবহার করুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-03', text: 'মুখ ও দাঁত পরিষ্কার রাখুন এবং চিকিৎসা করা অংশে অপ্রয়োজনীয় চাপ এড়িয়ে চলুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-04', text: 'অসাড়তা পুরোপুরি না যাওয়া পর্যন্ত চিকিৎসা করা পাশে চিবানো থেকে বিরত থাকুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-05', text: 'চিকিৎসা করা দাঁতে অতিরিক্ত শক্ত বা আঠালো খাবার এড়িয়ে চলুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-06', text: 'দাঁত তোলার পর প্রথম ২৪ ঘণ্টা জোরে কুলি বা বারবার থুতু ফেলা এড়িয়ে চলুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-07', text: 'দাঁত তোলার পর পরের দিন থেকে হালকা গরম লবণ পানিতে আলতোভাবে কুলি করুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-08', text: 'চিকিৎসার পর অস্বস্তি থাকলে কয়েক দিন নরম খাবার বেছে নিন এবং আরাম অনুযায়ী স্বাভাবিক খাবারে ফিরুন।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-09', text: 'নির্ধারিত ফলো-আপ তারিখে পুনরায় দেখান।', tooth_number: null, isCommon: true },
+  { id: 'common-advice-10', text: 'রক্তপাত বন্ধ না হলে, ফোলা বা ব্যথা বাড়লে, অথবা নতুন জ্বর হলে দ্রুত ডেন্টাল ক্লিনিকে যোগাযোগ করুন।', tooth_number: null, isCommon: true },
+];
+
 function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
   const [templates, setTemplates] = useState([]);
   const [newText, setNewText] = useState('');
@@ -106,9 +119,20 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
   };
 
   return (
-    <div className="clinical-section">
-      <div className="clinical-section-label">Advice ({templates.length}/30)</div>
-      {templates.length === 0 && <div className="muted small">No saved advice templates yet.</div>}
+    <div className="clinical-section advice-template-panel">
+      <div className="clinical-section-label">Advice</div>
+
+      <div className="advice-template-group-title">Common dental advice</div>
+      {COMMON_DENTAL_ADVICE_TEMPLATES.map((t) => (
+        <label key={t.id} className="advice-template-row advice-template-row-common">
+          <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => onToggle(t)} />
+          <span className="advice-template-text">{t.text}</span>
+          <span className="advice-common-badge">Common</span>
+        </label>
+      ))}
+
+      <div className="advice-template-group-title advice-template-personal-title">My saved advice ({templates.length}/30)</div>
+      {templates.length === 0 && <div className="muted small">নিজের advice লিখে Save করলে পরের prescription-এ এখান থেকে দ্রুত নির্বাচন করতে পারবেন।</div>}
       {templates.map((t) => (
         <label key={t.id} className="advice-template-row">
           <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => onToggle(t)} />
@@ -123,7 +147,7 @@ function AdviceTemplatesPanel({ userId, selectedIds, onToggle }) {
 
       {showAdd ? (
         <form className="clinical-line-row" onSubmit={addTemplate} style={{ marginTop: 8 }}>
-          <input className="clinical-line-text" placeholder="New advice text" value={newText} onChange={(e) => setNewText(e.target.value)} />
+          <input className="clinical-line-text" placeholder="নিজের advice লিখুন" value={newText} onChange={(e) => setNewText(e.target.value)} />
           <input className="clinical-line-tooth" placeholder="Tooth # (optional)" value={newTooth} onChange={(e) => setNewTooth(e.target.value)} />
           <button type="submit" className="btn-secondary" style={{ flexShrink: 0 }}>Save</button>
         </form>

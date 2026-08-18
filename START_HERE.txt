@@ -30,3 +30,7 @@ Rows requiring manual review are at:
 
 DEPLOY
 Push the project contents to GitHub and deploy as you normally do for the existing Vite app.
+
+
+LATEST CLINICAL TEMPLATE UPGRADE
+Run supabase/migrations/20260818_dental_professional_templates_20.sql if the earlier 5-template migration was already applied.

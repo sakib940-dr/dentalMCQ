@@ -93,7 +93,7 @@ with check (doctor_id = auth.uid());
 create or replace function public.search_clinical_suggestions(
   p_category text,
   p_search_term text,
-  p_limit integer default 8
+  p_limit integer default 20
 )
 returns table (
   id uuid,
@@ -107,6 +107,15 @@ stable
 security definer
 set search_path = public
 as $$
+  with query_data as (
+    select lower(trim(coalesce(p_search_term, ''))) as q
+  ),
+  query_tokens as (
+    select t.token
+    from query_data qd
+    cross join lateral unnest(regexp_split_to_array(qd.q, E'\\s+')) as t(token)
+    where t.token <> ''
+  )
   select
     cs.id,
     cs.text,
@@ -114,17 +123,26 @@ as $$
     cs.usage_count,
     cs.last_used_at
   from public.clinical_suggestions cs
+  cross join query_data qd
   where cs.is_active = true
     and cs.category = p_category
     and (cs.doctor_id is null or cs.doctor_id = auth.uid())
-    and cs.text ilike '%' || trim(coalesce(p_search_term, '')) || '%'
+    and (
+      qd.q = ''
+      or exists (
+        select 1 from query_tokens qt
+        where lower(cs.text) like '%' || qt.token || '%'
+      )
+    )
   order by
     case when cs.doctor_id = auth.uid() then 0 else 1 end,
+    case when qd.q <> '' and lower(cs.text) = qd.q then 0 else 1 end,
+    case when qd.q <> '' and lower(cs.text) like qd.q || '%' then 0 else 1 end,
+    (select count(*) from query_tokens qt where lower(cs.text) like '%' || qt.token || '%') desc,
     cs.last_used_at desc nulls last,
     cs.usage_count desc,
-    case when cs.text ilike trim(coalesce(p_search_term, '')) || '%' then 0 else 1 end,
     cs.text asc
-  limit greatest(1, least(coalesce(p_limit, 8), 20));
+  limit greatest(1, least(coalesce(p_limit, 20), 20));
 $$;
 
 grant execute on function public.search_clinical_suggestions(text, text, integer) to authenticated;
