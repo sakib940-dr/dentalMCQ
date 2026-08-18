@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { NOTO_SANS_BENGALI_BASE64 } from '../assets/notoSansBengaliBase64';
 import { findOrCreatePatient } from '../lib/patients';
 import { IconX, IconDownload, IconLock, IconArrowRight } from '../lib/examineeIcons';
+import ClinicalAutocompleteInput from './ClinicalAutocompleteInput';
 
 function emptyMedicine() {
   return { name: '', dose: '', duration: '' };
@@ -35,7 +36,7 @@ function ToothQuadrantInput({ value, onChange }) {
 }
 
 // ---------- A repeatable clinical section: C/C, H/O, O/E, Treatment Plan ----------
-function ClinicalSection({ label, lines, onChange, withTooth }) {
+function ClinicalSection({ label, category, lines, onChange, withTooth }) {
   const update = (i, field, value) => {
     onChange(lines.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
   };
@@ -48,11 +49,10 @@ function ClinicalSection({ label, lines, onChange, withTooth }) {
       <div className="clinical-section-compact-body">
         {lines.map((l, i) => (
           <div key={i} className={withTooth ? 'clinical-line-row clinical-line-row-tooth' : 'clinical-line-row'}>
-            <input
-              className="clinical-line-text-compact"
-              placeholder="Type here"
+            <ClinicalAutocompleteInput
               value={l.text}
-              onChange={(e) => update(i, 'text', e.target.value)}
+              onChange={(value) => update(i, 'text', value)}
+              category={category}
             />
             {withTooth && (
               <ToothQuadrantInput value={l.tooth} onChange={(v) => update(i, 'tooth', v)} />
@@ -884,6 +884,22 @@ export default function PrescriptionPage() {
     if (saveError) {
       console.error('Failed to save prescription record:', saveError.message);
       setError(`PDF was generated, but saving the record failed: ${saveError.message}`);
+    } else {
+      const usageRows = [
+        ['chief_complaint', filteredLines(chiefComplaint)],
+        ['history', filteredLines(history)],
+        ['on_examination', filteredLines(onExamination)],
+        ['investigation', filteredLines(investigation)],
+        ['treatment_plan', filteredLines(treatmentPlan)],
+      ];
+      Promise.allSettled(
+        usageRows.flatMap(([category, rows]) => rows.map((row) => (
+          supabase.rpc('record_clinical_suggestion_usage', {
+            p_category: category,
+            p_text: row.text,
+          })
+        )))
+      );
     }
     loadRecent();
   };
@@ -908,8 +924,7 @@ export default function PrescriptionPage() {
       <div className="panel">
         <h2>Prescription Generator</h2>
         <p className="muted small">
-          Doctor and chamber details are pulled from your <b>My Profile</b>. No drug database —
-          type medicine names directly.
+          Doctor and chamber details are pulled from your <b>My Profile</b>. Clinical fields now support common and recent autocomplete suggestions.
         </p>
 
         <div className="compact-info-grid">
@@ -954,15 +969,15 @@ export default function PrescriptionPage() {
 
       <div className="panel">
         <div className="compact-field-heading" style={{ marginTop: 0 }}>Clinical Features</div>
-        <ClinicalSection label="C/C" lines={chiefComplaint} onChange={setChiefComplaint} withTooth />
-        <ClinicalSection label="H/O" lines={history} onChange={setHistory} />
-        <ClinicalSection label="Investigation" lines={investigation} onChange={setInvestigation} />
-        <ClinicalSection label="O/E" lines={onExamination} onChange={setOnExamination} withTooth />
+        <ClinicalSection label="C/C" category="chief_complaint" lines={chiefComplaint} onChange={setChiefComplaint} withTooth />
+        <ClinicalSection label="H/O" category="history" lines={history} onChange={setHistory} />
+        <ClinicalSection label="Investigation" category="investigation" lines={investigation} onChange={setInvestigation} />
+        <ClinicalSection label="O/E" category="on_examination" lines={onExamination} onChange={setOnExamination} withTooth />
       </div>
 
       <div className="panel">
         <div className="compact-field-heading" style={{ marginTop: 0 }}>Treatment Plan</div>
-        <ClinicalSection label="Plan" lines={treatmentPlan} onChange={setTreatmentPlan} withTooth />
+        <ClinicalSection label="Plan" category="treatment_plan" lines={treatmentPlan} onChange={setTreatmentPlan} withTooth />
       </div>
 
       <div className="panel">
