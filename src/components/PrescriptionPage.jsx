@@ -534,47 +534,73 @@ export default function PrescriptionPage() {
     const drawBanglaRun = (text, x, baselineY, fontSizePt) => {
       if (!text) return 0;
 
+      // Normalize Bengali Unicode before shaping. A zero-width space is appended only
+      // for shaping stability at the end of the run; it has no visible glyph/advance.
+      // This also avoids the stray trailing-glyph artifact seen after Bengali text in
+      // some Chromium + canvas + jsPDF combinations.
+      const normalizedText = String(text).normalize('NFC');
+      const shapingText = `${normalizedText}\u200B`;
+
       const scale = 4;
       const pxPerPt = 96 / 72;
       const pxPerMm = 96 / 25.4;
       const fontPx = fontSizePt * pxPerPt * scale;
-      const padding = 2 * scale;
+      const padding = 4 * scale;
 
       const measureCanvas = document.createElement('canvas');
       const measureCtx = measureCanvas.getContext('2d');
       measureCtx.font = `${fontPx}px "${BENGALI_CANVAS_FONT}"`;
-      const measured = measureCtx.measureText(text);
+      measureCtx.textBaseline = 'alphabetic';
+      measureCtx.direction = 'ltr';
 
+      const measured = measureCtx.measureText(shapingText);
+      const advancePx = measureCtx.measureText(normalizedText).width;
+
+      // Use the actual ink bounds rather than advance width alone. Bengali vowel signs
+      // and conjuncts can extend past the nominal advance box. Cropping on advance width
+      // can leave a right-edge artifact that looks like an extra Latin character.
+      const inkLeft = Math.floor(
+        Math.min(0, -(measured.actualBoundingBoxLeft || 0))
+      );
+      const inkRight = Math.ceil(
+        Math.max(
+          advancePx,
+          measured.actualBoundingBoxRight || advancePx
+        )
+      );
       const ascent = Math.ceil(measured.actualBoundingBoxAscent || fontPx * 0.9);
       const descent = Math.ceil(measured.actualBoundingBoxDescent || fontPx * 0.3);
-      const textWidthPx = Math.max(1, Math.ceil(measured.width));
+      const inkWidthPx = Math.max(1, inkRight - inkLeft);
 
       const canvas = document.createElement('canvas');
-      canvas.width = textWidthPx + padding * 2;
+      canvas.width = inkWidthPx + padding * 2;
       canvas.height = Math.max(1, ascent + descent + padding * 2);
 
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.font = `${fontPx}px "${BENGALI_CANVAS_FONT}"`;
       ctx.textBaseline = 'alphabetic';
+      ctx.direction = 'ltr';
       ctx.fillStyle = getCanvasColor();
-      ctx.fillText(text, padding, padding + ascent);
+      ctx.imageSmoothingEnabled = true;
 
-      const visibleWidthMm = measured.width / scale / pxPerMm;
+      const drawX = padding - inkLeft;
+      const drawBaseline = padding + ascent;
+      ctx.fillText(shapingText, drawX, drawBaseline);
+
+      const visibleWidthMm = advancePx / scale / pxPerMm;
       const imageWidthMm = canvas.width / scale / pxPerMm;
       const imageHeightMm = canvas.height / scale / pxPerMm;
-      const padMm = padding / scale / pxPerMm;
-      const baselineFromTopMm = (padding + ascent) / scale / pxPerMm;
+      const leftOffsetMm = (padding - inkLeft) / scale / pxPerMm;
+      const baselineFromTopMm = drawBaseline / scale / pxPerMm;
 
       doc.addImage(
         canvas.toDataURL('image/png'),
         'PNG',
-        x - padMm,
+        x - leftOffsetMm,
         baselineY - baselineFromTopMm,
         imageWidthMm,
-        imageHeightMm,
-        undefined,
-        'FAST'
+        imageHeightMm
       );
 
       return visibleWidthMm;
