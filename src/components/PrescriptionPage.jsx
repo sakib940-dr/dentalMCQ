@@ -8,9 +8,17 @@ import { findOrCreatePatient } from '../lib/patients';
 import { IconX, IconDownload, IconLock, IconArrowRight } from '../lib/examineeIcons';
 import ClinicalAutocompleteInput from './ClinicalAutocompleteInput';
 import MedicineAutocompleteInput from './MedicineAutocompleteInput';
+import MedicineInstructionAutocompleteInput from './MedicineInstructionAutocompleteInput';
 
 function emptyMedicine() {
   return { name: '', dose: '', meal_timing: '', duration: '', drug_master_id: null };
+}
+
+function normalizeDurationInput(value) {
+  const bengaliDigits = '০১২৩৪৫৬৭৮৯';
+  const normalized = String(value || '').replace(/[০-৯]/g, (digit) => String(bengaliDigits.indexOf(digit)));
+  const match = normalized.match(/\d+/);
+  return match ? match[0] : '';
 }
 function emptyClinicalLine(withTooth) {
   return withTooth
@@ -267,7 +275,7 @@ export default function PrescriptionPage() {
     setOnExamination((p.on_examination?.length ? p.on_examination : [emptyClinicalLine(true)]));
     setInvestigation((p.investigation?.length ? p.investigation : [emptyClinicalLine(false)]));
     setTreatmentPlan((p.treatment_plan?.length ? p.treatment_plan : [emptyClinicalLine(true)]));
-    setMedicines((p.medicines?.length ? p.medicines : [emptyMedicine()]));
+    setMedicines((p.medicines?.length ? p.medicines.map((medicine) => ({ ...medicine, duration: normalizeDurationInput(medicine.duration) })) : [emptyMedicine()]));
     // Advice was saved as a flattened text string, not structured
     // template references, so it can't be restored as checked templates
     // — but we show it so the doctor knows it existed and can re-select.
@@ -817,7 +825,11 @@ export default function PrescriptionPage() {
       rxY += nameResult.lineCount * 5.2;
 
       doc.setFontSize(9.5);
-      const details = [m.dose, m.meal_timing, m.duration].filter(Boolean).join('   ——   ');
+      const durationText = String(m.duration || '').trim();
+      const printableDuration = durationText
+        ? (/^\d+$/.test(durationText) ? `${durationText} দিন` : durationText)
+        : '';
+      const details = [m.dose, m.meal_timing, printableDuration].filter(Boolean).join('   ——   ');
       if (details) {
         const detailResult = writeText(doc, details, rightColX + 4, rxY, {
           fontStyle: 'normal',
@@ -925,6 +937,26 @@ export default function PrescriptionPage() {
           })
         )))
       );
+
+      // Save each doctor's own dose and meal-instruction phrases so they
+      // appear as personal/recent suggestions on future prescriptions.
+      const medicineSuggestionRows = filteredMedicines(medicines).flatMap((medicine) => ([
+        medicine.dose?.trim()
+          ? { category: 'dose', text: medicine.dose.trim() }
+          : null,
+        medicine.meal_timing?.trim()
+          ? { category: 'meal_instruction', text: medicine.meal_timing.trim() }
+          : null,
+      ].filter(Boolean)));
+
+      Promise.allSettled(
+        medicineSuggestionRows.map((item) => (
+          supabase.rpc('record_prescription_text_suggestion', {
+            p_category: item.category,
+            p_text: item.text,
+          })
+        ))
+      );
     }
     loadRecent();
   };
@@ -1009,57 +1041,65 @@ export default function PrescriptionPage() {
         <h2>Medicines (Rx)</h2>
         <div className="exam-form-fields">
           {medicines.map((m, i) => (
-            <div key={i} className="prescription-med-row">
-              <MedicineAutocompleteInput
-                value={m.name}
-                onChange={(value) => { updateMedicine(i, 'name', value); updateMedicine(i, 'drug_master_id', null); }}
-                onSelect={(item) => {
-                  updateMedicine(i, 'drug_master_id', item.id || null);
-                }}
-                placeholder="Medicine name"
-              />
-
-              <input
-                className="medicine-dose-input"
-                placeholder="ডোজ"
-                value={m.dose || ''}
-                onChange={(e) => updateMedicine(i, 'dose', e.target.value)}
-                list={`recent-dose-${i}`}
-              />
-              <datalist id={`recent-dose-${i}`}>
-                {[...new Set(recent.flatMap((p) => (p.medicines || []).map((x) => x?.dose).filter(Boolean)))].slice(0, 8).map((dose) => (
-                  <option key={dose} value={dose} />
-                ))}
-              </datalist>
-
-              <select
-                className="medicine-meal-select"
-                value={m.meal_timing || ''}
-                onChange={(e) => updateMedicine(i, 'meal_timing', e.target.value)}
-              >
-                <option value="">খাবারের সময়</option>
-                <option value="খাবারের আগে">খাবারের আগে</option>
-                <option value="খাবারের পরে">খাবারের পরে</option>
-                <option value="খাবারের সাথে">খাবারের সাথে</option>
-                <option value="নির্দেশনা নেই">নির্দেশনা নেই</option>
-              </select>
-
-              <input
-                className="medicine-duration-input"
-                placeholder="কত দিন"
-                value={m.duration || ''}
-                onChange={(e) => updateMedicine(i, 'duration', e.target.value)}
-                list={`recent-duration-${i}`}
-              />
-              <datalist id={`recent-duration-${i}`}>
-                {[...new Set(recent.flatMap((p) => (p.medicines || []).map((x) => x?.duration).filter(Boolean)))].slice(0, 8).map((duration) => (
-                  <option key={duration} value={duration} />
-                ))}
-              </datalist>
-
+            <div key={i} className="prescription-med-card">
               {medicines.length > 1 && (
-                <button type="button" className="icon-btn-danger medicine-remove-btn" onClick={() => removeMedicine(i)} aria-label="Remove"><IconX size={14} /></button>
+                <button
+                  type="button"
+                  className="icon-btn-danger medicine-remove-btn medicine-card-remove"
+                  onClick={() => removeMedicine(i)}
+                  aria-label="Remove"
+                >
+                  <IconX size={14} />
+                </button>
               )}
+
+              <div className="prescription-med-field prescription-med-name-row">
+                <span className="prescription-med-label">ওষুধ</span>
+                <MedicineAutocompleteInput
+                  value={m.name}
+                  onChange={(value) => { updateMedicine(i, 'name', value); updateMedicine(i, 'drug_master_id', null); }}
+                  onSelect={(item) => {
+                    updateMedicine(i, 'drug_master_id', item.id || null);
+                  }}
+                  placeholder="Medicine name"
+                />
+              </div>
+
+              <div className="prescription-med-field">
+                <span className="prescription-med-label">ডোজ</span>
+                <MedicineInstructionAutocompleteInput
+                  category="dose"
+                  value={m.dose || ''}
+                  onChange={(value) => updateMedicine(i, 'dose', value)}
+                  placeholder="যেমন 1+1+1"
+                />
+              </div>
+
+              <div className="prescription-med-field">
+                <span className="prescription-med-label">খাওয়ার নিয়ম</span>
+                <MedicineInstructionAutocompleteInput
+                  category="meal_instruction"
+                  value={m.meal_timing || ''}
+                  onChange={(value) => updateMedicine(i, 'meal_timing', value)}
+                  placeholder="নির্দেশনা লিখুন বা suggestion বেছে নিন"
+                />
+              </div>
+
+              <div className="prescription-med-field">
+                <span className="prescription-med-label">মেয়াদ</span>
+                <div className="medicine-days-control">
+                  <input
+                    className="medicine-duration-number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="3"
+                    value={m.duration || ''}
+                    onChange={(e) => updateMedicine(i, 'duration', e.target.value.replace(/[^0-9]/g, ''))}
+                    aria-label="কত দিন"
+                  />
+                  <span className="medicine-days-suffix">দিন</span>
+                </div>
+              </div>
             </div>
           ))}
           <button type="button" className="btn-secondary" onClick={addMedicine} style={{ alignSelf: 'flex-start' }}>+ Add medicine</button>

@@ -1,0 +1,123 @@
+DentalMCQ - FINAL ALL-IN-ONE SETUP
+=================================
+
+এই ZIP-এর ভিতরে আছে:
+- Full React/Vite project
+- Bangla-safe prescription PDF upgrade
+- Medicine autocomplete UI/search
+- DGDA medicine master import CSV (41k+ normalized records)
+- Recent-prescribed medicine priority
+- C/C, H/O, O/E, Investigation, Treatment Plan autocomplete
+- প্রতিটি clinical category-তে 20টি dentist-focused starter template
+- Phrase-এর যেকোনো word/partial word match করলে suggestion
+- 10টি common Advice template
+- Supabase migration SQL files
+- Original medicine source CSV + rejected/review rows
+
+তোমার বর্তমান অবস্থা:
+- 20260818_prescription_autocomplete.sql তুমি ইতিমধ্যে run করেছ।
+
+এখন তোমার কাজ (এই order-এ):
+
+STEP 1 — Supabase SQL Editor
+Run:
+  supabase/migrations/20260818_prescription_medicine_search.sql
+
+STEP 2 — Supabase SQL Editor
+Run:
+  supabase/migrations/20260818_dgda_drug_catalog_search_upgrade.sql
+
+STEP 3 — Supabase SQL Editor
+Run:
+  supabase/migrations/20260818_dental_professional_templates_20.sql
+
+Note:
+- আগের 5-template SQL run করা থাকলেও 20-template SQL run করতে পারবে।
+- 20-template SQL common dental suggestions update/add করার জন্য রাখা হয়েছে।
+
+STEP 4 — DGDA Medicine CSV Import
+Supabase Dashboard -> Table Editor -> drug_master -> Import data from CSV
+Upload:
+  supabase/data/dgda_drug_master_import.csv
+
+CSV বড় (41k+ records), তাই import complete হওয়া পর্যন্ত অপেক্ষা করবে।
+
+STEP 5 — GitHub
+এই folder-এর project files তোমার GitHub repository-তে push/upload করবে।
+.env.example থেকে production environment variables GitHub/Vercel environment-এ configure করবে।
+কোনো real .env secret GitHub-এ commit করবে না।
+
+STEP 6 — Deploy / Test
+Vercel বা তোমার existing deployment থেকে deploy করবে।
+তারপর Prescription module test করবে:
+
+A. Medicine search:
+   napa
+   -> matching medicine suggestion আসা উচিত
+   -> first line: dosage form + brand + strength
+   -> second line: generic + company
+
+B. Clinical autocomplete:
+   C/C, H/O, O/E, Investigation, Treatment Plan field-এ click/type করবে।
+   Phrase-এর মাঝখানের word লিখলেও match আসা উচিত।
+   Example: "percussion", "mobility", "caries".
+
+C. Recent behavior:
+   কোনো custom clinical phrase ব্যবহার করে prescription save করার পর
+   পরে matching search করলে recent/frequent suggestion আগে আসা উচিত।
+
+D. PDF:
+   Bangla + English mixed text দিয়ে PDF download করে check করবে।
+
+IMPORTANT:
+- Medicine catalog থেকে dose, duration, খাবারের আগে/পরে auto-prescribe করা হয় না।
+- Doctor নিজে prescription instruction fill করবেন।
+
+Files:
+  supabase/migrations/20260818_prescription_autocomplete.sql
+  supabase/migrations/20260818_prescription_medicine_search.sql
+  supabase/migrations/20260818_dgda_drug_catalog_search_upgrade.sql
+  supabase/migrations/20260818_dental_professional_templates_20.sql
+
+  supabase/data/dgda_drug_master_import.csv
+  supabase/data/dgda_drug_master_rejected_rows.csv
+  supabase/data/source/medicine_information_export.csv
+
+============================================================
+LATEST MEDICINE 4-ROW UPGRADE (2026-08-18)
+============================================================
+
+যদি আগের prescription autocomplete, medicine search, DGDA catalog এবং dental template SQL
+সব run করা থাকে এবং drug_master CSV import করা থাকে, তাহলে এখন শুধু এই নতুন SQL run করুন:
+
+supabase/migrations/20260818_prescription_personal_instruction_suggestions.sql
+
+এরপর latest project GitHub/Vercel-এ deploy করুন। DGDA CSV আবার import করার দরকার নেই।
+
+Medicine input এখন প্রতি medicine-এর জন্য ৪টি readable row:
+1) ওষুধ — DGDA autocomplete
+2) ডোজ — common + doctor-এর saved/recent suggestion; custom লেখা যাবে
+3) খাওয়ার নিয়ম — Bangla full-line common + doctor-এর saved/recent suggestion; custom লেখা যাবে
+4) মেয়াদ — doctor শুধু 3/7-এর মতো সংখ্যা লিখবেন; UI/PDF-এ 'দিন' স্বয়ংক্রিয়ভাবে যোগ হবে
+
+Common dose shortcuts:
+1+1+1
+1+0+1
+0+0+1
+1+0+0
+0+1+0
+
+Common meal/timing text (শুধু clinician-selectable text templates):
+খাবারের ৩০ মিনিট আগে খাবেন।
+খাবারের ৩০ মিনিট পরে খাবেন।
+ভরা পেটে খাবেন।
+খালি পেটে খাবেন।
+খাবারের সাথে খাবেন।
+
+Doctor prescription Generate/Save করলে ব্যবহৃত dose এবং meal/timing text তার নিজের account-এ
+prescription_text_suggestions table-এ usage history হিসেবে save হবে। পরেরবার field focus/type করলে
+Recent suggestion আগে দেখা যাবে।
+
+PDF print format আগের মতো ২টি logical line:
+Line 1: Medicine name
+Line 2: Dose —— Meal instruction —— N দিন
