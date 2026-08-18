@@ -382,8 +382,12 @@ export default function PrescriptionPage() {
     const margin = 14;
 
     // ---------- Unicode/mixed-script PDF text helpers ----------
-    const hasBangla = (value) => /[\u0980-\u09FF]/.test(String(value ?? ''));
-    const isBanglaChar = (ch) => /[\u0980-\u09FF]/.test(ch);
+    const hasBangla = (value) => /[\u0980-\u09FF\u0964\u0965]/.test(String(value ?? ''));
+    // Bengali letters/digits live in U+0980–U+09FF, but Bengali text commonly
+    // ends with danda U+0964 (।) / double danda U+0965 (॥). Those punctuation
+    // marks must stay in the Bengali canvas run; sending them to Helvetica makes
+    // jsPDF encode U+0964 as a stray Latin-looking 'd'.
+    const isBanglaChar = (ch) => /[\u0980-\u09FF\u0964\u0965]/.test(ch);
     const isJoiner = (ch) => ch === '\u200C' || ch === '\u200D';
 
     const splitScriptRuns = (value) => {
@@ -534,12 +538,12 @@ export default function PrescriptionPage() {
     const drawBanglaRun = (text, x, baselineY, fontSizePt) => {
       if (!text) return 0;
 
-      // Normalize Bengali Unicode before shaping. A zero-width space is appended only
-      // for shaping stability at the end of the run; it has no visible glyph/advance.
-      // This also avoids the stray trailing-glyph artifact seen after Bengali text in
-      // some Chromium + canvas + jsPDF combinations.
+      // Normalize Bengali Unicode, but render ONLY the real text.
+      // Do not append U+200B/U+200C/U+200D or any sentinel character here.
+      // In some Chromium/font-fallback combinations U+200B is not truly invisible
+      // and was being rasterized as a stray Latin-looking "d" at the end of every
+      // Bengali canvas run.
       const normalizedText = String(text).normalize('NFC');
-      const shapingText = `${normalizedText}\u200B`;
 
       const scale = 4;
       const pxPerPt = 96 / 72;
@@ -553,7 +557,7 @@ export default function PrescriptionPage() {
       measureCtx.textBaseline = 'alphabetic';
       measureCtx.direction = 'ltr';
 
-      const measured = measureCtx.measureText(shapingText);
+      const measured = measureCtx.measureText(normalizedText);
       const advancePx = measureCtx.measureText(normalizedText).width;
 
       // Use the actual ink bounds rather than advance width alone. Bengali vowel signs
@@ -586,7 +590,7 @@ export default function PrescriptionPage() {
 
       const drawX = padding - inkLeft;
       const drawBaseline = padding + ascent;
-      ctx.fillText(shapingText, drawX, drawBaseline);
+      ctx.fillText(normalizedText, drawX, drawBaseline);
 
       const visibleWidthMm = advancePx / scale / pxPerMm;
       const imageWidthMm = canvas.width / scale / pxPerMm;
